@@ -73,20 +73,14 @@ const Canais = () => {
   // Função para carregar organizações
   const loadOrganizations = async () => {
     try {
-      const token = localStorage.getItem('vixplay_token');
-      const response = await fetch('/private/organizations', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setOrganizations(data);
-      }
+      const orgResponse = await apiService.get('/private/organizations');
+      const orgs = Array.isArray(orgResponse.data)
+        ? orgResponse.data
+        : (orgResponse.data?.data ?? []);
+      setOrganizations(orgs);
     } catch (error) {
       console.error('Erro ao carregar organizações:', error);
+      setOrganizations([]);
     }
   };
 

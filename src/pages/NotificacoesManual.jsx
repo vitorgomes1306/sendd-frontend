@@ -404,6 +404,23 @@ const NotificacoesManual = () => {
     setMessage({ type: '', text: '' });
 
     try {
+      // Util para converter arquivo em Base64 (fallback caso o backend/evolution espere base64)
+      const fileToBase64 = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+      });
+
+      // Pré-calcular base64 uma vez
+      let imageBase64 = null;
+      if (formData.image) {
+        try {
+          imageBase64 = await fileToBase64(formData.image);
+        } catch (convErr) {
+          console.error('Erro ao converter imagem para base64:', convErr);
+        }
+      }
       const selectedInstance = instances.find(inst => inst.id === parseInt(formData.instanceId));
       if (!selectedInstance) {
         throw new Error('Instância não encontrada');
@@ -432,20 +449,47 @@ const NotificacoesManual = () => {
 
         try {
           // Preparar FormData para envio individual
-          const formDataToSend = new FormData();
-          formDataToSend.append('name', `${formData.name} - ${phoneNumber}`);
-          formDataToSend.append('message', formData.text);
-          formDataToSend.append('recipients', phoneNumber);
-          formDataToSend.append('channelId', formData.instanceId);
-          formDataToSend.append('channelName', selectedInstance.instanceName);
-          formDataToSend.append('selectedClients', JSON.stringify([]));
+          const evolutionApiUrl = import.meta.env.VITE_EVOLUTION_API_URL || 'http://localhost:8080';
+          const evolutionApiKey = import.meta.env.VITE_EVOLUTION_API_KEY || '';
 
-          if (formData.image) {
-            formDataToSend.append('image', formData.image);
+          // Se houver imagem, enviar diretamente para Evolution API como JSON base64
+          if (formData.image && imageBase64) {
+            const base64Raw = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+            const toJid = phoneNumber.endsWith('@c.us') ? phoneNumber : `55${phoneNumber}@c.us`;
+
+            const payload = {
+              to: toJid,
+              type: 'image',
+              data: base64Raw,
+              mimetype: formData.image.type,
+              caption: formData.text,
+              fileName: formData.image.name,
+            };
+
+            const resp = await fetch(`${evolutionApiUrl}/message/sendmedia`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': evolutionApiKey,
+              },
+              body: JSON.stringify(payload),
+            });
+
+            if (!resp.ok) {
+              const errText = await resp.text();
+              throw new Error(`Evolution erro ${resp.status}: ${errText}`);
+            }
+          } else {
+            // Sem imagem: usa backend atual para envio de texto/registro
+            const formDataToSend = new FormData();
+            formDataToSend.append('name', `${formData.name} - ${phoneNumber}`);
+            formDataToSend.append('message', formData.text);
+            formDataToSend.append('recipients', phoneNumber);
+            formDataToSend.append('channelId', formData.instanceId);
+            formDataToSend.append('channelName', selectedInstance.instanceName);
+            formDataToSend.append('selectedClients', JSON.stringify([]));
+            await apiService.createNotification(formDataToSend);
           }
-
-          // Enviar mensagem individual
-          await apiService.createNotification(formDataToSend);
 
           // Aguardar intervalo antes da próxima mensagem (exceto na última)
           if (i < phoneNumbers.length - 1) {

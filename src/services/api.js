@@ -98,11 +98,8 @@ export const apiService = {
   
   // Avatar Upload
   uploadAvatar: (formData) => {
-    return api.post(getConfig().API_ENDPOINTS.UPLOAD_AVATAR, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Não definir Content-Type manualmente; deixar o axios setar boundary corretamente
+    return api.post(getConfig().API_ENDPOINTS.UPLOAD_AVATAR, formData);
   },
   
   // Admin - Users
@@ -127,14 +124,10 @@ export const apiService = {
   getNotifications: (params) => api.get('/private/notifications', { params }),
   getNotification: (id) => api.get(`/private/notifications/${id}`),
   createNotification: (data) => api.post('/private/notifications', data, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+    // Não definir Content-Type manualmente; deixar o axios setar boundary corretamente
   }),
   updateNotification: (id, data) => api.put(`/private/notifications/${id}`, data, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+    // Não definir Content-Type manualmente; deixar o axios setar boundary corretamente
   }),
   deleteNotification: (id) => api.delete(`/private/notifications/${id}`),
   updateNotificationStatus: (id, data) => api.patch(`/private/notifications/${id}/status`, data),
