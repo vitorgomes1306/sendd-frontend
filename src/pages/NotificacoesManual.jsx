@@ -466,7 +466,7 @@ const NotificacoesManual = () => {
               fileName: formData.image.name,
             };
 
-            const resp = await fetch(`${evolutionApiUrl}/message/sendmedia`, {
+            const resp = await fetch(`${evolutionApiUrl}/message/sendMedia`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

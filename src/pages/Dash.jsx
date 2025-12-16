@@ -11,7 +11,9 @@ function Dash() {
     panels: 0,
     medias: 0,
     campaigns: 0,
-    clients: 0
+    clients: 0,
+    channels: 0,
+    notifications: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -240,7 +242,7 @@ function Dash() {
       const panels = panelsRes.status === 'fulfilled' ? panelsRes.value.data : [];
       const medias = mediasRes.status === 'fulfilled' ? mediasRes.value.data : [];
       const campaigns = campaignsRes.status === 'fulfilled' ? campaignsRes.value.data : [];
-      const clients = clientsRes.status === 'fulfilled' ? clientsRes.value.data : [];
+      const clients = clientsRes.status === 'fulfilled' ? (clientsRes.value.data?.data || []) : [];
 
       // Log dos resultados
       console.log('Resultados finais:', {
@@ -251,12 +253,44 @@ function Dash() {
         clients: clients.length
       });
 
+      // Buscar total de Canais (somatório de instâncias por organização)
+      let channelsTotal = 0;
+      try {
+        const orgResponse = await apiService.get('/private/organizations');
+        const orgs = Array.isArray(orgResponse.data)
+          ? orgResponse.data
+          : (orgResponse.data?.data ?? []);
+        for (const org of orgs) {
+          try {
+            const instanceResponse = await apiService.get(`/private/organizations/${org.id}/instances`);
+            const orgInstances = instanceResponse.data.instances || [];
+            channelsTotal += orgInstances.length;
+          } catch (error) {
+            console.warn(`Falha ao carregar instâncias da organização ${org.id}:`, error?.message || error);
+          }
+        }
+      } catch (error) {
+        console.warn('Falha ao carregar organizações para contar canais:', error?.message || error);
+      }
+
+      // Buscar total de Notificações via paginação
+      let notificationsTotal = 0;
+      try {
+        const notifRes = await apiService.getNotifications({ page: 1, limit: 1 });
+        notificationsTotal = notifRes?.data?.pagination?.total
+          ?? (Array.isArray(notifRes?.data?.data) ? notifRes.data.data.length : 0);
+      } catch (error) {
+        console.warn('Falha ao carregar total de notificações:', error?.message || error);
+      }
+
       const newStats = {
         devices: devices.length,
         panels: panels.length,
         medias: medias.length,
         campaigns: campaigns.length,
-        clients: clients.length
+        clients: clients.length,
+        channels: channelsTotal,
+        notifications: notificationsTotal
       };
 
       setStats(newStats);
@@ -307,7 +341,9 @@ function Dash() {
         panels: 0,
         medias: 0,
         campaigns: 0,
-        clients: 0
+        clients: 0,
+        channels: 0,
+        notifications: 0
       });
     } finally {
       setLoading(false);
@@ -397,7 +433,7 @@ function Dash() {
         gap: '1rem',
         marginBottom: '2rem'
       }}>
-        <a href="/devices" style={{ textDecoration: 'none' }}>
+        <a href="/canais" style={{ textDecoration: 'none' }}>
           <div style={{
             backgroundColor: 'white',
             borderRadius: '0.5rem',
@@ -406,7 +442,7 @@ function Dash() {
             borderLeft: '4px solid #3b82f6',
             cursor: 'pointer',
             position: 'relative',
-            transition: 'all 0.s ease',
+            transition: 'all 0.3s ease',
             transform: 'translateX(0)'
           }}
           onMouseEnter={(e) => {
@@ -422,7 +458,7 @@ function Dash() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Canais</h3>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6', margin: 0 }}>{stats.devices}</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6', margin: 0 }}>{stats.channels}</p>
               </div>
               <Monitor size={32} style={{ color: '#3b82f6', opacity: 0.7 }} />
             </div>
@@ -433,7 +469,7 @@ function Dash() {
           </div>
         </a>
 
-        <a href="/panels" style={{ textDecoration: 'none' }}>
+        <a href="/notificacoes/historico" style={{ textDecoration: 'none' }}>
           <div style={{
             backgroundColor: 'white',
             borderRadius: '0.5rem',
@@ -458,7 +494,7 @@ function Dash() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Notificações</h3>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981', margin: 0 }}>{stats.panels}</p>
+                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981', margin: 0 }}>{stats.notifications}</p>
               </div>
               <Monitor size={32} style={{ color: '#10b981', opacity: 0.7 }} />
             </div>
