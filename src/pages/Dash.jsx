@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, ResponsiveContainer } from 'recharts';
-import { Monitor, MonitorOff, DollarSign, Image, Video, FileText, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Monitor, MonitorOff, DollarSign, Image, Video, FileText, TrendingUp, TrendingDown, AlertTriangle, Smartphone, Megaphone, Users } from 'lucide-react';
 
 function Dash() {
   const navigate = useNavigate();
@@ -460,7 +460,7 @@ function Dash() {
                 <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Canais</h3>
                 <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6', margin: 0 }}>{stats.channels}</p>
               </div>
-              <Monitor size={32} style={{ color: '#3b82f6', opacity: 0.7 }} />
+              <Smartphone size={32} style={{ color: '#3b82f6', opacity: 0.7 }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
               <TrendingUp size={16} style={{ marginRight: '0.25rem', color: '#10b981' }} />
@@ -496,7 +496,7 @@ function Dash() {
                 <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Notificações</h3>
                 <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981', margin: 0 }}>{stats.notifications}</p>
               </div>
-              <Monitor size={32} style={{ color: '#10b981', opacity: 0.7 }} />
+              <Megaphone size={32} style={{ color: '#10b981', opacity: 0.7 }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
               <TrendingUp size={16} style={{ marginRight: '0.25rem', color: '#10b981' }} />
@@ -604,7 +604,7 @@ function Dash() {
                 <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Clientes</h3>
                 <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#8b5cf6', margin: 0 }}>{stats.clients}</p>
               </div>
-              <DollarSign size={32} style={{ color: '#8b5cf6', opacity: 0.7 }} />
+              <Users size={32} style={{ color: '#8b5cf6', opacity: 0.7 }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
               <TrendingUp size={16} style={{ marginRight: '0.25rem', color: '#10b981' }} />
