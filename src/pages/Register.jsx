@@ -132,7 +132,7 @@ function Register() {
         }}>
           <img 
             src={isDark ? Logo1 : Logo2} 
-            alt="Vix Play" 
+            alt="Sendd" 
             style={{ 
               width: '200px', 
               height: 'auto',

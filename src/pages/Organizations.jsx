@@ -30,10 +30,14 @@ const Organizations = () => {
   // Buscar organizações
   const fetchOrganizations = async () => {
     try {
-      const data = await apiService.get('/private/organizations');
-      setOrganizations(data);
+      const response = await apiService.get('/private/organizations');
+      const list = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.data ?? []);
+      setOrganizations(list);
     } catch (error) {
       console.error('Erro ao buscar organizações:', error);
+      setOrganizations([]);
     } finally {
       setLoading(false);
     }

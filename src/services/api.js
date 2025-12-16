@@ -3,7 +3,7 @@ import axios from 'axios';
 // Função para obter configuração dinamicamente
 const getConfig = () => {
   return window.APP_CONFIG || {
-    API_BASE_URL: 'http://10.0.10.17:5000',
+    API_BASE_URL: 'https://sendd.altersoft.dev.br',
     API_ENDPOINTS: {
       LOGIN: '/public/login',
       REGISTER: '/public/cadastro',
@@ -23,7 +23,7 @@ const getConfig = () => {
 
 // Criar instância do axios
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://10.0.10.17:5000',
+  baseURL: import.meta.env.VITE_API_URL || 'https://sendd.altersoft.dev.br',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

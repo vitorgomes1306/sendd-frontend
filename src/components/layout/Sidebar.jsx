@@ -71,12 +71,6 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
       name: 'Dashboard',
       icon: 'bi-speedometer2'
     },
-
-    {
-      path: '/formas',
-      name: 'Formas',
-      icon: 'bi bi-chat-left-text'
-    },
     {
       path: '/canais',
       name: 'Canais',
