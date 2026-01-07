@@ -105,7 +105,7 @@ function Login() {
             color: currentTheme.textPrimary,
             margin: '0 0 0.5rem 0'
           }}>
-            Bem-vindo de volta
+            Bem vindo de volta!
           </h1>
           <p style={{
             color: currentTheme.textSecondary,
