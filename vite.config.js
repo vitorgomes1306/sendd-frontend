@@ -9,18 +9,18 @@ export default defineConfig({
     host: true, // Permite acesso externo
     proxy: {
       '/api': {
-        target: 'http://10.0.10.17:5000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, '')
       },
       '/public': {
-        target: 'http://10.0.10.17:5000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false
       },
       '/private': {
-        target: 'http://10.0.10.17:5000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false
       }
