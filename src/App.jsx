@@ -7,6 +7,7 @@ import AdminRoute from './components/ui/AdminRoute';
 import Dash from './pages/Dash';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Landing from './pages/Langing';
 
 // importa a pagina de canais
 import Canais from './pages/Canais';
@@ -35,7 +36,6 @@ import LytexPayment from './pages/LytexPayment'; // Página de pagamento Lytex
 import LandingPage from './pages/LandingPage';
 import Erro404 from '../src/assets/img/404.png'; // Imagem de erro 404
 
-import './index.css';
 
 function App() {
   return (
