@@ -9,18 +9,18 @@ export default defineConfig({
     host: true, // Permite acesso externo
     proxy: {
       '/api': {
-        target: 'https://api.sendd.altersoft.dev.br',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, '')
       },
       '/public': {
-        target: 'https://api.sendd.altersoft.dev.br',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false
       },
       '/private': {
-        target: 'https://api.sendd.altersoft.dev.br',
+        target: 'http://localhost:5001',
         changeOrigin: true,
         secure: false
       }

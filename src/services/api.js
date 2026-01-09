@@ -16,6 +16,7 @@ const getConfig = () => {
       ADMIN_STATS: '/private/stats',
       
       SYSTEM_CONFIG: '/private/system-config',
+     
     }
   };
 };
@@ -23,7 +24,7 @@ const getConfig = () => {
 export const getApiBaseUrl = () => {
   const config = getConfig();
   // Prioriza VITE_API_URL se definido (ambiente de build), senão usa window.APP_CONFIG (runtime), senão fallback
-  return import.meta.env.VITE_API_URL || config.API_BASE_URL || 'https://api.sendd.altersoft.dev.br';
+  return import.meta.env.VITE_API_URL || config.API_BASE_URL || 'https://sendd.altersoft.dev.br/api';
 };
 
 // Criar instância do axios
