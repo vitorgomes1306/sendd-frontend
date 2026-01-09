@@ -1,7 +1,7 @@
 const APP_CONFIG = {
 
     // API_BASE_URL: 'http://localhost:5001',
-    API_BASE_URL: 'https://sendd.altersoft.dev.br/api',
+    API_BASE_URL: 'https://api.sendd.altersoft.dev.br',
     API_ENDPOINTS: {
         LOGIN: '/public/login',
         REGISTER: '/public/cadastro',

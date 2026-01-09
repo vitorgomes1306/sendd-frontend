@@ -3,7 +3,7 @@ import axios from 'axios';
 // Função para obter configuração dinamicamente
 const getConfig = () => {
   return window.APP_CONFIG || {
-    API_BASE_URL: 'https://sendd.altersoft.dev.br/api',
+    API_BASE_URL: 'https://api.sendd.altersoft.dev.br',
     API_ENDPOINTS: {
       LOGIN: '/public/login',
       REGISTER: '/public/cadastro',
