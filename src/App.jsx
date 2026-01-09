@@ -45,7 +45,7 @@ function App() {
           <div className="app">
             <Routes>
               {/* Rota principal agora é a Landing Page */}
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<Login />} />
 
               {/* Rotas públicas (sem sidebar) */}
               <Route path="/login" element={<Login />} />
