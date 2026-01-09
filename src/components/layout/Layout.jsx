@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,6 +9,7 @@ const Layout = ({ children }) => {
   const { currentTheme, toggleTheme, isDark } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false);
@@ -66,6 +67,8 @@ const Layout = ({ children }) => {
   const handleLogoutCancel = () => {
     setShowLogoutModal(false);
   };
+
+  const isChatPage = location.pathname === '/chat';
 
   return (
     <div style={{ 
@@ -137,25 +140,7 @@ const Layout = ({ children }) => {
                 </button>
               )}
               
-              <div>
-                <h1 style={{ 
-                  margin: 0,
-                  fontSize: '1.5rem',
-                  fontWeight: '600',
-                  color: currentTheme.textPrimary,
-                  fontFamily: 'Poppins, sans-serif'
-                }}>
-                  Sendd
-                </h1>
-                <p style={{
-                  margin: '0.25rem 0 0 0',
-                  fontSize: '0.875rem',
-                  color: currentTheme.textSecondary,
-                  fontFamily: 'Poppins, sans-serif'
-                }}>
-                 Gerencie seus clientes, contatos, disparos em massa, campanhas e leads de forma rápida e eficiente
-                </p>
-              </div>
+              
             </div>
             
             {/* User Info */}
@@ -455,8 +440,8 @@ const Layout = ({ children }) => {
         {/* Main Content */}
         <main style={{
           flex: 1,
-          padding: '2rem',
-          overflow: 'auto',
+          padding: isChatPage ? 0 : '2rem',
+          overflow: isChatPage ? 'hidden' : 'auto',
           width: '100%',
           boxSizing: 'border-box'
         }}>
@@ -464,30 +449,32 @@ const Layout = ({ children }) => {
         </main>
 
         {/* Footer */}
-        <footer style={{
-          backgroundColor: currentTheme.cardBackground,
-          borderTop: `1px solid ${currentTheme.border}`,
-          padding: '1rem 2rem',
-          textAlign: 'center',
-          fontSize: '0.875rem',
-          color: currentTheme.textSecondary,
-          fontFamily: 'Poppins, sans-serif'
-        }}>
-          <a 
-            href="https://vixplay.altersoft.dev.br" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            style={{ 
-              color: 'inherit', 
-              textDecoration: 'none',
-              fontWeight: 'bold'
-            }}
-            onMouseEnter={(e) => e.target.style.color = currentTheme.primary || '#3b82f6'}
-            onMouseLeave={(e) => e.target.style.color = 'inherit'}
-          >
-            © 2025 Vix Play - Sistema de Gerenciamento de Mídia indoor e Tv corporativa
-          </a>
-        </footer>
+        {!isChatPage && (
+          <footer style={{
+            backgroundColor: currentTheme.cardBackground,
+            borderTop: `1px solid ${currentTheme.border}`,
+            padding: '1rem 2rem',
+            textAlign: 'center',
+            fontSize: '0.875rem',
+            color: currentTheme.textSecondary,
+            fontFamily: 'Poppins, sans-serif'
+          }}>
+            <a 
+              href="https://vixplay.altersoft.dev.br" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              style={{ 
+                color: 'inherit', 
+                textDecoration: 'none',
+                fontWeight: 'bold'
+              }}
+              onMouseEnter={(e) => e.target.style.color = currentTheme.primary || '#3b82f6'}
+              onMouseLeave={(e) => e.target.style.color = 'inherit'}
+            >
+              © 2025 Vix Play - Sistema de Gerenciamento de Mídia indoor e Tv corporativa
+            </a>
+          </footer>
+        )}
       </div>
 
       {/* Mobile Overlay */}

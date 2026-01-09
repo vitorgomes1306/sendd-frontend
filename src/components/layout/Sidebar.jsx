@@ -4,8 +4,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import Logo1 from '../../assets/img/sendd1.png';
 import Logo2 from '../../assets/img/sendd2.png';
-import LogoAltersoft1 from '../../assets/img/altersoft1.png';
-import LogoAltersoft2 from '../../assets/img/altersoft2.png';
+import LogoAltersoft1 from '../../assets/img/altersoft_logo_light.png';
+import LogoAltersoft2 from '../../assets/img/altersoft_logo_dark.png';
 import './Sidebar.css';
 
 const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
@@ -82,6 +82,11 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
       icon: 'bi-people'
     },
     {
+      path: '/chat',
+      name: 'Atendimento',
+      icon: 'bi-chat-dots'
+    },
+    {
       path: '/campanhas',
       name: 'Campanhas',
       icon: 'bi-megaphone'
@@ -97,7 +102,8 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
       icon: 'bi-gear',
       submenu: [
         { path: '/configuracao/boot', name: 'Boot', icon: 'bi-power' },
-        { path: '/configuracao/horarios', name: 'Horários de Atendimento', icon: 'bi-clock' }
+        { path: '/configuracao/horarios', name: 'Horários de Atendimento', icon: 'bi-clock' },
+        { path: '/configuracao/tokens', name: 'Tokens', icon: 'bi-key' }
       ]
     },
     {
@@ -110,6 +116,7 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
         { path: '/notificacoes/historico', name: 'Histórico', icon: 'bi-clock-history' }
       ]
     },
+    
     {
       path: '/relatorios',
       name: 'Relatórios',
@@ -187,7 +194,7 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
                   }} 
                 />
               ) : (
-                <img src={isDark ? Logo1 : Logo2} alt="Vix Play" style={{ width: '100%', height: 'auto' }} />
+                <img src={isDark ? Logo1 : Logo2} alt="Altersoft Desenvolvimento" style={{ width: '100%', height: 'auto' }} />
               )}
             </h2>
           )}
@@ -377,11 +384,11 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
         }}>
           <div>
           {window.innerWidth > 768 && !isCollapsed && (
-            <a href="https://www.altersot.dev.br" target="_blank" rel="noopener noreferrer">
+              <a href="https://www.altersoft.dev.br" target="_blank" rel="noopener noreferrer">
               <img src={isDark ? LogoAltersoft2 : LogoAltersoft1} alt="Altersoft" style={{ width: '100px', height: 'auto' }} />
             </a>
           )}
-          Vix Play v3.0.1
+          
           </div>
         </div>
       </div>

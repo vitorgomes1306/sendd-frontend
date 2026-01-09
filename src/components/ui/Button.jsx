@@ -7,38 +7,102 @@ const Button = forwardRef(({
   size = 'md', 
   disabled = false, 
   loading = false,
-  className = '',
+  style = {},
   type = 'button',
   ...props 
 }, ref) => {
-  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
   
-  const variants = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
-    secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-900 focus:ring-gray-500',
-    danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
-    success: 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500',
-    outline: 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 focus:ring-blue-500',
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'primary':
+        return {
+          backgroundColor: '#2563eb', // blue-600
+          color: 'white',
+          border: 'none',
+        };
+      case 'secondary':
+        return {
+          backgroundColor: '#e5e7eb', // gray-200
+          color: '#111827', // gray-900
+          border: 'none',
+        };
+      case 'danger':
+        return {
+          backgroundColor: '#dc2626', // red-600
+          color: 'white',
+          border: 'none',
+        };
+      case 'success':
+        return {
+          backgroundColor: '#16a34a', // green-600
+          color: 'white',
+          border: 'none',
+        };
+      case 'outline':
+        return {
+          backgroundColor: 'white',
+          border: '1px solid #d1d5db', // gray-300
+          color: '#374151', // gray-700
+        };
+      default:
+        return {
+          backgroundColor: '#2563eb',
+          color: 'white',
+          border: 'none',
+        };
+    }
   };
 
-  const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
+  const getSizeStyles = () => {
+    switch (size) {
+      case 'sm':
+        return {
+          padding: '6px 12px',
+          fontSize: '14px',
+        };
+      case 'md':
+        return {
+          padding: '8px 16px',
+          fontSize: '14px',
+        };
+      case 'lg':
+        return {
+          padding: '12px 24px',
+          fontSize: '16px',
+        };
+      default:
+        return {
+          padding: '8px 16px',
+          fontSize: '14px',
+        };
+    }
   };
 
-  const classes = `${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`;
+  const baseStyles = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 500,
+    borderRadius: '8px',
+    transition: 'all 0.2s',
+    cursor: (disabled || loading) ? 'not-allowed' : 'pointer',
+    opacity: (disabled || loading) ? 0.5 : 1,
+    outline: 'none',
+    ...getVariantStyles(),
+    ...getSizeStyles(),
+    ...style,
+  };
 
   return (
     <button
       ref={ref}
       type={type}
       disabled={disabled || loading}
-      className={classes}
+      style={baseStyles}
       {...props}
     >
       {loading && (
-        <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+        <Loader2 size={16} className="animate-spin mr-2" style={{ marginRight: '8px' }} />
       )}
       {children}
     </button>

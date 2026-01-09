@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { apiService } from '../services/api';
+import { apiService, getApiBaseUrl } from '../services/api';
 import alertaIcon from '../assets/img/alerta.png';
 
 const UserProfile = () => {
@@ -248,7 +248,7 @@ const UserProfile = () => {
     }
     
     // Constrói a URL completa baseada no ambiente
-    const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:4000';
+    const apiBaseUrl = getApiBaseUrl().replace(/\/api$/, '');
     // Adiciona timestamp para evitar cache da imagem
     const timestamp = new Date().getTime();
     return `${apiBaseUrl}${picturePath}?t=${timestamp}`;

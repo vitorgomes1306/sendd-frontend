@@ -3,7 +3,7 @@ import axios from 'axios';
 // Função para obter configuração dinamicamente
 const getConfig = () => {
   return window.APP_CONFIG || {
-    API_BASE_URL: 'https://sendd.altersoft.dev.br',
+    API_BASE_URL: 'https://sendd.altersoft.dev.br/api',
     API_ENDPOINTS: {
       LOGIN: '/public/login',
       REGISTER: '/public/cadastro',
@@ -16,14 +16,19 @@ const getConfig = () => {
       ADMIN_STATS: '/private/stats',
       
       SYSTEM_CONFIG: '/private/system-config',
-     
     }
   };
 };
 
+export const getApiBaseUrl = () => {
+  const config = getConfig();
+  // Prioriza VITE_API_URL se definido (ambiente de build), senão usa window.APP_CONFIG (runtime), senão fallback
+  return import.meta.env.VITE_API_URL || config.API_BASE_URL || 'https://sendd.altersoft.dev.br/api';
+};
+
 // Criar instância do axios
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://sendd.altersoft.dev.br',
+  baseURL: getApiBaseUrl(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -51,10 +56,14 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expirado ou inválido
-      localStorage.removeItem('vixplay_token');
-      localStorage.removeItem('vixplay_user');
-      window.location.href = '/login';
+      const url = error.config?.url || '';
+      const isAuthFlow = url === '/public/login' || url === '/public/cadastro';
+      // Não redirecionar automaticamente em 401 durante login/cadastro
+      if (!isAuthFlow) {
+        localStorage.removeItem('vixplay_token');
+        localStorage.removeItem('vixplay_user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -74,16 +83,46 @@ export const apiService = {
   
   
   
-  // Clients
-  getClients: (params = {}) => {
-    const queryString = new URLSearchParams(params).toString();
-    return api.get(`${getConfig().API_ENDPOINTS.CLIENTS || '/private/clients'}${queryString ? `?${queryString}` : ''}`);
-  },
-  getClient: (id) => api.get(`${getConfig().API_ENDPOINTS.CLIENTS || '/private/clients'}/${id}`),
-  createClient: (data) => api.post(getConfig().API_ENDPOINTS.CLIENTS || '/private/clients', data),
-  updateClient: (id, data) => api.put(`${getConfig().API_ENDPOINTS.CLIENTS || '/private/clients'}/${id}`, data),
-  deleteClient: (id) => api.delete(`${getConfig().API_ENDPOINTS.CLIENTS || '/private/clients'}/${id}`),
-  toggleClientActive: (id) => api.patch(`${getConfig().API_ENDPOINTS.CLIENTS || '/private/clients'}/${id}/toggle-active`),
+  // Clientes
+  getClients: (params) => api.get('/private/clients', { params }),
+  getClient: (id) => api.get(`/private/clients/${id}`),
+  createClient: (data) => api.post('/private/clients', data),
+  updateClient: (id, data) => api.put(`/private/clients/${id}`, data),
+  deleteClient: (id) => api.delete(`/private/clients/${id}`),
+  toggleClientActive: (id) => api.patch(`/private/clients/${id}/toggle-active`),
+
+  // Notificações
+  saveNotification: (data) => api.post('/private/notifications', data),
+  getNotifications: (params) => api.get('/private/notifications', { params }),
+
+  // Mídias
+  getMedias: (params) => api.get('/private/media', { params }),
+  uploadMedia: (formData) => api.post('/private/media', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  updateMedia: (id, data) => api.put(`/private/media/${id}`, data),
+  deleteMedia: (id) => api.delete(`/private/media/${id}`),
+
+  // Templates
+  getTemplates: (params) => api.get('/private/templates', { params }),
+  getAllTemplates: () => api.get('/private/templates/all'),
+  createTemplate: (data) => api.post('/private/templates', data),
+  updateTemplate: (id, data) => api.put(`/private/templates/${id}`, data),
+  deleteTemplate: (id) => api.delete(`/private/templates/${id}`),
+
+  // Campanhas
+  getCampaigns: (params) => api.get('/private/campaigns', { params }),
+  getCampaign: (id) => api.get(`/private/campaigns/${id}`),
+  createCampaign: (data) => api.post('/private/campaigns', data),
+  updateCampaign: (id, data) => api.put(`/private/campaigns/${id}`, data),
+  deleteCampaign: (id) => api.delete(`/private/campaigns/${id}`),
+
+  // Instâncias
+  getInstances: () => api.get('/private/instance'),
+  getInstance: (id) => api.get(`/private/instance/${id}`),
+  createInstance: (data) => api.post('/private/instance', data),
+  updateInstance: (id, data) => api.put(`/private/instance/${id}`, data),
+  deleteInstance: (id) => api.delete(`/private/instance/${id}`),
   
  
   // Perfil

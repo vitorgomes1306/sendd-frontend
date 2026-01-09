@@ -257,7 +257,7 @@ function Register() {
                 name="cpfCnpj"
                 value={formData.cpfCnpj}
                 onChange={handleChange}
-                required
+              
                 style={inputStyle}
                 placeholder="000.000.000-00"
               />
@@ -271,7 +271,7 @@ function Register() {
                 name="cellphone"
                 value={formData.cellphone}
                 onChange={handleChange}
-                required
+                
                 style={inputStyle}
                 placeholder="(00) 00000-0000"
               />

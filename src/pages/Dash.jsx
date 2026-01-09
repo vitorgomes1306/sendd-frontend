@@ -240,16 +240,43 @@ function Dash() {
       // Processa os resultados
       const devices = devicesRes.status === 'fulfilled' ? devicesRes.value.data : [];
       const panels = panelsRes.status === 'fulfilled' ? panelsRes.value.data : [];
-      const medias = mediasRes.status === 'fulfilled' ? mediasRes.value.data : [];
-      const campaigns = campaignsRes.status === 'fulfilled' ? campaignsRes.value.data : [];
+      
+      // Tratamento robusto para Mídias
+      let medias = [];
+      let mediasCount = 0;
+      if (mediasRes.status === 'fulfilled') {
+        const resData = mediasRes.value.data;
+        if (Array.isArray(resData)) {
+          medias = resData;
+          mediasCount = resData.length;
+        } else if (resData?.data && Array.isArray(resData.data)) {
+          medias = resData.data;
+          mediasCount = resData.pagination?.total || resData.total || resData.data.length;
+        }
+      }
+
+      // Tratamento robusto para Campanhas
+      let campaigns = [];
+      let campaignsCount = 0;
+      if (campaignsRes.status === 'fulfilled') {
+        const resData = campaignsRes.value.data;
+        if (Array.isArray(resData)) {
+          campaigns = resData;
+          campaignsCount = resData.length;
+        } else if (resData?.data && Array.isArray(resData.data)) {
+          campaigns = resData.data;
+          campaignsCount = resData.pagination?.total || resData.total || resData.data.length;
+        }
+      }
+
       const clients = clientsRes.status === 'fulfilled' ? (clientsRes.value.data?.data || []) : [];
 
       // Log dos resultados
       console.log('Resultados finais:', {
         devices: devices.length,
         panels: panels.length,
-        medias: medias.length,
-        campaigns: campaigns.length,
+        medias: mediasCount,
+        campaigns: campaignsCount,
         clients: clients.length
       });
 
@@ -286,8 +313,8 @@ function Dash() {
       const newStats = {
         devices: devices.length,
         panels: panels.length,
-        medias: medias.length,
-        campaigns: campaigns.length,
+        medias: mediasCount,
+        campaigns: campaignsCount,
         clients: clients.length,
         channels: channelsTotal,
         notifications: notificationsTotal
@@ -414,7 +441,7 @@ function Dash() {
           color: '#1f2937',
           margin: '0 0 0.5rem 0'
         }}>
-          Bem-vindo ao Sendd 
+          Dashboard
         </h1>
         <p style={{
           color: '#6b7280',

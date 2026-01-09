@@ -5,9 +5,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
 import Logo1 from '../assets/img/sendd1.png';
 import Logo2 from '../assets/img/sendd2.png';
+import rightImageUrl from '../assets/img/whatsapp-automacao.svg';
 
 function Login() {
-  const rightImageUrl = 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8';
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);

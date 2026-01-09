@@ -7,17 +7,24 @@ import AdminRoute from './components/ui/AdminRoute';
 import Dash from './pages/Dash';
 import Login from './pages/Login';
 import Register from './pages/Register';
+
+// importa a pagina de canais
 import Canais from './pages/Canais';
+import InstanceDetails from './pages/InstanceDetails';
+
 import Clients from './pages/Clients';
-import Campanhas from './pages/Campanhas';
+import ClientDetails from './pages/ClientDetails';
 import Midias from './pages/Midias';
+import Campanhas from './pages/Campanhas';
 import Relatorios from './pages/Relatorios';
 import Utilidades from './pages/Utilidades';
 import ConfiguracaoBoot from './pages/ConfiguracaoBoot';
 import ConfiguracaoHorarios from './pages/ConfiguracaoHorarios';
+import Tokens from './pages/Tokens';
 import NotificacoesManual from './pages/NotificacoesManual';
 import NotificacoesAgendadas from './pages/NotificacoesAgendadas';
 import NotificacoesHistorico from './pages/NotificacoesHistorico';
+import Chat from './pages/Chat';
 import Organizations from './pages/Organizations';
 import Teams from './pages/Teams';
 import AuditLogs from './pages/AuditLogs';
@@ -25,6 +32,7 @@ import AuditLogs from './pages/AuditLogs';
 import Admin from './pages/Admin'; // Página de administração
 
 import LytexPayment from './pages/LytexPayment'; // Página de pagamento Lytex
+import LandingPage from './pages/LandingPage';
 import Erro404 from '../src/assets/img/404.png'; // Imagem de erro 404
 
 import './index.css';
@@ -36,8 +44,8 @@ function App() {
         <Router>
           <div className="app">
             <Routes>
-              {/* Rota principal redireciona para dashboard */}
-              <Route path="/" element={<Navigate to="/dash" replace />} />
+              {/* Rota principal agora é a Landing Page */}
+              <Route path="/" element={<LandingPage />} />
 
               {/* Rotas públicas (sem sidebar) */}
               <Route path="/login" element={<Login />} />
@@ -56,9 +64,21 @@ function App() {
                 </ProtectedRoute>
               } />
 
+              <Route path="/canais/:id" element={
+                <ProtectedRoute>
+                  <Layout><InstanceDetails /></Layout>
+                </ProtectedRoute>
+              } />
+
               <Route path="/clientes" element={
                 <ProtectedRoute>
                   <Layout><Clients /></Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/clientes/:id" element={
+                <ProtectedRoute>
+                  <Layout><ClientDetails /></Layout>
                 </ProtectedRoute>
               } />
 
@@ -86,6 +106,12 @@ function App() {
                 </ProtectedRoute>
               } />
 
+              <Route path="/configuracao/tokens" element={
+                <ProtectedRoute>
+                  <Layout><Tokens /></Layout>
+                </ProtectedRoute>
+              } />
+
               <Route path="/notificacoes/manual" element={
                 <ProtectedRoute>
                   <Layout><NotificacoesManual /></Layout>
@@ -101,6 +127,12 @@ function App() {
               <Route path="/notificacoes/historico" element={
                 <ProtectedRoute>
                   <Layout><NotificacoesHistorico /></Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/chat" element={
+                <ProtectedRoute>
+                  <Layout><Chat /></Layout>
                 </ProtectedRoute>
               } />
 

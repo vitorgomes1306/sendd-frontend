@@ -32,12 +32,60 @@ const Modal = ({
 
   if (!isOpen) return null;
 
-  const sizes = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-    full: 'max-w-full mx-4',
+  const getWidth = () => {
+    switch (size) {
+      case 'sm': return '400px';
+      case 'md': return '500px';
+      case 'lg': return '800px';
+      case 'xl': return '1000px';
+      case 'full': return '95%';
+      default: return '500px';
+    }
+  };
+
+  const styles = {
+    overlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '20px'
+    },
+    modal: {
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+      width: '100%',
+      maxWidth: getWidth(),
+      maxHeight: '90vh',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'relative'
+    },
+    header: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '16px 24px',
+      borderBottom: '1px solid #e5e7eb'
+    },
+    title: {
+      fontSize: '18px',
+      fontWeight: '600',
+      color: '#111827',
+      margin: 0
+    },
+    content: {
+      padding: '24px',
+      overflowY: 'auto',
+      maxHeight: 'calc(90vh - 80px)'
+    }
   };
 
   const handleOverlayClick = (e) => {
@@ -48,31 +96,31 @@ const Modal = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50"
+      style={styles.overlay}
       onClick={handleOverlayClick}
     >
-      <div className={`bg-white rounded-lg shadow-xl w-full ${sizes[size]} max-h-[90vh] overflow-hidden`}>
+      <div style={styles.modal}>
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div style={styles.header}>
             {title && (
-              <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+              <h2 style={styles.title}>{title}</h2>
             )}
             {showCloseButton && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100"
+                style={{ padding: '4px', minWidth: 'auto' }}
               >
-                <X className="h-4 w-4" />
+                <X size={20} />
               </Button>
             )}
           </div>
         )}
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div style={styles.content}>
           {children}
         </div>
       </div>

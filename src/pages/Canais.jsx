@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Smartphone, Plus, Search, Filter, Edit, Trash2, Eye, Check, AlertCircle, Wifi, WifiOff, QrCode, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Smartphone, Plus, Search, Filter, Edit, Trash2, Eye, Check, AlertCircle, Wifi, WifiOff, QrCode, RefreshCw, User } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
+import AlertToast from '../components/ui/AlertToast';
+import '../App.css'; // Importando estilos globais (incluindo profilePic)
+
 
 const Canais = () => {
+  const navigate = useNavigate();
   const { currentTheme } = useTheme();
   const { user } = useAuth();
   
@@ -36,6 +41,8 @@ const Canais = () => {
   // Estados do formulário
   const [formData, setFormData] = useState({
     instanceName: '',
+    name: '',
+    profilePicUrl: '', // URL da foto de perfil do WhatsApp
     tipo: 'WHATSAPP_WEB',
     organizationId: '',
     atendimento: false,
@@ -150,6 +157,7 @@ const Canais = () => {
     if (mode === 'add') {
       setFormData({
         instanceName: '',
+        name: '',
         tipo: 'WHATSAPP_WEB',
         organizationId: organizations.length > 0 ? organizations[0].id : '',
         atendimento: false,
@@ -158,6 +166,8 @@ const Canais = () => {
     } else if (instance) {
       setFormData({
         instanceName: instance.instanceName || '',
+        name: instance.name || 'Sem nome',
+        profilePicUrl: instance.profilePicUrl || '', // Add profilePicUrl to the form data
         tipo: instance.tipo || 'WHATSAPP_WEB',
         organizationId: instance.organizationId || '',
         atendimento: instance.atendimento || false,
@@ -198,34 +208,38 @@ const Canais = () => {
     setIsPolling(true);
     setPollingInstanceId(instanceId);
 
-    console.log(`Iniciando polling para instância ${instanceId}`);
+    console.log(`🚀 Iniciando polling para instância ${instanceId} da organização ${organizationId}`);
 
     pollingIntervalRef.current = setInterval(async () => {
-      const statusData = await checkInstanceStatus(instanceId, organizationId);
-      
-      if (statusData) {
-        console.log(`🔍 Status da instância ${instanceId}:`, statusData.status);
-        console.log('📊 Dados completos do status:', JSON.stringify(statusData, null, 2));
-        console.log('📊 Status Evolution:', statusData.evolutionStatus);
+      try {
+        console.log(`📡 Verificando status... (Instância: ${instanceId})`);
+        // Usar a rota do backend que já implementa a lógica do fetchInstances e atualização do banco
+        const statusData = await checkInstanceStatus(instanceId, organizationId);
         
-        // Se a instância foi conectada (verificar apenas status mapeado)
-        if (statusData.status === 'connected') {
-          console.log('✅ Instância conectada! Parando polling...');
+        if (statusData) {
+          console.log(`🔍 Status recebido:`, statusData.status);
           
-          // Parar polling
-          stopStatusPolling();
-          
-          // Fechar modal do QR Code
-          closeQrModal();
-          
-          // Mostrar mensagem de sucesso
-          setSuccess('Instância conectada com sucesso!');
-          
-          // Recarregar lista de instâncias
-          loadInstances();
+          // Se a instância foi conectada
+          if (statusData.status === 'connected') {
+            console.log('✅ Instância conectada! Parando polling...');
+            
+            // Parar polling
+            stopStatusPolling();
+            
+            // Fechar modal do QR Code
+            closeQrModal();
+            
+            // Mostrar mensagem de sucesso
+            setSuccess('Instância conectada com sucesso!');
+            
+            // Recarregar lista de instâncias
+            loadInstances();
+          }
+        } else {
+          console.log('❌ Status data veio vazio ou nulo');
         }
-      } else {
-        console.log('❌ Erro ao verificar status da instância');
+      } catch (err) {
+        console.error('❌ Erro no polling:', err);
       }
     }, 3000); // Verificar a cada 3 segundos
   };
@@ -241,11 +255,30 @@ const Canais = () => {
     console.log('Polling de status parado');
   };
 
-  // Função para abrir modal de QR Code
+  // Função para abrir modal de QR Code (Existente)
   const openQrModal = async (instance) => {
     setSelectedInstance(instance);
+    
+    // Verificar status antes de abrir
+    try {
+        const statusData = await checkInstanceStatus(instance.id, instance.organizationId);
+        
+        if (statusData && statusData.status === 'connected') {
+            setSuccess('QR Code já lido! Instância conectada.');
+            // Limpar mensagem de sucesso após 3 segundos
+            setTimeout(() => setSuccess(''), 3000);
+            return; // Não abre o modal
+        }
+    } catch (e) {
+        console.warn('Erro ao verificar status inicial:', e);
+    }
+
     setQrCodeData(null);
     setShowQrModal(true);
+    
+    // Iniciar polling IMEDIATAMENTE ao abrir o modal, independente do resultado do QR Code
+    // Isso garante que se o usuário já estiver conectando ou conectar rápido, o sistema pegue
+    startStatusPolling(instance.id, instance.organizationId);
     
     // Buscar QR Code da instância existente
     try {
@@ -267,20 +300,10 @@ const Canais = () => {
         
         if (data.base64) {
           setQrCodeData(data);
-          
-          // Iniciar polling de status após mostrar QR Code
-          startStatusPolling(instance.id, instance.organizationId);
+          // Polling já foi iniciado acima
         } else {
           // Se não há QR Code, pode ser que a instância já esteja conectada
-          console.log('Sem QR Code - verificando status da instância...');
-          const statusData = await checkInstanceStatus(instance.id, instance.organizationId);
-          
-          if (statusData && statusData.status === 'connected') {
-            setSuccess('Instância já está conectada!');
-            closeQrModal();
-          } else {
-            setError('Não foi possível gerar QR Code. Tente novamente.');
-          }
+          console.log('Sem QR Code (base64) na resposta. Verificando status via polling...');
         }
       } else {
         console.error('Erro na Evolution API:', response.status);
@@ -294,7 +317,8 @@ const Canais = () => {
 
   // Função para fechar modal de QR Code
   const closeQrModal = () => {
-    // Parar polling quando fechar modal
+    // Parar polling APENAS se o modal estiver sendo fechado manualmente ou por sucesso
+    // Não parar se for apenas uma renderização
     stopStatusPolling();
     
     setShowQrModal(false);
@@ -304,7 +328,7 @@ const Canais = () => {
 
   // Função para abrir modal de exclusão
   const openDeleteModal = (instance) => {
-    setDeleteInstanceData({ id: instance.id, name: instance.instanceName });
+    setDeleteInstanceData({ id: instance.id, name: instance.name });
     setShowDeleteModal(true);
   };
 
@@ -347,9 +371,21 @@ const Canais = () => {
       if (modalMode === 'add' && data.qrcode) {
         console.log('QR Code encontrado:', data.qrcode); // Debug log
         setQrCodeData(data.qrcode);
-        setSelectedInstance(data.instance || { instanceName: formData.instanceName }); // Adicionar instância selecionada
+        
+        // Importante: definir selectedInstance ANTES de chamar openQrModal ou iniciar polling
+        // pois o polling usa o ID da instância selecionada
+        const newInstance = data.instance || { instanceName: formData.instanceName };
+        setSelectedInstance(newInstance); 
+        
         closeModal();
         setShowQrModal(true);
+        
+        // Iniciar polling explicitamente para a nova instância criada
+        // Usar setTimeout para garantir que o estado selectedInstance tenha sido atualizado ou passar IDs diretamente
+        setTimeout(() => {
+            startStatusPolling(newInstance.id, newInstance.organizationId);
+        }, 100);
+        
       } else {
         console.log('Sem QR Code na resposta ou não é modo add:', { modalMode, hasQrcode: !!data.qrcode }); // Debug log
         closeModal();
@@ -440,20 +476,22 @@ const Canais = () => {
         </div>
       </div>
 
-      {/* Alertas */}
-      {error && (
-        <div style={{...styles.alert, ...styles.alertError}}>
-          <AlertCircle size={20} />
-          {error}
-        </div>
-      )}
+      {/* Alertas com AlertToast */}
+      <AlertToast 
+        open={!!error} 
+        variant="danger" 
+        title="Erro" 
+        message={error} 
+        onClose={() => setError('')} 
+      />
       
-      {success && (
-        <div style={{...styles.alert, ...styles.alertSuccess}}>
-          <Check size={20} />
-          {success}
-        </div>
-      )}
+      <AlertToast 
+        open={!!success} 
+        variant="success" 
+        title="Sucesso" 
+        message={success} 
+        onClose={() => setSuccess('')} 
+      />
 
       {/* Cards de Estatísticas */}
       <div style={styles.statsGrid}>
@@ -526,6 +564,7 @@ const Canais = () => {
             <table style={styles.table}>
               <thead>
                 <tr>
+                  <th style={{...styles.th, width: '60px'}}>Foto</th>
                   <th style={styles.th}>Nome</th>
                   <th style={styles.th}>Organização</th>
                   <th style={styles.th}>Número</th>
@@ -538,7 +577,30 @@ const Canais = () => {
                   const statusInfo = getStatusInfo(instance.status);
                   return (
                     <tr key={instance.id} style={styles.tr}>
-                      <td style={styles.td}>{instance.instanceName}</td>
+                      <td style={styles.td}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {instance.profilePicUrl ? (
+                            <img 
+                              src={instance.profilePicUrl} 
+                              alt={instance.name} 
+                              className="profilePic"
+                              onError={(e) => {
+                                e.target.onerror = null; 
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          {/* Fallback caso a imagem falhe ou não exista */}
+                          <div 
+                            className="profilePicPlaceholder" 
+                            style={{ display: instance.profilePicUrl ? 'none' : 'flex' }}
+                          >
+                            <User size={20} />
+                          </div>
+                        </div>
+                      </td>
+                      <td style={styles.td}>{instance.name}</td>
                       <td style={styles.td}>{instance.organizationName}</td>
                       <td style={styles.td}>{instance.number || 'Não conectado'}</td>
                       <td style={styles.td}>
@@ -558,6 +620,13 @@ const Canais = () => {
                             title="QR Code"
                           >
                             <QrCode size={16} />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/canais/${instance.id}`)}
+                            style={{...styles.actionButton, ...styles.viewButton}}
+                            title="Ver Detalhes"
+                          >
+                            <Eye size={16} />
                           </button>
                           <button
                             onClick={() => openModal('edit', instance)}
@@ -603,8 +672,8 @@ const Canais = () => {
                    <label style={styles.label}>Nome da Instância *</label>
                    <input
                      type="text"
-                     name="instanceName"
-                     value={formData.instanceName}
+                     name="name"
+                     value={formData.name}
                      onChange={handleInputChange}
                      required
                      style={styles.input}
@@ -712,7 +781,7 @@ const Canais = () => {
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
                 <QrCode size={24} style={{ marginRight: '8px' }} />
-                QR Code - {selectedInstance?.instanceName}
+                Criando instância
               </h2>
               <button onClick={closeQrModal} style={styles.closeButton}>
                 ×
@@ -1083,6 +1152,14 @@ const getStyles = (theme) => ({
     }
   },
   
+  viewButton: {
+    backgroundColor: '#8b5cf620',
+    color: '#8b5cf6',
+    ':hover': {
+      backgroundColor: '#8b5cf640'
+    }
+  },
+
   editButton: {
     backgroundColor: '#f59e0b20',
     color: '#f59e0b',
@@ -1464,6 +1541,10 @@ styleSheet.textContent = `
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+  }
+  @keyframes progress {
+    0% { width: 100%; }
+    100% { width: 0%; }
   }
 `;
 document.head.appendChild(styleSheet);

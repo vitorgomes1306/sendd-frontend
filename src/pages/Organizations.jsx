@@ -176,14 +176,14 @@ const Organizations = () => {
             margin: 0,
             color: currentTheme.textPrimary
           }}>
-            Organizations
+            Minhas empresas
           </h1>
           <p style={{
             margin: '0.5rem 0 0 0',
             color: currentTheme.textSecondary,
             fontSize: '0.875rem'
           }}>
-            Gerencie suas organizações e empresas
+            Gerencie suas organizações
           </p>
         </div>
         

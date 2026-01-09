@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { Users, Plus, Search, Edit, Trash2, Eye, X, MapPin, Phone, Mail, User, Building, Hash, Calendar, RefreshCw, AlertCircle, Check } from 'lucide-react';
 import { apiService } from '../services/api';
+import AlertToast from '../components/ui/AlertToast';
+import { lookupCep } from '../utils/cep';
+import InternationalPhoneInput from '../components/ui/InternationalPhoneInput';
 
 const Clients = () => {
+  const navigate = useNavigate();
   const { currentTheme } = useTheme();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,23 +89,24 @@ const Clients = () => {
   };
 
   const fetchAddressByCep = async (cep) => {
-    if (cep.length === 9) {
+    // Remove formatação
+    const cleanCep = cep.replace(/\D/g, '');
+    
+    if (cleanCep.length === 8) {
       try {
-        const cleanCep = cep.replace(/\D/g, '');
-        const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
-        const data = await response.json();
+        const data = await lookupCep(cleanCep);
         
-        if (!data.erro) {
-          setFormData(prev => ({
-            ...prev,
-            address: data.logradouro || '',
-            city: data.localidade || '',
-            neighborhood: data.bairro || '',
-            state: data.uf || ''
-          }));
-        }
+        setFormData(prev => ({
+          ...prev,
+          address: data.street || '',
+          city: data.city || '',
+          neighborhood: data.neighborhood || '',
+          state: data.state || ''
+        }));
       } catch (error) {
         console.error('Erro ao buscar CEP:', error);
+        // Usar setError para exibir no AlertToast
+        setError(error.message || 'Erro ao buscar endereço pelo CEP');
       }
     }
   };
@@ -385,10 +391,10 @@ const Clients = () => {
         setSuccess('Cliente atualizado com sucesso!');
       }
 
-      setTimeout(() => {
-        closeModal();
-        loadClients();
-      }, 1500);
+      // Fecha o modal mantendo a mensagem de sucesso
+      setShowModal(false);
+      setSelectedClient(null);
+      loadClients();
 
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
@@ -481,18 +487,21 @@ const Clients = () => {
         </div>
       </div>
 
-      {/* Mensagens */}
-      {error && (
-        <div style={styles.errorMessage}>
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div style={styles.successMessage}>
-          {success}
-        </div>
-      )}
+      {/* Alertas */}
+      <AlertToast 
+        open={!!error} 
+        variant="danger" 
+        title="Erro" 
+        message={error} 
+        onClose={() => setError('')} 
+      />
+      <AlertToast 
+        open={!!success} 
+        variant="success" 
+        title="Sucesso" 
+        message={success} 
+        onClose={() => setSuccess('')} 
+      />
 
       {/* Estatísticas */}
       <div style={styles.statsContainer}>
@@ -580,9 +589,9 @@ const Clients = () => {
                     <td style={styles.td}>
                       <div style={styles.actionButtons}>
                         <button
-                          onClick={() => openModal('view', client)}
+                          onClick={() => navigate(`/clientes/${client.id}`)}
                           style={styles.actionButton}
-                          title="Visualizar"
+                          title="Visualizar Detalhes"
                         >
                           <Eye size={16} />
                         </button>
@@ -798,14 +807,12 @@ const Clients = () => {
 
                     <div style={styles.formGroup}>
                       <label style={styles.label}>Celular *</label>
-                      <input
-                        type="text"
+                      <InternationalPhoneInput
                         name="cellphone"
                         value={formData.cellphone}
                         onChange={handleInputChange}
-                        style={styles.input}
-                        maxLength={15}
                         required
+                        error={error && error.includes('Celular') ? 'Celular inválido' : ''}
                       />
                     </div>
 
@@ -894,18 +901,6 @@ const Clients = () => {
                       />
                     </div>
                   </div>
-
-                  {error && (
-                    <div style={styles.errorMessage}>
-                      {error}
-                    </div>
-                  )}
-
-                  {success && (
-                    <div style={styles.successMessage}>
-                      {success}
-                    </div>
-                  )}
 
                   <div style={styles.modalActions}>
                     <button
