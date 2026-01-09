@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import Layout from './components/layout/Layout';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -36,6 +37,14 @@ import LytexPayment from './pages/LytexPayment'; // Página de pagamento Lytex
 import LandingPage from './pages/LandingPage';
 import Erro404 from '../src/assets/img/404.png'; // Imagem de erro 404
 
+const ExternalRedirect = ({ url }) => {
+  useEffect(() => {
+    window.location.href = url; // Redireciona para fora do app
+  }, [url]);
+
+  return null; // Não renderiza nada
+};
+
 
 function App() {
   return (
@@ -45,7 +54,7 @@ function App() {
           <div className="app">
             <Routes>
               {/* Rota principal agora é a Landing Page */}
-              <Route path="/" element={<Login />} />
+              <Route path="/" element={<ExternalRedirect url="https://sendd-landing-page.vercel.app/" />} />
 
               {/* Rotas públicas (sem sidebar) */}
               <Route path="/login" element={<Login />} />
