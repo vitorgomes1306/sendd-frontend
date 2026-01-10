@@ -8,7 +8,8 @@ import AdminRoute from './components/ui/AdminRoute';
 import Dash from './pages/Dash';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Landing from './pages/Langing';
+//import Landingpage from './pages/LandingPage';
+import Home from './pages/Home';
 
 // importa a pagina de canais
 import Canais from './pages/Canais';
@@ -54,7 +55,9 @@ function App() {
           <div className="app">
             <Routes>
               {/* Rota principal agora é a Landing Page */}
-              <Route path="/" element={<ExternalRedirect url="https://sendd-landing-page.vercel.app/" />} />
+              {/* <Route path="/" element={<ExternalRedirect url="https://sendd-landing-page.vercel.app/" />} /> */}
+
+              <Route path="/" element={<Home />} />
 
               {/* Rotas públicas (sem sidebar) */}
               <Route path="/login" element={<Login />} />

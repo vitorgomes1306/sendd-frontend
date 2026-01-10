@@ -15,7 +15,7 @@ import {
 
 import { useEffect, useState } from 'react';
 
-function LandingPage() {
+function Landingpage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const getInitialTheme = () => {
@@ -229,4 +229,4 @@ function LandingPage() {
   );
 }
 
-export default LandingPage;
+export default Landingpage;
