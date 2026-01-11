@@ -1,36 +1,51 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import '../styles/buttons.css';
+import '../styles/forms.css';
+
+//
 import { apiService, getApiBaseUrl } from '../services/api';
-import { 
-  Upload, 
-  Image as ImageIcon, 
-  Video, 
-  FileText, 
-  Trash2, 
-  Search, 
-  X, 
-  Paperclip, 
-  Music, 
-  File, 
-  Send, 
-  History, 
-  Smartphone, 
-  Users, 
-  Clock, 
+import {
+  Upload,
+  Image as ImageIcon,
+  Video,
+  FileText,
+  Trash2,
+  Search,
+  X,
+  Paperclip,
+  Music,
+  File,
+  Send,
+  History,
+  Smartphone,
+  Users,
+  Clock,
   AlertCircle,
   Check,
   Play,
   Pause,
-  Square
+  Square,
+  Timer,
+
 } from 'lucide-react';
 import AlertToast from '../components/ui/AlertToast';
 
+
 const NotificacoesManual = () => {
+
+  // Função para exibir Alertas toast
+  const { showToast } = useToast();
+
+  // Estado para hover do botão laranja
+  const [isHover, setIsHover] = useState(false);
+
   const { currentTheme } = useTheme();
   const { user } = useAuth();
   const fileInputRef = useRef(null);
-  
+
   // Obter estilos com o tema atual
   const styles = getStyles(currentTheme);
 
@@ -41,7 +56,7 @@ const NotificacoesManual = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  
+
   // Templates
   const [templates, setTemplates] = useState([]);
 
@@ -210,7 +225,7 @@ const NotificacoesManual = () => {
     isPaused: false,
     isStopped: false
   });
-  
+
   // Lista de números que falharam ou foram pulados
   const [failedNumbers, setFailedNumbers] = useState([]);
   const [successNumbers, setSuccessNumbers] = useState([]);
@@ -256,12 +271,12 @@ const NotificacoesManual = () => {
     // Tenta tratar removendo 2 dígitos se começar com 99 após DDD?
     // Mantendo lógica anterior simplificada para remover 9 extra se houver
     if (numbersOnly.length === 12) {
-       const rest = numbersOnly.substring(2);
-       if (rest.startsWith('99')) {
-         // DDD + 99 + 8 digitos -> remove dois 9s? ou remove um?
-         // Se o objetivo é 8 digitos, removemos o prefixo para sobrar 8
-         return ddd + rest.substring(2);
-       }
+      const rest = numbersOnly.substring(2);
+      if (rest.startsWith('99')) {
+        // DDD + 99 + 8 digitos -> remove dois 9s? ou remove um?
+        // Se o objetivo é 8 digitos, removemos o prefixo para sobrar 8
+        return ddd + rest.substring(2);
+      }
     }
 
     return null;
@@ -302,9 +317,9 @@ const NotificacoesManual = () => {
         const isEnd = i === numbersOnly.length - 1;
 
         if (isFixed || isEnd) {
-           const formatted = formatSinglePhoneNumber(currentNumber);
-           if (formatted) numbers.push(formatted);
-           currentNumber = '';
+          const formatted = formatSinglePhoneNumber(currentNumber);
+          if (formatted) numbers.push(formatted);
+          currentNumber = '';
         }
       }
     }
@@ -331,7 +346,7 @@ const NotificacoesManual = () => {
       }));
 
       setPhoneNumbers(prev => [...prev, ...numbersWithId]);
-      
+
       const allNumbers = [...phoneNumbers, ...numbersWithId].map(item => item.number).join(',');
       setFormData(prev => ({ ...prev, recipients: allNumbers }));
     }
@@ -340,7 +355,7 @@ const NotificacoesManual = () => {
   const removePhoneNumber = (id) => {
     const updatedNumbers = phoneNumbers.filter(item => item.id !== id);
     setPhoneNumbers(updatedNumbers);
-    
+
     const allNumbers = updatedNumbers.map(item => item.number).join(',');
     setFormData(prev => ({ ...prev, recipients: allNumbers }));
   };
@@ -401,7 +416,7 @@ const NotificacoesManual = () => {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     if (file.size > 10 * 1024 * 1024) {
       showAlert('error', 'Erro', 'Arquivo muito grande. Limite máximo de 10MB.');
       return;
@@ -467,7 +482,7 @@ const NotificacoesManual = () => {
   const handleContentChange = (e) => {
     const value = e.target.value;
     const cursorPosition = e.target.selectionStart;
-    
+
     // Atualiza o estado do formulário (texto)
     setFormData(prev => ({ ...prev, text: value }));
 
@@ -496,7 +511,7 @@ const NotificacoesManual = () => {
   const handleContentKeyDown = (e) => {
     if (!slashMenu.isOpen) return;
 
-    const filteredTemplates = templates.filter(t => 
+    const filteredTemplates = templates.filter(t =>
       t.title.toLowerCase().includes(slashMenu.filter.toLowerCase())
     );
 
@@ -527,12 +542,12 @@ const NotificacoesManual = () => {
     const text = formData.text;
     const textBeforeCursor = text.substring(0, cursorPosition);
     const slashIndex = textBeforeCursor.lastIndexOf('/');
-    
+
     const newText = text.substring(0, slashIndex) + template.content + text.substring(cursorPosition);
-    
+
     setFormData(prev => ({ ...prev, text: newText }));
     setSlashMenu(prev => ({ ...prev, isOpen: false }));
-    
+
     // Retornar o foco para o textarea após a atualização do estado
     setTimeout(() => {
       if (textareaRef.current) {
@@ -548,9 +563,9 @@ const NotificacoesManual = () => {
 
   // Sincronizar ref com estado de progresso
   useEffect(() => {
-    controlRef.current = { 
-        isPaused: sendingProgress.isPaused, 
-        isStopped: sendingProgress.isStopped 
+    controlRef.current = {
+      isPaused: sendingProgress.isPaused,
+      isStopped: sendingProgress.isStopped
     };
   }, [sendingProgress.isPaused, sendingProgress.isStopped]);
 
@@ -580,14 +595,14 @@ const NotificacoesManual = () => {
       return;
     }
 
-  // Resetar controles e lista de falhas
+    // Resetar controles e lista de falhas
     controlRef.current = { isPaused: false, isStopped: false };
     setFailedNumbers([]);
     setSuccessNumbers([]);
     const currentFailures = [];
     const currentSuccesses = [];
     setShowReport(true); // Mostrar relatório/progresso
-    
+
     setSendingProgress({
       isActive: true,
       currentIndex: 0,
@@ -611,77 +626,77 @@ const NotificacoesManual = () => {
 
         // Verificar Pause (loop de espera)
         while (controlRef.current.isPaused) {
-            if (controlRef.current.isStopped) break;
-            await sleep(500);
+          if (controlRef.current.isStopped) break;
+          await sleep(500);
         }
         if (controlRef.current.isStopped) break;
 
         const recipient = recipientsList[i];
-        
+
         // Atualizar UI
         setSendingProgress(prev => ({ ...prev, currentIndex: i + 1 }));
 
         const notificationData = {
-            name: `${formData.name}`,
-            message: formData.text,
-            recipients: [recipient], // Envia individualmente
-            channelId: formData.instanceId,
-            channelName: selectedInstance.name,
-            selectedClients: [],
-            status: 'pending',
-            mediaId: selectedMedia ? selectedMedia.id : null,
-            interval: 0 // Sem delay no backend
+          name: `${formData.name}`,
+          message: formData.text,
+          recipients: [recipient], // Envia individualmente
+          channelId: formData.instanceId,
+          channelName: selectedInstance.name,
+          selectedClients: [],
+          status: 'pending',
+          mediaId: selectedMedia ? selectedMedia.id : null,
+          interval: 0 // Sem delay no backend
         };
 
         try {
-            const response = await apiService.saveNotification(notificationData);
-            
-            // Verificar se o backend retornou status 'failed' (ex: número inválido)
-            if (response.data && response.data.status === 'failed') {
-                const errorMsg = response.data.errorMessage || 'Erro desconhecido';
-                const failObj = { number: recipient, reason: errorMsg };
-                currentFailures.push(failObj);
-                setFailedNumbers(prev => [...prev, failObj]);
-            } else {
-                const successObj = { number: recipient };
-                currentSuccesses.push(successObj);
-                setSuccessNumbers(prev => [...prev, successObj]);
-            }
-            
-        } catch (err) {
-            console.error(`Falha ao enviar para ${recipient}:`, err);
-            const errorMsg = err.response?.data?.message || err.message || 'Erro de conexão';
+          const response = await apiService.saveNotification(notificationData);
+
+          // Verificar se o backend retornou status 'failed' (ex: número inválido)
+          if (response.data && response.data.status === 'failed') {
+            const errorMsg = response.data.errorMessage || 'Erro desconhecido';
             const failObj = { number: recipient, reason: errorMsg };
             currentFailures.push(failObj);
             setFailedNumbers(prev => [...prev, failObj]);
+          } else {
+            const successObj = { number: recipient };
+            currentSuccesses.push(successObj);
+            setSuccessNumbers(prev => [...prev, successObj]);
+          }
+
+        } catch (err) {
+          console.error(`Falha ao enviar para ${recipient}:`, err);
+          const errorMsg = err.response?.data?.message || err.message || 'Erro de conexão';
+          const failObj = { number: recipient, reason: errorMsg };
+          currentFailures.push(failObj);
+          setFailedNumbers(prev => [...prev, failObj]);
         }
 
         // Aguardar intervalo (apenas se não for o último)
         if (i < recipientsList.length - 1) {
-            await sleep(intervalMs);
+          await sleep(intervalMs);
         }
       }
 
       if (!controlRef.current.isStopped) {
         if (currentFailures.length === phoneNumbers.length) {
-             showAlert('error', 'Falha', 'Nenhuma mensagem foi enviada. Verifique os números.');
+          showAlert('error', 'Falha', 'Nenhuma mensagem foi enviada. Verifique os números.');
         } else if (currentFailures.length > 0) {
-             showAlert('warning', 'Concluído com erros', `Envio finalizado. ${currentFailures.length} números falharam.`);
+          showAlert('warning', 'Concluído com erros', `Envio finalizado. ${currentFailures.length} números falharam.`);
         } else {
-             showAlert('success', 'Concluído', 'Todas as mensagens foram enviadas com sucesso!');
+          showAlert('success', 'Concluído', 'Todas as mensagens foram enviadas com sucesso!');
         }
-        
+
         // Limpar tudo se foi sucesso total
         if (currentFailures.length === 0) {
-            setFormData(prev => ({
-                ...prev,
-                name: '',
-                text: '',
-                recipients: ''
-            }));
-            setPhoneNumbers([]);
-            setPhoneInput('');
-            setSelectedMedia(null);
+          setFormData(prev => ({
+            ...prev,
+            name: '',
+            text: '',
+            recipients: ''
+          }));
+          setPhoneNumbers([]);
+          setPhoneInput('');
+          setSelectedMedia(null);
         }
       } else {
         showAlert('warning', 'Parado', 'Envio interrompido.');
@@ -714,10 +729,10 @@ const NotificacoesManual = () => {
         Nova Notificação
       </h2>
 
-      <form onSubmit={handleSendNotification} style={styles.form}>
+      <form onSubmit={handleSendNotification} className="form-container">
         {/* Nome da Notificação */}
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Nome da Notificação *</label>
+        <div className="form-group">
+          <label className="form-label">Nome da Notificação *</label>
           <input
             type="text"
             name="name"
@@ -725,25 +740,25 @@ const NotificacoesManual = () => {
             onChange={handleInputChange}
             placeholder="Ex: Promoção Black Friday"
             required
-            style={styles.input}
+            className="form-input"
           />
         </div>
 
         <div style={styles.grid2}>
           {/* Instância */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Instância WhatsApp *</label>
+          <div className="form-group">
+            <label className="form-label">Instância WhatsApp *</label>
             <select
               name="instanceId"
               value={formData.instanceId}
               onChange={handleInputChange}
               required
-              style={styles.select}
+              className="form-select"
             >
               <option value="">Selecione uma instância</option>
               {instances.map(instance => (
                 <option key={instance.id} value={instance.id}>
-                  {instance.name} 
+                  {instance.name}
                 </option>
               ))}
             </select>
@@ -751,8 +766,8 @@ const NotificacoesManual = () => {
 
           {/* Anexo de Mídia */}
           <div style={styles.mediaContainer}>
-            <label style={styles.label}>Anexar Mídia (Opcional)</label>
-            
+            <label className="form-label">Anexar Mídia (Opcional)</label>
+
             {selectedMedia ? (
               <div style={styles.selectedMedia}>
                 <div style={styles.mediaInfo}>
@@ -772,26 +787,63 @@ const NotificacoesManual = () => {
                 </button>
               </div>
             ) : (
-              <div style={{ position: 'relative' }}>
-                <button 
-                  type="button" 
-                  onClick={() => setShowMediaOptions(!showMediaOptions)}
-                  style={styles.attachButton}
-                >
-                  <Paperclip size={18} />
-                  Anexar Mídia
-                </button>
-                
-                {showMediaOptions && (
-                  <div style={styles.mediaDropdown}>
-                    <button type="button" onClick={() => fileInputRef.current?.click()} style={styles.mediaOption}>
-                      <Upload size={16} /> Fazer Upload
-                    </button>
-                    <button type="button" onClick={openGallery} style={styles.mediaOption}>
-                      <ImageIcon size={16} /> Selecionar da Galeria
-                    </button>
-                  </div>
-                )}
+              <div style={styles.uploadContainer}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+
+                  {/* Botão de Upload */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={styles.mediaActionBtn}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = currentTheme.primary}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = currentTheme.border}
+                  >
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '8px',
+                      backgroundColor: currentTheme.backgroundSecondary || '#f3f4f6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: currentTheme.primary
+                    }}>
+                      <Upload size={20} />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <span style={{ display: 'block', fontWeight: '600', fontSize: '14px', color: currentTheme.textPrimary }}>Fazer Upload</span>
+                      <span style={{ display: 'block', fontSize: '12px', color: currentTheme.textSecondary }}>Do seu computador</span>
+                    </div>
+                  </button>
+
+                  {/* Botão de Galeria */}
+                  <button
+                    type="button"
+                    onClick={openGallery}
+                    style={styles.mediaActionBtn}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = currentTheme.primary}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = currentTheme.border}
+                  >
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '8px',
+                      backgroundColor: currentTheme.backgroundSecondary || '#f3f4f6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#8b5cf6' // Um roxo para diferenciar
+                    }}>
+                      <ImageIcon size={20} />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <span style={{ display: 'block', fontWeight: '600', fontSize: '14px', color: currentTheme.textPrimary }}>Galeria</span>
+                      <span style={{ display: 'block', fontSize: '12px', color: currentTheme.textSecondary }}>Arquivos salvos</span>
+                    </div>
+                  </button>
+
+                </div>
+
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -805,12 +857,12 @@ const NotificacoesManual = () => {
         </div>
 
         {/* Seleção de Clientes */}
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Selecionar Clientes</label>
+        <div className="form-group">
+          <label className="form-label">Selecionar Clientes</label>
           <button
             type="button"
             onClick={() => setShowClientModal(true)}
-            style={styles.clientSelectButton}
+            className="form-input"
           >
             <Users size={18} />
             Clique para selecionar clientes da base
@@ -818,8 +870,8 @@ const NotificacoesManual = () => {
         </div>
 
         {/* Destinatários */}
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Destinatários *</label>
+        <div className="form-group">
+          <label className="form-label">Destinatários *</label>
           <input
             type="text"
             value={phoneInput}
@@ -827,18 +879,19 @@ const NotificacoesManual = () => {
             onKeyPress={handlePhoneInputKeyPress}
             onPaste={handlePhoneInputPaste}
             placeholder="Digite ou cole números (Ex: 85999999999) e pressione Enter"
-            style={styles.input}
+            className="form-input"
           />
 
           {phoneNumbers.length > 0 && (
             <div style={styles.tagsContainer}>
               {phoneNumbers.map(item => (
                 <span key={item.id} style={styles.tag}>
+                  <Smartphone size={14} />
                   {item.number}
                   <button
                     type="button"
                     onClick={() => removePhoneNumber(item.id)}
-                    style={styles.removeTagButton}
+                    className="btn-remove-tag"
                   >
                     ×
                   </button>
@@ -846,14 +899,14 @@ const NotificacoesManual = () => {
               ))}
             </div>
           )}
-          <small style={styles.helperText}>
+          <small className="form-help">
             Digite números e pressione Enter. Números de 10 dígitos terão o 9 adicionado automaticamente.
           </small>
         </div>
 
         {/* Intervalo */}
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Intervalo entre envios (segundos)</label>
+        <div className="form-group">
+          <label className="form-label">Intervalo entre envios (segundos)</label>
           <input
             type="number"
             name="interval"
@@ -861,20 +914,20 @@ const NotificacoesManual = () => {
             onChange={handleInputChange}
             min="0"
             max="60"
-            style={styles.input}
+            className="form-input"
           />
-          <small style={styles.helperText}>
+          <small className="form-help">
             Tempo de espera entre cada envio (recomendamos mínimo 30 segundo para evitar bloqueios da META)
           </small>
         </div>
 
         {/* Mensagem */}
-        <div style={styles.formGroup}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-            <label style={styles.label}>Mensagem *</label>
+        <div className="form-group">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label">Mensagem *</label>
             {templates.length > 0 && (
-              <select 
-                onChange={handleTemplateSelect} 
+              <select
+                onChange={handleTemplateSelect}
                 style={{
                   padding: '4px 8px',
                   borderRadius: '4px',
@@ -892,7 +945,7 @@ const NotificacoesManual = () => {
               </select>
             )}
           </div>
-          <div style={{position: 'relative'}}>
+          <div style={{ position: 'relative' }}>
             <textarea
               ref={textareaRef}
               name="text"
@@ -903,14 +956,14 @@ const NotificacoesManual = () => {
               required
               rows={4}
               maxLength={4096}
-              style={styles.textarea}
+              className="form-textarea"
             />
             {slashMenu.isOpen && (
               <div style={styles.slashMenu}>
                 {templates
                   .filter(t => t.title.toLowerCase().includes(slashMenu.filter.toLowerCase()))
                   .map((template, index) => (
-                    <div 
+                    <div
                       key={template.id}
                       style={{
                         ...styles.slashMenuItem,
@@ -923,13 +976,13 @@ const NotificacoesManual = () => {
                     </div>
                   ))}
                 {templates.filter(t => t.title.toLowerCase().includes(slashMenu.filter.toLowerCase())).length === 0 && (
-                   <div style={styles.slashMenuEmpty}>Nenhuma mensagem encontrada</div>
+                  <div style={styles.slashMenuEmpty}>Nenhuma mensagem encontrada</div>
                 )}
               </div>
             )}
           </div>
           <div style={styles.charCount}>
-            <small style={styles.helperText}>Máximo 4096 caracteres</small>
+            <small className="form-help">Máximo 4096 caracteres</small>
             <small style={{
               ...styles.helperText,
               color: formData.text.length > 4000 ? '#ef4444' : styles.helperText.color,
@@ -947,7 +1000,7 @@ const NotificacoesManual = () => {
               <h3 style={styles.progressTitle}>
                 {sendingProgress.isActive ? 'Enviando...' : 'Envio Finalizado'}
               </h3>
-              <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <span style={styles.progressCount}>
                   {sendingProgress.currentIndex} de {sendingProgress.total}
                 </span>
@@ -958,7 +1011,7 @@ const NotificacoesManual = () => {
                 )}
               </div>
             </div>
-            
+
             <div style={styles.progressBarBg}>
               <div style={{
                 ...styles.progressBarFill,
@@ -966,7 +1019,7 @@ const NotificacoesManual = () => {
                 backgroundColor: sendingProgress.isActive ? currentTheme.primary : (failedNumbers.length > 0 && failedNumbers.length === phoneNumbers.length) ? '#ef4444' : '#10b981'
               }} />
             </div>
-            
+
             {sendingProgress.isActive && (
               <div style={styles.progressActions}>
                 <button type="button" onClick={handlePauseSending} style={styles.pauseButton}>
@@ -978,9 +1031,9 @@ const NotificacoesManual = () => {
                 </button>
               </div>
             )}
-            
+
             {/* Listas de Resultados */}
-            <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Lista de Sucesso */}
               {successNumbers.length > 0 && (
                 <div style={styles.successList}>
@@ -1019,17 +1072,40 @@ const NotificacoesManual = () => {
         )}
 
         {/* Botão de envio */}
-        <button
-          type="submit"
-          disabled={sending || loading || instances.length === 0 || sendingProgress.isActive}
-          style={{
-            ...styles.submitButton,
-            opacity: (sending || loading || instances.length === 0 || sendingProgress.isActive) ? 0.7 : 1,
-            cursor: (sending || loading || instances.length === 0 || sendingProgress.isActive) ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {sending ? 'Enviando...' : 'Enviar Notificação'}
-        </button>
+        <div style={styles.actionButtons}>
+          <button
+            type="submit"
+            disabled={sending || loading || instances.length === 0 || sendingProgress.isActive}
+            onMouseEnter={() => setIsHover(true)}
+            onMouseLeave={() => setIsHover(false)}
+            className="btn-base btn-new" style={{ fontSize: '16px' }}
+          >
+            <Send size={16} />
+            <span>
+              {sending ? 'Enviando...' : 'Enviar Notificação'}
+            </span>
+          </button>
+
+
+          <button
+            className="btn-base btn-new-orange" style={{ fontSize: '16px' }}
+            type="button"
+            onClick={() =>
+              showToast({
+                title: 'Função não habilitada',
+                message: 'O agendamento será liberado em breve.',
+                variant: 'warning'
+              })
+            }
+          >
+            <Timer size={18} />
+            <span>Agendar envio</span>
+          </button>
+
+
+        </div>
+
+
       </form>
     </div>
   );
@@ -1044,20 +1120,20 @@ const NotificacoesManual = () => {
         </h2>
 
         <div style={styles.filterContainer}>
-          <div style={styles.searchWrapper}>
+          <div className="form-input-wrapper">
             <Search size={16} style={styles.searchIcon} />
             <input
               type="text"
               placeholder="Buscar..."
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              style={styles.searchInput}
+              className="form-input"
             />
           </div>
           <select
             value={filters.status}
             onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            style={styles.filterSelect}
+            className="form-select"
           >
             <option value="">Todos os status</option>
             <option value="pending">Pendente</option>
@@ -1123,17 +1199,17 @@ const NotificacoesManual = () => {
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                 disabled={pagination.page === 1}
-                style={{...styles.paginationButton, opacity: pagination.page === 1 ? 0.5 : 1}}
+                style={{ ...styles.paginationButton, opacity: pagination.page === 1 ? 0.5 : 1 }}
               >
                 Anterior
               </button>
-              <span style={{color: currentTheme.textPrimary}}>
+              <span style={{ color: currentTheme.textPrimary }}>
                 Página {pagination.page} de {pagination.pages}
               </span>
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
                 disabled={pagination.page === pagination.pages}
-                style={{...styles.paginationButton, opacity: pagination.page === pagination.pages ? 0.5 : 1}}
+                style={{ ...styles.paginationButton, opacity: pagination.page === pagination.pages ? 0.5 : 1 }}
               >
                 Próxima
               </button>
@@ -1147,12 +1223,12 @@ const NotificacoesManual = () => {
   return (
     <div style={styles.container}>
       {/* Alerta Global */}
-      <AlertToast 
-        open={alertState.open} 
-        variant={alertState.variant} 
-        title={alertState.title} 
-        message={alertState.message} 
-        onClose={() => setAlertState(prev => ({ ...prev, open: false }))} 
+      <AlertToast
+        open={alertState.open}
+        variant={alertState.variant}
+        title={alertState.title}
+        message={alertState.message}
+        onClose={() => setAlertState(prev => ({ ...prev, open: false }))}
       />
 
       {/* Cabeçalho */}
@@ -1210,8 +1286,8 @@ const NotificacoesManual = () => {
                   style={styles.clientItem}
                   onClick={() => handleClientSelection(client)}
                 >
-                  <div style={{fontWeight: '500', color: currentTheme.textPrimary}}>{client.name}</div>
-                  <div style={{fontSize: '0.875rem', color: currentTheme.textSecondary}}>{client.cellphone}</div>
+                  <div style={{ fontWeight: '500', color: currentTheme.textPrimary }}>{client.name}</div>
+                  <div style={{ fontSize: '0.875rem', color: currentTheme.textSecondary }}>{client.cellphone}</div>
                 </div>
               ))}
               {clients.length === 0 && (
@@ -1225,7 +1301,7 @@ const NotificacoesManual = () => {
       {/* Modal da Galeria */}
       {showGallery && (
         <div style={styles.modalOverlay} onClick={() => setShowGallery(false)}>
-          <div style={{...styles.modal, maxWidth: '800px'}} onClick={e => e.stopPropagation()}>
+          <div style={{ ...styles.modal, maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>Galeria de Mídia</h3>
               <button onClick={() => setShowGallery(false)} style={styles.closeButton}>
@@ -1392,16 +1468,16 @@ const getStyles = (theme) => ({
   },
   submitButton: {
     padding: '14px',
-    backgroundColor: theme.primary,
+    backgroundColor: '#2563eb',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '16px',
     fontWeight: '600',
-    cursor: 'pointer',
     transition: 'background-color 0.2s',
-    marginTop: '16px'
+    width: '100%'
   },
+
   tagsContainer: {
     display: 'flex',
     flexWrap: 'wrap',
@@ -1920,7 +1996,85 @@ const getStyles = (theme) => ({
     textAlign: 'center',
     color: theme.textSecondary,
     fontSize: '13px'
+  },
+
+  actionButtons: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+    marginTop: '16px'
+  },
+
+  orangeButton: {
+    padding: '14px',
+    backgroundColor: '#f97316', // laranja
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s'
+  },
+
+  submitButton: {
+    padding: '14px',
+    backgroundColor: theme.primary,
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    width: '100%'
+  },
+
+  orangeButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '14px',
+    backgroundColor: '#f97316',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    width: '100%'
+  },
+
+
+  actionButtons: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+    marginTop: '16px'
+  },
+  orangeButtonHover: {
+    backgroundColor: '#e58957ff'
+  },
+
+
+
+
+
+  mediaActionBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '16px',
+    backgroundColor: theme.background,
+    border: `1px solid ${theme.border}`,
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    width: '100%'
   }
+
 });
 
 export default NotificacoesManual;

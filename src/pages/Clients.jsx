@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
-import { Users, Plus, Search, Edit, Trash2, Eye, X, MapPin, Phone, Mail, User, Building, Hash, Calendar, RefreshCw, AlertCircle, Check } from 'lucide-react';
+import { Users, Plus, Search, Edit, Trash2, Eye, X, MapPin, Phone, Mail, User, Building, Hash, Calendar, RefreshCw, AlertCircle, Check, Import } from 'lucide-react';
 import { apiService } from '../services/api';
 import AlertToast from '../components/ui/AlertToast';
+import { useToast } from '../contexts/ToastContext';
+
+import '../styles/buttons.css';
+
 import { lookupCep } from '../utils/cep';
 import InternationalPhoneInput from '../components/ui/InternationalPhoneInput';
 
 const Clients = () => {
+  
+  // Função para exibir Alertas toast
+  const { showToast } = useToast();
+
+  const [hover, setHover] = useState(false);
+  
   const navigate = useNavigate();
   const { currentTheme } = useTheme();
   const [clients, setClients] = useState([]);
@@ -26,6 +36,8 @@ const Clients = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [clientToDelete, setClientToDelete] = useState(null);
   const [formData, setFormData] = useState({
+
+    
     name: '',
     type: 'PF',
     cpfCnpj: '',
@@ -471,15 +483,22 @@ const Clients = () => {
           </div>
           
           <button
-            onClick={() => openModal('create')}
-            style={styles.addButton}
+            className="btn-base btn-new-green"
+            onClick={() =>
+              showToast({
+                title: 'Função não habilitada',
+                message: 'A importação de contatos será liberada em breve.',
+                variant: 'warning'
+              })
+            }
           >
-            <Plus size={20} />
+            <Import size={20} />
             Importar contatos
           </button>
           <button
+            className="btn-base btn-new"
             onClick={() => openModal('create')}
-            style={styles.addButton}
+            
           >
             <Plus size={20} />
             Novo Cliente
@@ -1024,6 +1043,21 @@ const getStyles = (theme) => ({
       backgroundColor: theme.primaryDark || theme.primary
     }
   },
+  importButton: {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '12px 20px',
+  backgroundColor: '#16a34a', // verde
+  color: 'white',
+  border: 'none',
+  borderRadius: '8px',
+  fontSize: '14px',
+  fontWeight: '600',
+  cursor: 'pointer',
+  transition: 'all 0.2s',
+},
+
   addButtonImportContacts: {
     display: 'flex',
     alignItems: 'center',

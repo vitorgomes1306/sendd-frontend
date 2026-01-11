@@ -4,6 +4,8 @@ import Sidebar from './Sidebar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import LogoutModal from '../ui/LogoutModal';
+import '../../../src/styles/buttons.css';
+import { LogOut } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const { currentTheme, toggleTheme, isDark } = useTheme();
@@ -71,21 +73,21 @@ const Layout = ({ children }) => {
   const isChatPage = location.pathname === '/chat';
 
   return (
-    <div style={{ 
+    <div style={{
       display: 'flex',
       minHeight: '100vh',
       backgroundColor: currentTheme.background
     }}>
       {/* Sidebar */}
-      <Sidebar 
-        onToggle={handleSidebarToggle} 
+      <Sidebar
+        onToggle={handleSidebarToggle}
         isHidden={isMobile && sidebarHidden}
         isMobile={isMobile}
         onMobileClose={toggleMobileSidebar}
       />
-      
+
       {/* Main Content Area */}
-      <div 
+      <div
         style={{
           marginLeft: isMobile ? 0 : (sidebarCollapsed ? '70px' : '250px'),
           transition: 'margin-left 0.3s ease',
@@ -139,10 +141,10 @@ const Layout = ({ children }) => {
                   <i className="bi bi-list"></i>
                 </button>
               )}
-              
-              
+
+
             </div>
-            
+
             {/* User Info */}
             <div style={{
               display: 'flex',
@@ -150,32 +152,32 @@ const Layout = ({ children }) => {
               gap: '1rem'
             }}>
               <div style={{ position: 'relative' }} data-user-menu>
-                 <div style={{
-                   display: 'flex',
-                   alignItems: 'center',
-                   gap: '0.5rem',
-                   padding: '0.5rem 1rem',
-                   backgroundColor: currentTheme.borderLight,
-                   borderRadius: '0.5rem',
-                   cursor: 'pointer',
-                   transition: 'all 0.2s'
-                 }}
-                 onClick={() => setShowUserMenu(!showUserMenu)}
-                 onMouseEnter={(e) => {
-                   e.currentTarget.style.backgroundColor = currentTheme.border;
-                 }}
-                 onMouseLeave={(e) => {
-                   e.currentTarget.style.backgroundColor = currentTheme.borderLight;
-                 }}
-                 title="Menu do usuário"
-                 >
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  backgroundColor: currentTheme.borderLight,
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = currentTheme.border;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = currentTheme.borderLight;
+                  }}
+                  title="Menu do usuário"
+                >
                   {user?.picture ? (
-                    <img 
-                      src={user.picture} 
+                    <img
+                      src={user.picture}
                       alt="Avatar do usuário"
-                      style={{ 
-                        width: '1.2rem', 
-                        height: '1.2rem', 
+                      style={{
+                        width: '1.2rem',
+                        height: '1.2rem',
                         borderRadius: '50%',
                         objectFit: 'cover'
                       }}
@@ -186,15 +188,15 @@ const Layout = ({ children }) => {
                       }}
                     />
                   ) : null}
-                  <i 
-                    className="bi bi-person-circle" 
-                    style={{ 
-                      fontSize: '1.2rem', 
+                  <i
+                    className="bi bi-person-circle"
+                    style={{
+                      fontSize: '1.2rem',
                       color: currentTheme.textPrimary,
                       display: user?.picture ? 'none' : 'inline'
                     }}
                   ></i>
-                  <span style={{ 
+                  <span style={{
                     fontSize: '0.875rem',
                     color: currentTheme.textPrimary,
                     fontFamily: 'Poppins, sans-serif'
@@ -209,7 +211,7 @@ const Layout = ({ children }) => {
                     transition: 'transform 0.2s'
                   }}></i>
                 </div>
-                
+
                 {/* User Submenu */}
                 {showUserMenu && (
                   <div style={{
@@ -225,7 +227,7 @@ const Layout = ({ children }) => {
                     zIndex: 1000,
                     overflow: 'hidden'
                   }}>
-                    <div 
+                    <div
                       style={{
                         padding: '0.75rem 1rem',
                         cursor: 'pointer',
@@ -251,7 +253,7 @@ const Layout = ({ children }) => {
                       <i className="bi bi-person"></i>
                       Perfil
                     </div>
-                    <div 
+                    <div
                       style={{
                         padding: '0.75rem 1rem',
                         cursor: 'pointer',
@@ -277,7 +279,7 @@ const Layout = ({ children }) => {
                       <i className="bi bi-building"></i>
                       Organizations
                     </div>
-                    <div 
+                    <div
                       style={{
                         padding: '0.75rem 1rem',
                         cursor: 'pointer',
@@ -306,7 +308,7 @@ const Layout = ({ children }) => {
                   </div>
                 )}
               </div>
-              
+
               {/* Notifications Icon */}
               <button style={{
                 padding: '0.5rem',
@@ -324,16 +326,16 @@ const Layout = ({ children }) => {
                 height: '40px',
                 position: 'relative'
               }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = currentTheme.borderLight;
-                e.target.style.color = currentTheme.textPrimary;
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = currentTheme.textSecondary;
-              }}
-              onClick={() => navigate('/profile?tab=notificacoes')}
-              title="Notificações"
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = currentTheme.borderLight;
+                  e.target.style.color = currentTheme.textPrimary;
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = currentTheme.textSecondary;
+                }}
+                onClick={() => navigate('/profile?tab=notificacoes')}
+                title="Notificações"
               >
                 <i className="bi bi-bell"></i>
                 {/* Badge de notificação */}
@@ -352,7 +354,7 @@ const Layout = ({ children }) => {
                   justifyContent: 'center'
                 }}></span>
               </button>
-              
+
               {/* Admin Button - Only visible for admin users */}
               {(console.log('Layout - User data:', user) || console.log('Layout - user.isAdmin:', user?.isAdmin)) || user?.isAdmin && (
                 <button style={{
@@ -370,21 +372,21 @@ const Layout = ({ children }) => {
                   width: '40px',
                   height: '40px'
                 }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = currentTheme.borderLight;
-                  e.target.style.color = currentTheme.primary;
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = currentTheme.textSecondary;
-                }}
-                onClick={() => navigate('/admin')}
-                title="Administração"
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = currentTheme.borderLight;
+                    e.target.style.color = currentTheme.primary;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = currentTheme.textSecondary;
+                  }}
+                  onClick={() => navigate('/admin')}
+                  title="Administração"
                 >
                   <i className="bi bi-gear-fill"></i>
                 </button>
               )}
-              
+
               {/* Theme Toggle Icon */}
               <button style={{
                 padding: '0.5rem',
@@ -401,37 +403,24 @@ const Layout = ({ children }) => {
                 width: '40px',
                 height: '40px'
               }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = currentTheme.borderLight;
-                e.target.style.color = currentTheme.textPrimary;
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = currentTheme.textSecondary;
-              }}
-              onClick={toggleTheme}
-              title={isDark ? "Alternar para tema claro" : "Alternar para tema escuro"}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = currentTheme.borderLight;
+                  e.target.style.color = currentTheme.textPrimary;
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = currentTheme.textSecondary;
+                }}
+                onClick={toggleTheme}
+                title={isDark ? "Alternar para tema claro" : "Alternar para tema escuro"}
               >
                 <i className={isDark ? "bi bi-sun" : "bi bi-moon"}></i>
               </button>
-              
-              <button style={{
-                padding: '0.5rem 1rem',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
-                fontFamily: 'Poppins, sans-serif',
-                fontWeight: '500'
-              }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#dc2626'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#ef4444'}
-              onClick={handleLogoutClick}
+
+              <button className="btn-base btn-new-red"
+                onClick={handleLogoutClick}
               >
-                Sair
+                <LogOut size={20} />
               </button>
             </div>
           </div>
@@ -459,12 +448,12 @@ const Layout = ({ children }) => {
             color: currentTheme.textSecondary,
             fontFamily: 'Poppins, sans-serif'
           }}>
-            <a 
-              href="https://vixplay.altersoft.dev.br" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              style={{ 
-                color: 'inherit', 
+            <a
+              href="https://vixplay.altersoft.dev.br"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: 'inherit',
                 textDecoration: 'none',
                 fontWeight: 'bold'
               }}
@@ -479,7 +468,7 @@ const Layout = ({ children }) => {
 
       {/* Mobile Overlay */}
       {isMobile && !sidebarHidden && (
-        <div 
+        <div
           style={{
             position: 'fixed',
             top: 0,
@@ -494,7 +483,7 @@ const Layout = ({ children }) => {
       )}
 
       {/* Logout Modal */}
-      <LogoutModal 
+      <LogoutModal
         isOpen={showLogoutModal}
         onClose={handleLogoutCancel}
         onConfirm={handleLogoutConfirm}

@@ -1,0 +1,99 @@
+/* ===== BASE ÚNICA PARA TODOS OS BOTÕES ===== */
+.btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  height: 44px;              /* ALTURA TRAVADA */
+  padding: 0 20px;           /* SOMENTE HORIZONTAL */
+
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 600;
+
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+
+  transition:
+    background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-base svg {
+  width: 1em;       /* ÍCONE SEMPRE PROPORCIONAL AO TEXTO */
+  height: 1em;
+  display: block;
+  flex-shrink: 0;
+}
+
+/* ===== AZUL ===== */
+.btn-new {
+  background-color: #0070E0;
+  box-shadow: 0 4px 10px rgba(0, 112, 224, 0.25);
+}
+
+.btn-new:hover {
+  background-color: #005bb5;
+  box-shadow: 0 8px 20px rgba(0, 112, 224, 0.35);
+  transform: translateY(-2px);
+}
+
+/* ===== VERDE ===== */
+.btn-new-green {
+  background-color: #16a34a;
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.25);
+}
+
+.btn-new-green:hover {
+  background-color: #15803d;
+  box-shadow: 0 8px 20px rgba(22, 163, 74, 0.35);
+  transform: translateY(-2px);
+}
+
+/* ===== LARANJA ===== */
+.btn-new-orange {
+  background-color: #FFA500;
+  box-shadow: 0 4px 10px rgba(255, 165, 0, 0.25);
+}
+
+.btn-new-orange:hover {
+  background-color: #FF8C00;
+  box-shadow: 0 8px 20px rgba(255, 165, 0, 0.35);
+  transform: translateY(-2px);
+}
+
+/* ===== VERMELHO ===== */
+.btn-new-red {
+  background-color: #DC143C;
+  box-shadow: 0 4px 10px rgba(220, 20, 60, 0.25);
+}
+
+.btn-new-red:hover {
+  background-color: #B22222;
+  box-shadow: 0 8px 20px rgba(220, 20, 60, 0.35);
+  transform: translateY(-2px);
+}
+
+/* ===== REMOVE TAG BUTTON ===== */
+.btn-remove-tag {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  width: 20px;
+  height: 20px;
+  justify-content: center;
+}
+
+.btn-remove-tag:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}

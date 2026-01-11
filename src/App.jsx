@@ -8,8 +8,8 @@ import AdminRoute from './components/ui/AdminRoute';
 import Dash from './pages/Dash';
 import Login from './pages/Login';
 import Register from './pages/Register';
-//import Landingpage from './pages/LandingPage';
 import Home from './pages/Home';
+
 
 // importa a pagina de canais
 import Canais from './pages/Canais';
