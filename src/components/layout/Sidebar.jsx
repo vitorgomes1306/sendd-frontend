@@ -18,12 +18,12 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
   // Função para construir URL completa do avatar
   const getAvatarUrl = (picturePath) => {
     if (!picturePath) return null;
-    
+
     // Se já é uma URL completa, retorna como está
     if (picturePath.startsWith('http')) {
       return picturePath;
     }
-    
+
     // Constrói a URL completa baseada no ambiente
     const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:4000';
     // Adiciona timestamp para evitar cache da imagem
@@ -55,13 +55,13 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
   const isActive = (path) => {
     // Verifica se a rota atual é exatamente igual ao path
     if (location.pathname === path) return true;
-    
+
     // Verifica se a rota atual é um submenu do item
     const menuItem = menuItems.find(item => item.path === path);
     if (menuItem && menuItem.submenu) {
       return menuItem.submenu.some(subItem => location.pathname === subItem.path);
     }
-    
+
     return false;
   };
 
@@ -112,11 +112,12 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
       icon: 'bi-bell',
       submenu: [
         { path: '/notificacoes/manual', name: 'Manual', icon: 'bi-hand-index' },
+        { path: '/checar-numeros', name: 'Checar Números', icon: 'bi-check-circle' },
         { path: '/notificacoes/agendadas', name: 'Agendadas', icon: 'bi-calendar-event' },
         { path: '/notificacoes/historico', name: 'Histórico', icon: 'bi-clock-history' }
       ]
     },
-    
+
     {
       path: '/relatorios',
       name: 'Relatórios',
@@ -147,7 +148,7 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
         />
       )}
 
-      <div 
+      <div
         className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}
         style={{
           width: isCollapsed ? '70px' : '250px',
@@ -177,21 +178,21 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
           justifyContent: isCollapsed ? 'center' : 'space-between'
         }}>
           {!isCollapsed && (
-            <h2 style={{ 
-              margin: 0, 
+            <h2 style={{
+              margin: 0,
               fontSize: '1.25rem',
               fontWeight: 'bold'
             }}>
               {user && user.picture && user.picture !== '0' && user.picture !== 'null' ? (
-                <img 
-                  src={getAvatarUrl(user.picture)} 
-                  alt="User Avatar" 
-                  style={{ 
-                    width: '100%', 
+                <img
+                  src={getAvatarUrl(user.picture)}
+                  alt="User Avatar"
+                  style={{
+                    width: '100%',
                     height: 'auto',
                     maxHeight: '60px',
                     objectFit: 'contain',
-                  }} 
+                  }}
                 />
               ) : (
                 <img src={isDark ? Logo1 : Logo2} alt="Altersoft Desenvolvimento" style={{ width: '100%', height: 'auto' }} />
@@ -250,13 +251,13 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
                     title={isCollapsed ? item.name : ''}
                   >
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <i className={`bi ${item.icon}`} style={{ 
+                      <i className={`bi ${item.icon}`} style={{
                         fontSize: '1.2rem',
                         marginRight: isCollapsed ? 0 : '0.75rem',
                         minWidth: '20px'
                       }}></i>
                       {!isCollapsed && (
-                        <span style={{ 
+                        <span style={{
                           fontSize: '0.9rem',
                           fontFamily: 'Poppins, sans-serif',
                           fontWeight: '500'
@@ -266,11 +267,11 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
                       )}
                     </div>
                     {!isCollapsed && (
-                      <i className={`bi ${openSubmenus[item.path] ? 'bi-chevron-up' : 'bi-chevron-down'}`} 
-                         style={{ fontSize: '0.8rem' }}></i>
+                      <i className={`bi ${openSubmenus[item.path] ? 'bi-chevron-up' : 'bi-chevron-down'}`}
+                        style={{ fontSize: '0.8rem' }}></i>
                     )}
                   </div>
-                  
+
                   {/* Submenu */}
                   {!isCollapsed && openSubmenus[item.path] && (
                     <div style={{ backgroundColor: currentTheme.backgroundSecondary }}>
@@ -303,12 +304,12 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
                             }
                           }}
                         >
-                          <i className={`bi ${subItem.icon}`} style={{ 
+                          <i className={`bi ${subItem.icon}`} style={{
                             fontSize: '1rem',
                             marginRight: '0.75rem',
                             minWidth: '16px'
                           }}></i>
-                          <span style={{ 
+                          <span style={{
                             fontFamily: 'Poppins, sans-serif',
                             fontWeight: '400'
                           }}>
@@ -350,13 +351,13 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
                   }}
                   title={isCollapsed ? item.name : ''}
                 >
-                  <i className={`bi ${item.icon}`} style={{ 
+                  <i className={`bi ${item.icon}`} style={{
                     fontSize: '1.2rem',
                     marginRight: isCollapsed ? 0 : '0.75rem',
                     minWidth: '20px'
                   }}></i>
                   {!isCollapsed && (
-                    <span style={{ 
+                    <span style={{
                       fontSize: '0.9rem',
                       fontFamily: 'Poppins, sans-serif',
                       fontWeight: '500'
@@ -368,7 +369,7 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
               )}
             </div>
           ))}
-          
+
 
         </nav>
 
@@ -383,12 +384,12 @@ const Sidebar = ({ onToggle, isHidden, isMobile, onMobileClose }) => {
           fontWeight: '400'
         }}>
           <div>
-          {window.innerWidth > 768 && !isCollapsed && (
+            {window.innerWidth > 768 && !isCollapsed && (
               <a href="https://www.altersoft.dev.br" target="_blank" rel="noopener noreferrer">
-              <img src={isDark ? LogoAltersoft2 : LogoAltersoft1} alt="Altersoft" style={{ width: '100px', height: 'auto' }} />
-            </a>
-          )}
-          
+                <img src={isDark ? LogoAltersoft2 : LogoAltersoft1} alt="Altersoft" style={{ width: '100px', height: 'auto' }} />
+              </a>
+            )}
+
           </div>
         </div>
       </div>

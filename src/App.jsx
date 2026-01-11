@@ -25,6 +25,7 @@ import ConfiguracaoBoot from './pages/ConfiguracaoBoot';
 import ConfiguracaoHorarios from './pages/ConfiguracaoHorarios';
 import Tokens from './pages/Tokens';
 import NotificacoesManual from './pages/NotificacoesManual';
+import ChecarNumeros from './pages/ChecarNumeros';
 import NotificacoesAgendadas from './pages/NotificacoesAgendadas';
 import NotificacoesHistorico from './pages/NotificacoesHistorico';
 import Chat from './pages/Chat';
@@ -130,6 +131,12 @@ function App() {
                 </ProtectedRoute>
               } />
 
+              <Route path="/checar-numeros" element={
+                <ProtectedRoute>
+                  <Layout><ChecarNumeros /></Layout>
+                </ProtectedRoute>
+              } />
+
               <Route path="/notificacoes/agendadas" element={
                 <ProtectedRoute>
                   <Layout><NotificacoesAgendadas /></Layout>
@@ -185,7 +192,7 @@ function App() {
                   </AdminRoute>
                 </ProtectedRoute>
               } />
-               <Route path="/formas" element={
+              <Route path="/formas" element={
                 <ProtectedRoute>
                   <AdminRoute>
                     <Layout><Admin /></Layout>

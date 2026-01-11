@@ -1005,7 +1005,8 @@ const NotificacoesManual = () => {
                   {sendingProgress.currentIndex} de {sendingProgress.total}
                 </span>
                 {!sendingProgress.isActive && (
-                  <button type="button" onClick={() => setShowReport(false)} style={styles.closeReportButton}>
+                  <button className="btn-base btn-new-red" style={{ width: '20px', height: '20px', padding: '0', borderRadius: '50%' }} 
+                  type="button" onClick={() => setShowReport(false)}>
                     <X size={16} />
                   </button>
                 )}
