@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import AlertToast from '../components/ui/AlertToast';
 import '../App.css'; // Importando estilos globais (incluindo profilePic)
+import '../styles/buttons.css';
+import '../styles/forms.css';
 
 
 const Canais = () => {
@@ -447,6 +449,7 @@ const Canais = () => {
           <div style={styles.searchContainer}>
             <Search size={20} style={styles.searchIcon} />
             <input
+              className="form-input"
               type="text"
               placeholder="Buscar instâncias..."
               value={searchTerm}
@@ -467,6 +470,7 @@ const Canais = () => {
           </select>
           
           <button
+            className="btn-base btn-new"
             onClick={() => openModal('add')}
             style={styles.addButton}
           >

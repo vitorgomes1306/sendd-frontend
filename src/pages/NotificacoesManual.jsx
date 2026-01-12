@@ -77,7 +77,8 @@ const NotificacoesManual = () => {
     text: '',
     delay: 1000,
     linkPreview: true,
-    interval: 1 // Mantido apenas para compatibilidade visual
+    interval: 1,
+    scheduledFor: ''
   });
 
   // Estados para anexo de mídia
@@ -719,6 +720,93 @@ const NotificacoesManual = () => {
     setSendingProgress(prev => ({ ...prev, isStopped: true }));
   };
 
+  const handleScheduleNotification = async () => {
+    try {
+      if (!formData.scheduledFor) {
+        showToast({ title: 'Atenção', message: 'Selecione uma data para agendamento', variant: 'warning' });
+        return;
+      }
+
+      const scheduledDate = new Date(formData.scheduledFor);
+      if (scheduledDate <= new Date()) {
+        showToast({ title: 'Atenção', message: 'A data deve ser futura', variant: 'warning' });
+        return;
+      }
+
+      // Buscar instância selecionada pelo ID
+      const selectedInstance = instances.find(i => i.id === parseInt(formData.instanceId));
+      if (!selectedInstance) {
+        showToast({ title: 'Atenção', message: 'Selecione uma instância válida', variant: 'warning' });
+        return;
+      }
+
+      if (phoneNumbers.length === 0 && (!formData.selectedClients || formData.selectedClients.length === 0)) {
+        showToast({ title: 'Atenção', message: 'Adicione destinatários', variant: 'warning' });
+        return;
+      }
+
+      if (!formData.text && !selectedMedia) {
+        showToast({ title: 'Atenção', message: 'Digite uma mensagem ou anexe mídia', variant: 'warning' });
+        return;
+      }
+
+      const manualRecipients = phoneNumbers.map(p => p.number);
+
+      // TODO: Upload de mídia se for arquivo novo (blob)
+      // Por enquanto, envia null ou ID se for galeria.
+      let mediaId = null;
+      if (selectedMedia && selectedMedia.id) {
+        mediaId = selectedMedia.id;
+      }
+
+      const payload = {
+        name: formData.name,
+        message: formData.text,
+        recipients: manualRecipients,
+        channelId: selectedInstance.id,
+        channelName: selectedInstance.name,
+        scheduledFor: new Date(formData.scheduledFor).toISOString(), // Send as UTC ISO String
+        selectedClients: formData.selectedClients,
+        mediaId: mediaId,
+        interval: formData.interval
+      };
+
+      setLoading(true);
+      await apiService.post('/private/scheduled-messages', payload);
+
+      showToast({ title: 'Agendado', message: 'Notificação agendada com sucesso!', variant: 'success' });
+
+      // Limpar
+      setFormData(prev => ({ ...prev, name: '', text: '', scheduledFor: '' }));
+      setPhoneNumbers([]);
+      setSelectedMedia(null);
+
+    } catch (error) {
+      console.error('Erro ao agendar:', error);
+      showToast({ title: 'Erro', message: error.response?.data?.message || 'Falha ao agendar', variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const formatDate = (dateString) => new Date(dateString).toLocaleString('pt-BR');
 
   // Renderizar formulário de envio
@@ -1005,8 +1093,8 @@ const NotificacoesManual = () => {
                   {sendingProgress.currentIndex} de {sendingProgress.total}
                 </span>
                 {!sendingProgress.isActive && (
-                  <button className="btn-base btn-new-red" style={{ width: '20px', height: '20px', padding: '0', borderRadius: '50%' }} 
-                  type="button" onClick={() => setShowReport(false)}>
+                  <button className="btn-base btn-new-red" style={{ width: '20px', height: '20px', padding: '0', borderRadius: '50%' }}
+                    type="button" onClick={() => setShowReport(false)}>
                     <X size={16} />
                   </button>
                 )}
@@ -1072,6 +1160,19 @@ const NotificacoesManual = () => {
           </div>
         )}
 
+        {/* Agendamento Input */}
+        <div className="form-group" style={{ marginBottom: '24px' }}>
+          <label className="form-label">Agendar para (Opcional)</label>
+          <input
+            type="datetime-local"
+            name="scheduledFor"
+            value={formData.scheduledFor}
+            onChange={handleInputChange}
+            className="form-input"
+          />
+          <small className="form-help">Se preenchido, a mensagem será agendada. Se vazio, use "Enviar Notificação" para envio imediato.</small>
+        </div>
+
         {/* Botão de envio */}
         <div style={styles.actionButtons}>
           <button
@@ -1089,15 +1190,11 @@ const NotificacoesManual = () => {
 
 
           <button
+            id="schedule-button"
             className="btn-base btn-new-orange" style={{ fontSize: '16px' }}
             type="button"
-            onClick={() =>
-              showToast({
-                title: 'Função não habilitada',
-                message: 'O agendamento será liberado em breve.',
-                variant: 'warning'
-              })
-            }
+            onClick={handleScheduleNotification}
+            disabled={loading}
           >
             <Timer size={18} />
             <span>Agendar envio</span>
