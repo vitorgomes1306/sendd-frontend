@@ -4,6 +4,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import AlertToast from '../components/ui/AlertToast';
+import '../styles/buttons.css';
+import '../styles/forms.css';
 
 const Tokens = () => {
   const { currentTheme } = useTheme();
@@ -15,19 +17,19 @@ const Tokens = () => {
   const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedToken, setSelectedToken] = useState(null);
-  
+
   // Form states
   const [formData, setFormData] = useState({
     name: '',
     organizationId: '',
     instanceIds: []
   });
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -78,12 +80,12 @@ const Tokens = () => {
           const orgInstances = response.data.instances || [];
           // Adicionar nome da organização para diferenciar visualmente
           const enrichedInstances = orgInstances.map(i => ({
-             ...i,
-             displayName: `${i.name || i.instanceName} (${org.razaoSocial || org.nomeFantasia})`
+            ...i,
+            displayName: `${i.name || i.instanceName} (${org.razaoSocial || org.nomeFantasia})`
           }));
           allInstances = [...allInstances, ...enrichedInstances];
         } catch (err) {
-           console.error(`Erro ao carregar instâncias da org ${org.id}`, err);
+          console.error(`Erro ao carregar instâncias da org ${org.id}`, err);
         }
       }
       setInstances(allInstances);
@@ -129,8 +131,8 @@ const Tokens = () => {
     setSuccess('Token copiado para a área de transferência!');
   };
 
-  const filteredTokens = tokens.filter(t => 
-    t.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredTokens = tokens.filter(t =>
+    t.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.token.includes(searchTerm)
   );
 
@@ -155,22 +157,29 @@ const Tokens = () => {
           </h1>
           <p style={styles.subtitle}>Gerencie tokens para integração via API pública</p>
         </div>
-        
-        <div style={styles.headerActions}>
-            <div style={styles.searchContainer}>
-                <Search size={20} style={styles.searchIcon} />
-                <input
-                    type="text"
-                    placeholder="Buscar tokens..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={styles.searchInput}
-                />
-            </div>
-            <button onClick={() => setShowModal(true)} style={styles.addButton}>
-                <Plus size={20} />
-                Novo Token
-            </button>
+
+        <div style={{ ...styles.headerActions, alignItems: 'center' }}>
+          <div className="form-input-wrapper" style={{ flex: 1, minWidth: '300px' }}>
+            <Search size={18} />
+            <input
+              id="search-token"
+              type="text"
+              placeholder="Buscar tokens..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="form-input"
+              style={{ backgroundColor: currentTheme.cardBackground }}
+            />
+          </div>
+          <button
+            id="btn-new-token"
+            onClick={() => setShowModal(true)}
+            className='btn-base btn-new'
+            style={{ height: '44px' }} // Matching form-input height
+          >
+            <Plus size={20} />
+            Novo Token
+          </button>
         </div>
       </div>
 
@@ -179,9 +188,9 @@ const Tokens = () => {
 
       <div style={styles.card}>
         {loading ? (
-           <div style={styles.loadingContainer}>Loading...</div>
+          <div style={styles.loadingContainer}>Loading...</div>
         ) : filteredTokens.length === 0 ? (
-           <div style={styles.emptyState}>Nenhum token encontrado.</div>
+          <div style={styles.emptyState}>Nenhum token encontrado.</div>
         ) : (
           <table style={styles.table}>
             <thead>
@@ -199,28 +208,28 @@ const Tokens = () => {
                   <td style={styles.td}>{token.name || '-'}</td>
                   <td style={styles.td}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <code style={styles.code}>
-                            {token.token.substring(0, 10)}...{token.token.substring(token.token.length - 4)}
-                        </code>
-                        <button onClick={() => copyToClipboard(token.token)} style={styles.iconButton} title="Copiar Token">
-                            <Copy size={14} />
-                        </button>
+                      <code style={styles.code}>
+                        {token.token.substring(0, 10)}...{token.token.substring(token.token.length - 4)}
+                      </code>
+                      <button onClick={() => copyToClipboard(token.token)} style={styles.iconButton} title="Copiar Token">
+                        <Copy size={14} />
+                      </button>
                     </div>
                   </td>
                   <td style={styles.td}>
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        {token.instances?.map(i => (
-                            <span key={i.id} style={styles.badge}>{i.name || i.instanceName}</span>
-                        ))}
+                      {token.instances?.map(i => (
+                        <span key={i.id} style={styles.badge}>{i.name || i.instanceName}</span>
+                      ))}
                     </div>
                   </td>
                   <td style={styles.td}>{new Date(token.createdAt).toLocaleDateString()}</td>
                   <td style={styles.td}>
-                    <button 
-                        onClick={() => { setSelectedToken(token); setShowDeleteModal(true); }}
-                        style={{ ...styles.iconButton, color: '#ef4444' }}
+                    <button
+                      onClick={() => { setSelectedToken(token); setShowDeleteModal(true); }}
+                      style={{ ...styles.iconButton, color: '#ef4444' }}
                     >
-                        <Trash2 size={16} />
+                      <Trash2 size={16} />
                     </button>
                   </td>
                 </tr>
@@ -238,44 +247,47 @@ const Tokens = () => {
               <h2 style={styles.modalTitle}>Novo Token</h2>
               <button onClick={() => setShowModal(false)} style={styles.closeButton}>×</button>
             </div>
-            <form onSubmit={handleCreateToken} style={styles.modalBody}>
-                <div style={styles.formGroup}>
-                    <label style={styles.label}>Nome do Token</label>
-                    <input 
-                        type="text" 
-                        value={formData.name}
-                        onChange={e => setFormData({...formData, name: e.target.value})}
-                        style={styles.input}
-                        placeholder="Ex: Integração Site"
-                        required
-                    />
-                </div>
-                
-                <div style={styles.formGroup}>
-                    <label style={styles.label}>Instâncias permitidas</label>
-                    <div style={styles.checkboxList}>
-                        {instances.map(inst => (
-                            <label key={inst.id} style={styles.checkboxLabel}>
-                                <input 
-                                    type="checkbox"
-                                    checked={formData.instanceIds.includes(inst.id)}
-                                    onChange={() => toggleInstanceSelection(inst.id)}
-                                />
-                                {inst.displayName || inst.name || inst.instanceName}
-                            </label>
-                        ))}
-                    </div>
-                    <small style={{ color: currentTheme.textSecondary }}>
-                        O token usará a primeira instância conectada desta lista para enviar mensagens.
-                    </small>
-                </div>
+            <form onSubmit={handleCreateToken} className="form-container" style={{ padding: '20px' }}>
+              <div className="form-group">
+                <label className="form-label">Nome do Token</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  className="form-input"
+                  placeholder="Ex: Integração Site"
+                  required
+                />
+              </div>
 
-                <div style={styles.modalFooter}>
-                    <button type="button" onClick={() => setShowModal(false)} style={styles.cancelButton}>Cancelar</button>
-                    <button type="submit" disabled={isSubmitting} style={styles.submitButton}>
-                        {isSubmitting ? 'Criando...' : 'Criar Token'}
-                    </button>
+              <div className="form-group">
+                <label className="form-label">Instâncias permitidas</label>
+                <div style={styles.checkboxList}>
+                  {instances.map(inst => (
+                    <label key={inst.id} className="form-check" style={{ padding: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.instanceIds.includes(inst.id)}
+                        onChange={() => toggleInstanceSelection(inst.id)}
+                      />
+                      {inst.displayName || inst.name || inst.instanceName}
+                    </label>
+                  ))}
                 </div>
+                <small className="form-help">
+                  O token usará a primeira instância conectada desta lista para enviar mensagens.
+                </small>
+              </div>
+
+              <div className="form-actions">
+                <button type="button" 
+                onClick={() => setShowModal(false)} 
+                className="btn-base" style={{ backgroundColor: 'transparent', border: `1px solid ${currentTheme.border}`, color: currentTheme.textSecondary }}>Cancelar</button>
+                <button type="submit" disabled={isSubmitting} 
+                className="btn-base btn-new">
+                  {isSubmitting ? 'Criando...' : 'Criar Token'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -285,16 +297,16 @@ const Tokens = () => {
       {showDeleteModal && (
         <div style={styles.modalOverlay} onClick={() => setShowDeleteModal(false)}>
           <div style={styles.modal} onClick={e => e.stopPropagation()}>
-             <div style={styles.modalHeader}>
-                <h2 style={styles.modalTitle}>Excluir Token</h2>
-             </div>
-             <div style={styles.modalBody}>
-                <p>Tem certeza que deseja excluir este token? A integração irá parar de funcionar.</p>
-             </div>
-             <div style={styles.modalFooter}>
-                <button onClick={() => setShowDeleteModal(false)} style={styles.cancelButton}>Cancelar</button>
-                <button onClick={handleDeleteToken} style={{ ...styles.submitButton, backgroundColor: '#ef4444' }}>Excluir</button>
-             </div>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>Excluir Token</h2>
+            </div>
+            <div className="modalBody" style={{ padding: '20px' }}>
+              <p style={{ color: currentTheme.textPrimary }}>Tem certeza que deseja excluir este token? A integração irá parar de funcionar.</p>
+            </div>
+            <div className="form-actions" style={{ padding: '0 20px 20px 20px' }}>
+              <button onClick={() => setShowDeleteModal(false)} className="btn-base" style={{ backgroundColor: 'transparent', border: `1px solid ${currentTheme.border}`, color: currentTheme.textSecondary }}>Cancelar</button>
+              <button onClick={handleDeleteToken} className="btn-base" style={{ backgroundColor: '#ef4444' }}>Excluir</button>
+            </div>
           </div>
         </div>
       )}
