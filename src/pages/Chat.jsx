@@ -5,6 +5,8 @@ import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/buttons.css';
 import { io } from 'socket.io-client';
+import logoSenddDark from '../../src/assets/img/sendd1.png';
+import logoSenddLight from '../../src/assets/img/sendd2.png';
 import {
   MessageSquare,
   Users,
@@ -47,8 +49,8 @@ import { useToast } from '../contexts/ToastContext';
 import { playNotificationSound, AVAILABLE_SOUNDS } from '../utils/sounds';
 
 // Configuração do socket (ajustar conforme ambiente)
-//const socket = io('http://localhost:5001', {
-const socket = io('https://api.sendd.altersoft.dev.br', {
+const socket = io('http://localhost:5001', {
+  //const socket = io('https://api.sendd.altersoft.dev.br', {
   withCredentials: true,
   autoConnect: false
 });
@@ -114,8 +116,11 @@ const Chat = () => {
   const [isFinishing, setIsFinishing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [transferUsers, setTransferUsers] = useState([]);
-  const [selectedTransferUser, setSelectedTransferUser] = useState('');
+  const [transferOptions, setTransferOptions] = useState([]);
+  const [transferType, setTransferType] = useState('user'); // 'user', 'department', 'general'
+  const [selectedTransferTarget, setSelectedTransferTarget] = useState('');
+  const [transferNotify, setTransferNotify] = useState(false);
+  const [transferObservation, setTransferObservation] = useState('');
   const [isTransferring, setIsTransferring] = useState(false);
   const [showClientInfo, setShowClientInfo] = useState(false);
 
@@ -718,26 +723,37 @@ const Chat = () => {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchTransferOptions = async () => {
     try {
-      const response = await apiService.get(`/private/organizations/${config.organizationId}/users`);
-      setTransferUsers(response.data);
+      const [usersRes, deptsRes] = await Promise.all([
+        apiService.get(`/private/organizations/${config.organizationId}/users`),
+        apiService.get(`/private/departments`)
+      ]);
+
+      const users = usersRes.data.map(u => ({ ...u, type: 'user' }));
+      const depts = deptsRes.data.map(d => ({ ...d, type: 'department' }));
+
+      setTransferOptions([...depts, ...users]);
     } catch (error) {
-      console.error('Erro ao buscar usuários:', error);
-      showToast('Erro ao carregar lista de atendentes.', 'error');
+      console.error('Erro ao buscar opções de transferência:', error);
+      showToast('Erro ao carregar lista de transferência.', 'error');
     }
   };
 
   const handleOpenTransfer = () => {
-    fetchUsers();
+    fetchTransferOptions();
+    setTransferType('user');
+    setSelectedTransferTarget('');
+    setTransferNotify(false);
+    setTransferObservation('');
     setShowTransferModal(true);
   };
 
   const handleTransferChat = async () => {
     if (!selectedChat || !selectedTransferUser || isTransferring) return;
 
-    // Transferir para o Bot (Reset)
-    if (selectedTransferUser === 'bot') {
+    // Check strict match for legacy 'bot' or new 'bot-reset'
+    if (selectedTransferUser === 'bot-reset' || selectedTransferUser === 'bot') {
       if (!window.confirm('Tem certeza que deseja devolver esta conversa para o Bot?')) return;
       setIsTransferring(true);
       try {
@@ -755,16 +771,38 @@ const Chat = () => {
       return;
     }
 
-    // Transferir para outro atendente
+    // Parse selection: 'user-123' or 'department-456'
+    let targetType = 'user';
+    let targetId = selectedTransferUser;
+
+    if (selectedTransferUser.includes('-')) {
+      const parts = selectedTransferUser.split('-');
+      targetType = parts[0]; // 'user' or 'department'
+      targetId = parts[1];
+    }
+
+    // Fallback for legacy ID (assumes user)
+    if (!['user', 'department'].includes(targetType)) {
+      targetType = 'user';
+    }
+
     setIsTransferring(true);
     try {
-      await apiService.put(`/private/chats/${selectedChat.id}/transfer`, {
-        newAttendantId: selectedTransferUser
-      });
+      const payload = {
+        targetType,
+        targetId,
+        newAttendantId: targetType === 'user' ? targetId : undefined // Legacy fallback
+      };
+
+      await apiService.put(`/private/chats/${selectedChat.id}/transfer`, payload);
+
       setShowTransferModal(false);
-      fetchChats();
-      setSelectedChat(prev => ({ ...prev, attendantId: selectedTransferUser }));
-      showToast('Sucesso', 'Atendimento transferido!', 'success');
+      fetchChats(); // Refresh list to see updated status
+
+      // Update local state if we transferred to another USER (not self, not dept)
+      // If dept, chat might disappear from "My Chats"
+      setSelectedChat(null); // Safest to close chat view or refresh it
+      showToast('Sucesso', `Atendimento transferido para ${targetType === 'department' ? 'departamento' : 'atendente'}!`, 'success');
     } catch (error) {
       console.error('Erro ao transferir:', error);
       showToast('Erro', 'Falha ao transferir chat.', 'error');
@@ -792,35 +830,88 @@ const Chat = () => {
       >
         <div style={{ padding: '20px', minHeight: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <p style={{ marginBottom: '16px' }}>Selecione o atendente para transferir esta conversa:</p>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Tipo de Transferência</label>
+              <Select
+                value={transferType}
+                onChange={(e) => {
+                  setTransferType(e.target.value);
+                  setSelectedTransferTarget(''); // Reset target on type change
+                }}
+                options={[
+                  { value: 'user', label: 'Atendente', icon: <User size={18} /> },
+                  { value: 'department', label: 'Departamento', icon: <Users size={18} /> },
+                  { value: 'general', label: 'Fila Geral', icon: <List size={18} /> },
+                  { value: 'bot-reset', label: 'Devolver ao Bot', icon: <Bot size={18} /> }
+                ]}
+              />
+            </div>
 
-            <Select
-              placeholder="Selecione um atendente..."
-              value={selectedTransferUser}
-              onChange={(e) => setSelectedTransferUser(e.target.value)}
-              options={[
-                {
-                  value: 'bot',
-                  label: 'Devolver para a Fila do Bot (Reset)',
-                  icon: <Bot />,
-                  className: 'option-bot-reset'
-                },
-                ...transferUsers.map(u => ({
-                  value: u.id,
-                  label: ` ${u.name} (${u.email})`,
-                  icon: <CircleUserRound size={18} className="text-gray-500" />,
-                  className: 'option-transfer-user'
-                }))
-              ]}
-              className="mb-8"
-            />
-          </div>
+            {transferType !== 'general' && transferType !== 'bot-reset' && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Destino</label>
+                <Select
+                  placeholder={transferType === 'user' ? "Selecione o atendente..." : "Selecione o departamento..."}
+                  value={selectedTransferTarget}
+                  onChange={(e) => setSelectedTransferTarget(e.target.value)}
+                  options={transferOptions
+                    .filter(o => o.type === transferType)
+                    .map(o => ({
+                      value: o.id,
+                      label: transferType === 'user' ? `${o.name} (${o.email})` : o.name,
+                      icon: transferType === 'user' ? <CircleUserRound size={18} /> : <Users size={18} />
+                    }))
+                  }
+                />
+              </div>
+            )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '40px' }}>
-            <Button onClick={() => setShowTransferModal(false)} style={{ backgroundColor: isDark ? '#4b5563' : '#e5e7eb', color: currentTheme.textPrimary }}>Cancelar</Button>
-            <Button onClick={handleTransferChat} disabled={!selectedTransferUser || isTransferring} className="btn-base btn-new">
-              {isTransferring ? 'Transferindo...' : 'Transferir'}
-            </Button>
+            {transferType !== 'bot-reset' && (
+              <>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Observação (Interna)</label>
+                  <textarea
+                    value={transferObservation}
+                    onChange={(e) => setTransferObservation(e.target.value)}
+                    placeholder="Digite o motivo da transferência..."
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: `1px solid ${currentTheme.border}`,
+                      backgroundColor: currentTheme.inputBg || 'transparent',
+                      color: currentTheme.textPrimary,
+                      minHeight: '80px',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="notifyClient"
+                    checked={transferNotify}
+                    onChange={(e) => setTransferNotify(e.target.checked)}
+                    style={{ width: '16px', height: '16px' }}
+                  />
+                  <label htmlFor="notifyClient" style={{ cursor: 'pointer' }}>Notificar cliente sobre a transferência?</label>
+                </div>
+              </>
+            )}
+
+
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <Button onClick={() => setShowTransferModal(false)} style={{ backgroundColor: isDark ? '#4b5563' : '#e5e7eb', color: currentTheme.textPrimary }}>Cancelar</Button>
+              <Button
+                onClick={handleTransferChat}
+                disabled={isTransferring || (transferType !== 'general' && transferType !== 'bot-reset' && !selectedTransferTarget)}
+                className="btn-base btn-new"
+              >
+                {isTransferring ? 'Processando...' : (transferType === 'bot-reset' ? 'Devolver' : 'Transferir')}
+              </Button>
+            </div>
           </div>
         </div>
       </Modal>
@@ -1251,7 +1342,7 @@ const Chat = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {(selectedChat.status === 'attendant' && !selectedChat.attendantId) || selectedChat.status === 'bot' ? (
+              {(selectedChat.status === 'attendant' && !selectedChat.attendantId) || selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && selectedChat.departmentId && !selectedChat.attendantId) ? (
                 <div style={{
                   padding: '20px',
                   display: 'flex',
@@ -1441,7 +1532,9 @@ const Chat = () => {
           </>
         ) : (
           <div className="chat-empty-state">
-            <div style={{ fontSize: '64px', marginBottom: '20px' }}>💬</div>
+            <div style={{ fontSize: '64px', marginBottom: '20px' }}>
+              <img src={isDark ? logoSenddDark : logoSenddLight} alt="Sendd - Chat" />
+            </div>
             <h2>Bem-vindo ao Chat Sendd</h2>
             <p>Selecione um contato para iniciar o atendimento.</p>
           </div>

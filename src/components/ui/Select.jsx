@@ -39,7 +39,7 @@ const Select = ({
 
     return (
         <div className={`custom-select-container ${className}`} ref={containerRef}>
-            {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
+            {label && <label className="block text-sm font-medium mb-1" style={{ color: 'var(--chat-text-secondary)' }}>{label}</label>}
             <div
                 className={`custom-select-trigger ${disabled ? 'disabled' : ''}`}
                 onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -51,10 +51,10 @@ const Select = ({
                             <span className={selectedOption.className?.includes('text-') ? '' : ''}>{selectedOption.label}</span>
                         </>
                     ) : (
-                        <span className="text-gray-400">{placeholder}</span>
+                        <span className="custom-select-placeholder" style={{ color: 'var(--chat-text-secondary)', opacity: 0.7 }}>{placeholder}</span>
                     )}
                 </span>
-                <ChevronDown size={16} className={`text-gray-500 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={16} className={`transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--chat-text-secondary)' }} />
             </div>
 
             {isOpen && (
@@ -67,7 +67,7 @@ const Select = ({
                         >
                             {option.icon && <span className="option-icon flex-shrink-0">{option.icon}</span>}
                             <span className="option-label flex-grow">{option.label}</span>
-                            {value === option.value && <Check size={16} className="ml-auto text-blue-600" />}
+                            {value === option.value && <Check size={16} className="ml-auto" />}
                         </div>
                     ))}
                 </div>
