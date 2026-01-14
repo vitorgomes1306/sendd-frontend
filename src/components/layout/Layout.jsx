@@ -5,7 +5,19 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import LogoutModal from '../ui/LogoutModal';
 import '../../../src/styles/buttons.css';
-import { LogOut } from 'lucide-react';
+import {
+  Menu,
+  User as UserIcon,
+  Bell,
+  Sun,
+  Moon,
+  Settings,
+  LogOut,
+  ChevronDown,
+  UserCircle,
+  Building,
+  ClipboardList
+} from 'lucide-react';
 
 const Layout = ({ children }) => {
   const { currentTheme, toggleTheme, isDark } = useTheme();
@@ -14,8 +26,6 @@ const Layout = ({ children }) => {
   const location = useLocation();
 
   // Sidebar visibility control
-  // Desktop: Controlled by showSidebar
-  // Mobile: Controlled by mobileSidebarOpen
   const [showSidebar, setShowSidebar] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -29,8 +39,6 @@ const Layout = ({ children }) => {
       setIsMobile(mobile);
       if (mobile) {
         setMobileSidebarOpen(false); // Start closed on mobile
-      } else {
-        setMobileSidebarOpen(false); // Unused on desktop
       }
     };
 
@@ -80,6 +88,33 @@ const Layout = ({ children }) => {
   const isSidebarHidden = isMobile ? !mobileSidebarOpen : !showSidebar;
   const contentMarginLeft = isMobile ? 0 : (showSidebar ? '80px' : '0'); // 80px = Compact Sidebar Width
 
+  const iconButtonStyle = {
+    padding: '0.5rem',
+    backgroundColor: 'transparent',
+    color: currentTheme.textSecondary,
+    border: `1px solid ${currentTheme.border}`,
+    borderRadius: '0.375rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '40px',
+    height: '40px',
+    position: 'relative' // Ensure relative positioning for badges/dropdowns
+  };
+
+  // Helper for hover effects to avoid "e.target" issues
+  const handleMouseEnter = (e) => {
+    e.currentTarget.style.backgroundColor = currentTheme.borderLight;
+    e.currentTarget.style.color = currentTheme.textPrimary;
+  };
+
+  const handleMouseLeave = (e) => {
+    e.currentTarget.style.backgroundColor = 'transparent';
+    e.currentTarget.style.color = currentTheme.textSecondary;
+  };
+
   return (
     <div style={{
       display: 'flex',
@@ -101,7 +136,8 @@ const Layout = ({ children }) => {
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100vh',
-          width: isMobile ? '100%' : `calc(100vw - ${contentMarginLeft})`,
+          flex: 1, // Use flex grow instead of fixed width calc
+          width: '100%',
           position: 'relative'
         }}
       >
@@ -110,7 +146,8 @@ const Layout = ({ children }) => {
           backgroundColor: currentTheme.cardBackground,
           boxShadow: currentTheme.shadow,
           padding: '1rem 2rem',
-          borderBottom: `1px solid ${currentTheme.border}`
+          borderBottom: `1px solid ${currentTheme.border}`,
+          zIndex: 50 // Ensure header stays on top if needed
         }}>
           <div style={{
             display: 'flex',
@@ -119,106 +156,57 @@ const Layout = ({ children }) => {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
 
-              {/* Toggle Sidebar Button (Desktop & Mobile) */}
+              {/* Toggle Sidebar Button */}
               <button
                 onClick={isMobile ? toggleMobileSidebar : toggleSidebar}
-                style={{
-                  padding: '0.5rem',
-                  backgroundColor: 'transparent',
-                  color: currentTheme.textPrimary,
-                  border: `1px solid ${currentTheme.border}`,
-                  borderRadius: '0.375rem',
-                  fontSize: '1.2rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '40px',
-                  height: '40px'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = currentTheme.borderLight;
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                }}
+                style={iconButtonStyle}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
                 title={isMobile ? "Menu" : (showSidebar ? "Esconder Menu" : "Mostrar Menu")}
               >
-                <i className="bi bi-list"></i>
+                <Menu size={20} />
               </button>
-
-
             </div>
 
-            {/* User Info */}
+            {/* User Info & Actions */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: '1rem'
             }}>
+
+              {/* User Menu Trigger */}
               <div style={{ position: 'relative' }} data-user-menu>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.5rem 1rem',
-                  backgroundColor: currentTheme.borderLight,
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+                <button
+                  style={iconButtonStyle}
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = currentTheme.border;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = currentTheme.borderLight;
-                  }}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
                   title="Menu do usuário"
                 >
                   {user?.picture ? (
                     <img
                       src={user.picture}
-                      alt="Avatar do usuário"
+                      alt="Avatar"
                       style={{
-                        width: '1.2rem',
-                        height: '1.2rem',
+                        width: '24px',
+                        height: '24px',
                         borderRadius: '50%',
                         objectFit: 'cover'
                       }}
                       onError={(e) => {
-                        // Se a imagem falhar ao carregar, mostra o ícone padrão
                         e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'inline';
+                        e.target.nextSibling.style.display = 'block';
                       }}
                     />
                   ) : null}
-                  <i
-                    className="bi bi-person-circle"
-                    style={{
-                      fontSize: '1.2rem',
-                      color: currentTheme.textPrimary,
-                      display: user?.picture ? 'none' : 'inline'
-                    }}
-                  ></i>
-                  <span style={{
-                    fontSize: '0.875rem',
-                    color: currentTheme.textPrimary,
-                    fontFamily: 'Poppins, sans-serif'
-                  }}>
-                    {user?.name || 'Usuário'}
-                  </span>
-                  <i className="bi bi-chevron-down" style={{
-                    fontSize: '0.75rem',
-                    color: currentTheme.textSecondary,
-                    marginLeft: '0.25rem',
-                    transform: showUserMenu ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s'
-                  }}></i>
-                </div>
 
-                {/* User Submenu */}
+                  <div style={{ display: user?.picture ? 'none' : 'block' }}>
+                    <UserCircle size={20} />
+                  </div>
+                </button>
+
+                {/* User Dropdown Menu */}
                 {showUserMenu && (
                   <div style={{
                     position: 'absolute',
@@ -229,204 +217,160 @@ const Layout = ({ children }) => {
                     border: `1px solid ${currentTheme.border}`,
                     borderRadius: '0.5rem',
                     boxShadow: currentTheme.shadow,
-                    minWidth: '200px',
+                    minWidth: '240px',
                     zIndex: 1000,
                     overflow: 'hidden'
                   }}>
+                    {/* User Header */}
+                    <div style={{
+                      padding: '1rem',
+                      borderBottom: `1px solid ${currentTheme.border}`,
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'
+                    }}>
+                      <p style={{
+                        fontWeight: '600',
+                        color: currentTheme.textPrimary,
+                        margin: 0,
+                        fontSize: '0.95rem'
+                      }}>
+                        {user?.name || 'Usuário'}
+                      </p>
+                      <p style={{
+                        margin: '4px 0 0 0',
+                        fontSize: '0.8rem',
+                        color: currentTheme.textSecondary,
+                        wordBreak: 'break-all'
+                      }}>
+                        {user?.email || ''}
+                      </p>
+                    </div>
+
+                    {/* Menu Items */}
                     <div
                       style={{
                         padding: '0.75rem 1rem',
                         cursor: 'pointer',
-                        transition: 'background-color 0.2s',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.875rem',
+                        gap: '0.75rem',
+                        fontSize: '0.9rem',
                         color: currentTheme.textPrimary,
-                        fontFamily: 'Poppins, sans-serif'
                       }}
+                      // Chamar função de alerta
+                      
                       onClick={() => {
-                        navigate('/profile');
-                        setShowUserMenu(false);
+                        alert('Função não disponivel');
                       }}
-                      onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = currentTheme.borderLight;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = 'transparent';
-                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.borderLight}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <i className="bi bi-person"></i>
+                      <UserIcon size={18} />
                       Perfil
                     </div>
+
                     <div
                       style={{
                         padding: '0.75rem 1rem',
                         cursor: 'pointer',
-                        transition: 'background-color 0.2s',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.875rem',
+                        gap: '0.75rem',
+                        fontSize: '0.9rem',
                         color: currentTheme.textPrimary,
-                        fontFamily: 'Poppins, sans-serif'
                       }}
                       onClick={() => {
                         navigate('/organizations');
                         setShowUserMenu(false);
                       }}
-                      onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = currentTheme.borderLight;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = 'transparent';
-                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.borderLight}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <i className="bi bi-building"></i>
-                      Organizations
+                      <Building size={18} />
+                      Empresas
                     </div>
+
                     <div
                       style={{
                         padding: '0.75rem 1rem',
                         cursor: 'pointer',
-                        transition: 'background-color 0.2s',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.875rem',
+                        gap: '0.75rem',
+                        fontSize: '0.9rem',
                         color: currentTheme.textPrimary,
-                        fontFamily: 'Poppins, sans-serif'
                       }}
                       onClick={() => {
-                        navigate('/auditoria');
-                        setShowUserMenu(false);
+                        alert('Função não disponivel');
                       }}
-                      onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = currentTheme.borderLight;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = 'transparent';
-                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.borderLight}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      <i className="bi bi-clipboard-data"></i>
+                      <ClipboardList size={18} />
                       Auditoria
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Notifications Icon */}
-              <button style={{
-                padding: '0.5rem',
-                backgroundColor: 'transparent',
-                color: currentTheme.textSecondary,
-                border: `1px solid ${currentTheme.border}`,
-                borderRadius: '0.375rem',
-                fontSize: '1.1rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '40px',
-                height: '40px',
-                position: 'relative'
-              }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = currentTheme.borderLight;
-                  e.target.style.color = currentTheme.textPrimary;
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = currentTheme.textSecondary;
-                }}
+              {/* Notifications */}
+              <button
+                style={iconButtonStyle}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
                 onClick={() => navigate('/profile?tab=notificacoes')}
                 title="Notificações"
               >
-                <i className="bi bi-bell"></i>
-                {/* Badge de notificação */}
+                <Bell size={20} />
                 <span style={{
                   position: 'absolute',
-                  top: '2px',
-                  right: '2px',
+                  top: '10px',
+                  right: '10px',
                   backgroundColor: '#ef4444',
-                  color: 'white',
                   borderRadius: '50%',
                   width: '8px',
                   height: '8px',
-                  fontSize: '0.6rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  border: `2px solid ${currentTheme.cardBackground}` // Optional: Add border to blend with bg
                 }}></span>
               </button>
 
-              {/* Admin Button - Only visible for admin users */}
+              {/* Admin Button */}
               {(user?.isAdmin) && (
-                <button style={{
-                  padding: '0.5rem',
-                  backgroundColor: 'transparent',
-                  color: currentTheme.textSecondary,
-                  border: `1px solid ${currentTheme.border}`,
-                  borderRadius: '0.375rem',
-                  fontSize: '1.1rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '40px',
-                  height: '40px'
-                }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = currentTheme.borderLight;
-                    e.target.style.color = currentTheme.primary;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.color = currentTheme.textSecondary;
-                  }}
+                <button
+                  style={iconButtonStyle}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
                   onClick={() => navigate('/admin')}
                   title="Administração"
                 >
-                  <i className="bi bi-gear-fill"></i>
+                  <Settings size={20} />
                 </button>
               )}
 
-              {/* Theme Toggle Icon */}
-              <button style={{
-                padding: '0.5rem',
-                backgroundColor: 'transparent',
-                color: currentTheme.textSecondary,
-                border: `1px solid ${currentTheme.border}`,
-                borderRadius: '0.375rem',
-                fontSize: '1.1rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '40px',
-                height: '40px'
-              }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = currentTheme.borderLight;
-                  e.target.style.color = currentTheme.textPrimary;
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = currentTheme.textSecondary;
-                }}
+              {/* Theme Toggle */}
+              <button
+                style={iconButtonStyle}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
                 onClick={toggleTheme}
                 title={isDark ? "Alternar para tema claro" : "Alternar para tema escuro"}
               >
-                <i className={isDark ? "bi bi-sun" : "bi bi-moon"}></i>
+                {isDark ? <Moon size={20} /> : <Sun size={20} />}
               </button>
 
+              {/* Logout Button */}
               <button className="btn-base btn-new-red"
                 onClick={handleLogoutClick}
+                title="Sair"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               >
-                <LogOut />
+                <LogOut size={20} />
               </button>
             </div>
           </div>

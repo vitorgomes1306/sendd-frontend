@@ -28,7 +28,13 @@ const getConfig = () => {
 
 export const getApiBaseUrl = () => {
   const config = getConfig();
-  // Prioriza VITE_API_URL se definido (ambiente de build), senão usa window.APP_CONFIG (runtime), senão fallback
+
+  // CRITICAL FIX: Sempre usar caminho relativo em DEV para forçar o uso do Proxy do Vite.
+  // Isso ignora qualquer VITE_API_URL que possa estar apontando para 'localhost' (que falha no celular).
+  if (import.meta.env.DEV) {
+    return '';
+  }
+
   return import.meta.env.VITE_API_URL || config.API_BASE_URL || 'https://api.sendd.altersoft.dev.br';
 };
 

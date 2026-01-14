@@ -269,7 +269,7 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
                         <button
                             onClick={handleDeleteContract}
                             style={{ ...styles.iconButton, color: '#ef4444' }}
-                            title="Excluir Contrato"
+                            title="Desvincular Contrato"
                         >
                             <Trash2 size={14} />
                         </button>

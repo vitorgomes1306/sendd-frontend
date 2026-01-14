@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
@@ -48,16 +49,27 @@ import ChatClientInfo from './ChatClientInfo';
 import { useToast } from '../contexts/ToastContext';
 import { playNotificationSound, AVAILABLE_SOUNDS } from '../utils/sounds';
 
-// Configuração do socket (ajustar conforme ambiente)
-const socket = io('http://localhost:5001', {
-  //const socket = io('https://api.sendd.altersoft.dev.br', {
+// Configuração do socket
+const getSocketUrl = () => {
+  if (import.meta.env.DEV) {
+    // CRITICAL FIX: Conectar na origem atual (ex: 192.168.x.x:4500) para usar o Proxy do Vite.
+    // 'localhost' só funciona na própria máquina. Se usar localhost no celular, falha.
+    return window.location.origin;
+  }
+  return 'https://api.sendd.altersoft.dev.br';
+};
+
+const socket = io(getSocketUrl(), {
   withCredentials: true,
-  autoConnect: false
+  autoConnect: false,
+  transports: ['websocket', 'polling']
 });
 
 const Chat = () => {
+  const navigate = useNavigate();
   const { currentTheme, isDark } = useTheme();
   const { user } = useAuth();
+  const [availableDepartments, setAvailableDepartments] = useState([]);
 
   const themeStyles = {
     '--chat-bg': currentTheme.background,
@@ -157,7 +169,17 @@ const Chat = () => {
   const chatContainerRef = useRef(null); // Ref for scroll container
   const prevScrollHeightRef = useRef(null); // Ref for scroll height tracking
   const selectedChatRef = useRef(null);
-  const chatsRef = useRef(chats); // Ref para acessar chats dentro do socket sem recriar listener
+  const chatsRef = useRef(chats);
+  const configRef = useRef(config);
+  const userRef = useRef(user);
+
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     selectedChatRef.current = selectedChat;
@@ -262,12 +284,25 @@ const Chat = () => {
       socket.on('chat_status_updated', (data) => {
         console.log('[Socket] Status do chat atualizado:', data);
         if (selectedChatRef.current && data.chatId === selectedChatRef.current.id) {
-          setSelectedChat(prev => ({ ...prev, status: data.status }));
+          setSelectedChat(prev => {
+            if (!prev) return null;
+            return { ...prev, status: data.status, attendantId: data.attendantId, departmentId: data.departmentId };
+          });
         }
 
-        // Tocar som se entrar na fila (attendant sem id)
+        // Caso 1: Chat entrou na Fila (attendant sem id)
         if (data.status === 'attendant' && !data.attendantId) {
           playNotificationSound();
+        }
+
+        // Caso 2: Chat atribuído diretamente a MIM (Notificação sonora + Toast)
+        if (data.status === 'attendant' && data.attendantId && userRef.current && Number(data.attendantId) === Number(userRef.current.id)) {
+          playNotificationSound(configRef.current?.sound);
+          showToast({
+            title: 'Novo Atendimento',
+            message: 'Você recebeu um novo atendimento.',
+            variant: 'success'
+          });
         }
 
         fetchChats();
@@ -328,18 +363,31 @@ const Chat = () => {
   };
 
   const fetchChats = async () => {
-    const orgId = Number(config.organizationId);
-    if (!orgId || isNaN(orgId)) {
-      console.warn('[Chat] organizationId inválido ou ausente:', config.organizationId);
-      return;
-    }
-
+    if (loading) return; // Prevent double fetch
     setLoading(true);
     try {
-      console.log('[Chat] Buscando chats para org:', orgId);
-      const response = await apiService.get('/private/chats', {
-        params: { organizationId: orgId }
-      });
+      // Use ref to avoid stale closure if called from socket
+      const cfg = configRef.current || config;
+      const orgId = cfg.organizationId;
+
+      if (!orgId) {
+        console.warn("[Chat] fetchChats abortado: sem organizationId");
+        return;
+      }
+
+      console.log('[Chat] Buscando chats para org:', orgId, 'Depts:', cfg.departments);
+      const params = { organizationId: orgId };
+
+      // Add department filter if configured
+      if (cfg.departments) {
+        if (Array.isArray(cfg.departments) && cfg.departments.length > 0) {
+          params.departmentIds = cfg.departments.join(',');
+        } else if (typeof cfg.departments === 'string' && cfg.departments.trim()) {
+          params.departmentIds = cfg.departments;
+        }
+      }
+
+      const response = await apiService.get('/private/chats', { params });
       console.log('[Chat] Chats recebidos:', response.data);
       setChats(response.data);
     } catch (error) {
@@ -356,6 +404,33 @@ const Chat = () => {
       fetchChats();
     }
   }, [config.organizationId, showConfigModal]);
+
+  // Fetch user specific departments for configuration
+  useEffect(() => {
+    const loadUserDepartments = async () => {
+      if (!config.organizationId) return;
+
+      try {
+        const response = await apiService.get('/private/departments', {
+          params: { organizationId: config.organizationId }
+        });
+        setAvailableDepartments(response.data);
+
+        // Auto-select if only one department
+        if (response.data.length === 1) {
+          const deptId = response.data[0].id;
+          setConfig(prev => {
+            if (prev.departments && prev.departments.includes(deptId) && prev.departments.length === 1) return prev;
+            return { ...prev, departments: [deptId] };
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao buscar departamentos do usuário:', error);
+      }
+    };
+
+    loadUserDepartments();
+  }, [config.organizationId]);
 
   const fetchMessages = async (chatId, pageNum = 1) => {
     try {
@@ -727,7 +802,7 @@ const Chat = () => {
     try {
       const [usersRes, deptsRes] = await Promise.all([
         apiService.get(`/private/organizations/${config.organizationId}/users`),
-        apiService.get(`/private/departments`)
+        apiService.get(`/private/departments`, { params: { scope: 'all' } })
       ]);
 
       const users = usersRes.data.map(u => ({ ...u, type: 'user' }));
@@ -750,62 +825,57 @@ const Chat = () => {
   };
 
   const handleTransferChat = async () => {
-    if (!selectedChat || !selectedTransferUser || isTransferring) return;
+    // Basic validation
+    if (!selectedChat || isTransferring) return;
 
-    // Check strict match for legacy 'bot' or new 'bot-reset'
-    if (selectedTransferUser === 'bot-reset' || selectedTransferUser === 'bot') {
+    // Bot Reset Special Case
+    if (transferType === 'bot-reset') {
       if (!window.confirm('Tem certeza que deseja devolver esta conversa para o Bot?')) return;
       setIsTransferring(true);
       try {
-        await apiService.put(`/private/chats/${selectedChat.id}/reset`);
+        await apiService.put(`/private/chats/${selectedChat.id}/reset`, { notifyClient: true });
         setSelectedChat(prev => ({ ...prev, status: 'bot', attendantId: null }));
         fetchChats();
         setShowTransferModal(false);
-        showToast('Sucesso', 'Conversa retornada para o Bot.', 'success');
+        showToast({ title: 'Sucesso', message: 'Conversa retornada para o Bot.', variant: 'success' });
       } catch (error) {
         console.error('Erro ao resetar:', error);
-        showToast('Erro', 'Falha ao retornar para o Bot.', 'error');
+        showToast({ title: 'Erro', message: 'Falha ao retornar para o Bot.', variant: 'error' });
       } finally {
         setIsTransferring(false);
       }
       return;
     }
 
-    // Parse selection: 'user-123' or 'department-456'
-    let targetType = 'user';
-    let targetId = selectedTransferUser;
-
-    if (selectedTransferUser.includes('-')) {
-      const parts = selectedTransferUser.split('-');
-      targetType = parts[0]; // 'user' or 'department'
-      targetId = parts[1];
-    }
-
-    // Fallback for legacy ID (assumes user)
-    if (!['user', 'department'].includes(targetType)) {
-      targetType = 'user';
+    // General Queue / User / Department
+    // Validate target selection if not general
+    if (transferType !== 'general' && !selectedTransferTarget) {
+      showToast({ title: 'Atenção', message: 'Selecione um destino para a transferência.', variant: 'warning' });
+      return;
     }
 
     setIsTransferring(true);
     try {
       const payload = {
-        targetType,
-        targetId,
-        newAttendantId: targetType === 'user' ? targetId : undefined // Legacy fallback
+        targetType: transferType,
+        targetId: selectedTransferTarget,
+        notifyClient: transferNotify,
+        observation: transferObservation
       };
 
       await apiService.put(`/private/chats/${selectedChat.id}/transfer`, payload);
 
+      showToast({ title: 'Sucesso', message: 'Transferência realizada com sucesso.', variant: 'success' });
       setShowTransferModal(false);
-      fetchChats(); // Refresh list to see updated status
-
-      // Update local state if we transferred to another USER (not self, not dept)
-      // If dept, chat might disappear from "My Chats"
-      setSelectedChat(null); // Safest to close chat view or refresh it
-      showToast('Sucesso', `Atendimento transferido para ${targetType === 'department' ? 'departamento' : 'atendente'}!`, 'success');
+      fetchChats();
+      // Opcional: Manter selecionado mas atualizar status? Ou limpar?
+      // Geralmente limpar se foi transferido para outro/geral.
+      if (transferType !== 'user' || Number(selectedTransferTarget) !== Number(user?.id)) {
+        setSelectedChat(null);
+      }
     } catch (error) {
       console.error('Erro ao transferir:', error);
-      showToast('Erro', 'Falha ao transferir chat.', 'error');
+      showToast({ title: 'Erro', message: 'Falha ao transferir atendimento.', variant: 'error' });
     } finally {
       setIsTransferring(false);
     }
@@ -919,52 +989,98 @@ const Chat = () => {
       {showConfigModal && (
         <div className="config-modal-overlay">
           <div className="config-modal">
-            <div className="config-header">
-              <Settings size={24} />
-              <h2>Configuração do Chat</h2>
+            <div className="config-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Settings size={24} />
+                <h2>Configuração do Chat</h2>
+              </div>
+              <button
+                onClick={() => navigate('/dashboard')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: currentTheme.textSecondary }}
+                title="Fechar e Voltar"
+              >
+                <CircleX size={24} />
+              </button>
             </div>
             <form onSubmit={handleConfigSubmit}>
               <div className="config-body">
                 <div className="form-group">
-                  <label style={{ color: currentTheme.textPrimary }}>Selecione o Canal (Instância)</label>
-                  <select
+                  <Select
+                    label="Selecione o Canal (Instância)"
                     value={config.instanceId}
-                    onChange={(e) => setConfig({ ...config, instanceId: e.target.value })}
-                    required
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: `1px solid ${currentTheme.border}`, backgroundColor: currentTheme.inputBg || currentTheme.background, color: currentTheme.textPrimary }}
-                  >
-                    <option value="">Selecione...</option>
-                    {instances.map(inst => (
-                      <option key={inst.id} value={inst.id}>
-                        {inst.name} ({inst.organizationName})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(e) => {
+                      const inst = instances.find(i => i.id === Number(e.target.value));
+                      const orgId = inst ? inst.organizationId : config.organizationId;
+                      setConfig({ ...config, instanceId: e.target.value, organizationId: orgId });
+                    }}
+                    options={instances.map(inst => ({
+                      value: inst.id,
+                      label: `${inst.name} (${inst.organizationName})`,
+                      icon: <Settings size={18} />
+                    }))}
+                    placeholder="Selecione uma instância..."
+                  />
                 </div>
                 <div className="form-group">
-                  <label style={{ color: currentTheme.textPrimary }}>Departamentos (Separar por vírgula)</label>
-                  <input
-                    type="text"
-                    value={config.departments}
-                    onChange={(e) => setConfig({ ...config, departments: e.target.value })}
-                    placeholder="Ex: Suporte, Vendas, Financeiro"
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: `1px solid ${currentTheme.border}`, backgroundColor: currentTheme.inputBg || currentTheme.background, color: currentTheme.textPrimary }}
-                  />
-                  <small style={{ color: currentTheme.textSecondary, marginTop: '4px' }}>*CRUD de departamentos será implementado em breve.</small>
+                  <label style={{ color: currentTheme.textPrimary, display: 'block', marginBottom: '8px' }}>Selecione os Departamentos</label>
+                  <div style={{
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    border: `1px solid ${currentTheme.border}`,
+                    borderRadius: '6px',
+                    padding: '8px',
+                    backgroundColor: currentTheme.inputBg || currentTheme.background
+                  }}>
+                    {availableDepartments.length > 0 ? (
+                      availableDepartments.map(dept => {
+                        const isChecked = Array.isArray(config.departments)
+                          ? config.departments.includes(dept.id)
+                          : (typeof config.departments === 'string' && config.departments.includes(String(dept.id)));
+
+                        return (
+                          <div key={dept.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                            <input
+                              type="checkbox"
+                              id={`dept-${dept.id}`}
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setConfig(prev => {
+                                  let current = Array.isArray(prev.departments) ? [...prev.departments] : [];
+                                  if (checked) {
+                                    current.push(dept.id);
+                                  } else {
+                                    current = current.filter(id => id !== dept.id);
+                                  }
+                                  return { ...prev, departments: current };
+                                });
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <label htmlFor={`dept-${dept.id}`} style={{ cursor: 'pointer', color: currentTheme.textPrimary, fontSize: '14px' }}>
+                              {dept.name}
+                            </label>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div style={{ padding: '4px', color: currentTheme.textSecondary, fontSize: '13px' }}>
+                        {config.instanceId ? "Nenhum departamento encontrado." : "Selecione uma instância primeiro."}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="form-group">
                   <label style={{ color: currentTheme.textPrimary }}>Som de Notificação</label>
-                  <select
+                  <Select
                     value={config.sound || 'default'}
                     onChange={(e) => setConfig({ ...config, sound: e.target.value })}
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: `1px solid ${currentTheme.border}`, backgroundColor: currentTheme.inputBg || currentTheme.background, color: currentTheme.textPrimary }}
-                  >
-                    {AVAILABLE_SOUNDS.map(sound => (
-                      <option key={sound.id} value={sound.id}>
-                        {sound.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={AVAILABLE_SOUNDS.map(sound => ({
+                      value: sound.id,
+                      label: sound.label
+                    }))}
+                    placeholder="Selecione o som..."
+                  />
                 </div>
               </div>
               <div className="config-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', backgroundColor: currentTheme.cardBackground, borderTop: `1px solid ${currentTheme.border}` }}>
@@ -1086,8 +1202,8 @@ const Chat = () => {
             title="Meus"
           >
             <Headset size={26} />
-            {chats.filter(c => c.status === 'attendant' && Number(c.attendantId) === Number(user?.id) && c.unreadCount > 0).length > 0 && (
-              <span className="tab-badge">{chats.filter(c => c.status === 'attendant' && Number(c.attendantId) === Number(user?.id) && c.unreadCount > 0).length}</span>
+            {chats.filter(c => c.status === 'attendant' && Number(c.attendantId) === Number(user?.id)).length > 0 && (
+              <span className="tab-badge">{chats.filter(c => c.status === 'attendant' && Number(c.attendantId) === Number(user?.id)).length}</span>
             )}
           </button>
         </div>
@@ -1207,13 +1323,13 @@ const Chat = () => {
                       </button>
                     </>
                   )}
-                  {selectedChat.status === 'bot' && (
+                  {(selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) && (
                     <button
                       onClick={handleTakeover}
                       disabled={isTakingOver}
                       style={{
                         padding: '6px 12px',
-                        backgroundColor: isTakingOver ? '#ccc' : '#4bce97',
+                        backgroundColor: isTakingOver ? '#ccc' : (selectedChat.status === 'attendant' ? '#f97316' : '#4bce97'),
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
@@ -1222,7 +1338,7 @@ const Chat = () => {
                         fontWeight: '600'
                       }}
                     >
-                      {isTakingOver ? 'Assumindo...' : 'Assumir Atendimento'}
+                      {isTakingOver ? 'Processando...' : (selectedChat.status === 'attendant' ? 'Iniciar Atendimento' : 'Assumir Atendimento')}
                     </button>
                   )}
                   <button
@@ -1365,12 +1481,12 @@ const Chat = () => {
                     style={{
                       padding: '12px 32px',
                       fontSize: '16px',
-                      backgroundColor: '#4bce97',
+                      backgroundColor: isTakingOver ? '#ccc' : (selectedChat.status === 'attendant' ? '#f97316' : '#4bce97'),
                       color: 'white',
                       height: 'auto'
                     }}
                   >
-                    {isTakingOver ? 'Iniciando...' : 'Assumir Atendimento'}
+                    {isTakingOver ? 'Processando...' : (selectedChat.status === 'attendant' ? 'Iniciar Atendimento' : 'Assumir Atendimento')}
                   </Button>
                 </div>
               ) : (
