@@ -21,8 +21,9 @@ import Midias from './pages/Midias';
 import Campanhas from './pages/Campanhas';
 import Relatorios from './pages/Relatorios';
 import Utilidades from './pages/Utilidades';
-import ConfiguracaoBoot from './pages/ConfiguracaoBoot';
+
 import ConfiguracaoHorarios from './pages/ConfiguracaoHorarios';
+import ConfiguracaoAtendimento from './pages/ConfiguracaoAtendimento';
 import Tokens from './pages/Tokens';
 import NotificacoesManual from './pages/NotificacoesManual';
 import ChecarNumeros from './pages/ChecarNumeros';
@@ -32,6 +33,10 @@ import Chat from './pages/Chat';
 import Organizations from './pages/Organizations';
 import Teams from './pages/Teams';
 import AuditLogs from './pages/AuditLogs';
+import Flows from './pages/Flows';
+import Integracoes from './pages/Integracoes';
+import Departments from './pages/config/Departments';
+import Attendants from './pages/config/Attendants';
 
 import Admin from './pages/Admin'; // Página de administração
 
@@ -107,12 +112,6 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              <Route path="/configuracao/boot" element={
-                <ProtectedRoute>
-                  <Layout><ConfiguracaoBoot /></Layout>
-                </ProtectedRoute>
-              } />
-
               <Route path="/configuracao/horarios" element={
                 <ProtectedRoute>
                   <Layout><ConfiguracaoHorarios /></Layout>
@@ -122,6 +121,36 @@ function App() {
               <Route path="/configuracao/tokens" element={
                 <ProtectedRoute>
                   <Layout><Tokens /></Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/configuracao/atendimento" element={
+                <ProtectedRoute>
+                  <Layout><ConfiguracaoAtendimento /></Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/configuracao/fluxos" element={
+                <ProtectedRoute>
+                  <Layout><Flows /></Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/configuracao/integracoes" element={
+                <ProtectedRoute>
+                  <Layout><Integracoes /></Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/configuracao/departamentos" element={
+                <ProtectedRoute>
+                  <Layout><Departments /></Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/configuracao/colaboradores" element={
+                <ProtectedRoute>
+                  <Layout><Attendants /></Layout>
                 </ProtectedRoute>
               } />
 

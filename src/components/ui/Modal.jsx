@@ -1,16 +1,19 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import Button from './Button';
+import { useTheme } from '../../contexts/ThemeContext';
 
-const Modal = ({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children, 
+const Modal = ({
+  isOpen,
+  onClose,
+  title,
+  children,
   size = 'md',
   showCloseButton = true,
-  closeOnOverlayClick = true 
+  closeOnOverlayClick = true
 }) => {
+  const { currentTheme } = useTheme();
+
   // Fechar modal com ESC
   useEffect(() => {
     const handleEscape = (e) => {
@@ -58,7 +61,7 @@ const Modal = ({
       padding: '20px'
     },
     modal: {
-      backgroundColor: 'white',
+      backgroundColor: currentTheme.cardBackground || 'white',
       borderRadius: '8px',
       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
       width: '100%',
@@ -66,25 +69,27 @@ const Modal = ({
       maxHeight: '90vh',
       display: 'flex',
       flexDirection: 'column',
-      position: 'relative'
+      position: 'relative',
+      color: currentTheme.textPrimary || '#111827'
     },
     header: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: '16px 24px',
-      borderBottom: '1px solid #e5e7eb'
+      borderBottom: `1px solid ${currentTheme.border || '#e5e7eb'}`
     },
     title: {
       fontSize: '18px',
       fontWeight: '600',
-      color: '#111827',
+      color: currentTheme.textPrimary || '#111827',
       margin: 0
     },
     content: {
       padding: '24px',
       overflowY: 'auto',
-      maxHeight: 'calc(90vh - 80px)'
+      maxHeight: 'calc(90vh - 80px)',
+      color: currentTheme.textPrimary || '#111827'
     }
   };
 
@@ -95,7 +100,7 @@ const Modal = ({
   };
 
   return (
-    <div 
+    <div
       style={styles.overlay}
       onClick={handleOverlayClick}
     >

@@ -12,9 +12,14 @@ const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Sidebar visibility control
+  // Desktop: Controlled by showSidebar
+  // Mobile: Controlled by mobileSidebarOpen
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [sidebarHidden, setSidebarHidden] = useState(false);
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -23,10 +28,9 @@ const Layout = ({ children }) => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       if (mobile) {
-        setSidebarHidden(true);
-        setSidebarCollapsed(false);
+        setMobileSidebarOpen(false); // Start closed on mobile
       } else {
-        setSidebarHidden(false);
+        setMobileSidebarOpen(false); // Unused on desktop
       }
     };
 
@@ -48,12 +52,12 @@ const Layout = ({ children }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showUserMenu]);
 
-  const handleSidebarToggle = (collapsed) => {
-    setSidebarCollapsed(collapsed);
+  const toggleSidebar = () => {
+    setShowSidebar(!showSidebar);
   };
 
   const toggleMobileSidebar = () => {
-    setSidebarHidden(!sidebarHidden);
+    setMobileSidebarOpen(!mobileSidebarOpen);
   };
 
   const handleLogoutClick = () => {
@@ -72,6 +76,10 @@ const Layout = ({ children }) => {
 
   const isChatPage = location.pathname === '/chat';
 
+  // Determine Sidebar Hidden State
+  const isSidebarHidden = isMobile ? !mobileSidebarOpen : !showSidebar;
+  const contentMarginLeft = isMobile ? 0 : (showSidebar ? '80px' : '0'); // 80px = Compact Sidebar Width
+
   return (
     <div style={{
       display: 'flex',
@@ -80,21 +88,20 @@ const Layout = ({ children }) => {
     }}>
       {/* Sidebar */}
       <Sidebar
-        onToggle={handleSidebarToggle}
-        isHidden={isMobile && sidebarHidden}
+        isHidden={isSidebarHidden}
         isMobile={isMobile}
-        onMobileClose={toggleMobileSidebar}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
       <div
         style={{
-          marginLeft: isMobile ? 0 : (sidebarCollapsed ? '70px' : '250px'),
+          marginLeft: contentMarginLeft,
           transition: 'margin-left 0.3s ease',
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100vh',
-          width: isMobile ? '100%' : `calc(100vw - ${sidebarCollapsed ? '70px' : '250px'})`,
+          width: isMobile ? '100%' : `calc(100vw - ${contentMarginLeft})`,
           position: 'relative'
         }}
       >
@@ -111,36 +118,35 @@ const Layout = ({ children }) => {
             alignItems: 'center'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              {/* Mobile Menu Button */}
-              {isMobile && (
-                <button
-                  onClick={toggleMobileSidebar}
-                  style={{
-                    padding: '0.5rem',
-                    backgroundColor: 'transparent',
-                    color: currentTheme.textPrimary,
-                    border: `1px solid ${currentTheme.border}`,
-                    borderRadius: '0.375rem',
-                    fontSize: '1.2rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '40px',
-                    height: '40px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = currentTheme.borderLight;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                  }}
-                  title="Menu"
-                >
-                  <i className="bi bi-list"></i>
-                </button>
-              )}
+
+              {/* Toggle Sidebar Button (Desktop & Mobile) */}
+              <button
+                onClick={isMobile ? toggleMobileSidebar : toggleSidebar}
+                style={{
+                  padding: '0.5rem',
+                  backgroundColor: 'transparent',
+                  color: currentTheme.textPrimary,
+                  border: `1px solid ${currentTheme.border}`,
+                  borderRadius: '0.375rem',
+                  fontSize: '1.2rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '40px',
+                  height: '40px'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = currentTheme.borderLight;
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                }}
+                title={isMobile ? "Menu" : (showSidebar ? "Esconder Menu" : "Mostrar Menu")}
+              >
+                <i className="bi bi-list"></i>
+              </button>
 
 
             </div>
@@ -356,7 +362,7 @@ const Layout = ({ children }) => {
               </button>
 
               {/* Admin Button - Only visible for admin users */}
-              {(console.log('Layout - User data:', user) || console.log('Layout - user.isAdmin:', user?.isAdmin)) || user?.isAdmin && (
+              {(user?.isAdmin) && (
                 <button style={{
                   padding: '0.5rem',
                   backgroundColor: 'transparent',
@@ -420,7 +426,7 @@ const Layout = ({ children }) => {
               <button className="btn-base btn-new-red"
                 onClick={handleLogoutClick}
               >
-                <LogOut size={20} />
+                <LogOut />
               </button>
             </div>
           </div>
@@ -465,22 +471,6 @@ const Layout = ({ children }) => {
           </footer>
         )}
       </div>
-
-      {/* Mobile Overlay */}
-      {isMobile && !sidebarHidden && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 999
-          }}
-          onClick={() => setSidebarHidden(true)}
-        />
-      )}
 
       {/* Logout Modal */}
       <LogoutModal

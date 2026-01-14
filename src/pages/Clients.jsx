@@ -12,12 +12,12 @@ import { lookupCep } from '../utils/cep';
 import InternationalPhoneInput from '../components/ui/InternationalPhoneInput';
 
 const Clients = () => {
-  
+
   // Função para exibir Alertas toast
   const { showToast } = useToast();
 
   const [hover, setHover] = useState(false);
-  
+
   const navigate = useNavigate();
   const { currentTheme } = useTheme();
   const [clients, setClients] = useState([]);
@@ -37,7 +37,7 @@ const Clients = () => {
   const [clientToDelete, setClientToDelete] = useState(null);
   const [formData, setFormData] = useState({
 
-    
+
     name: '',
     type: 'PF',
     cpfCnpj: '',
@@ -73,7 +73,7 @@ const Clients = () => {
       };
 
       const response = await apiService.getClients(params);
-      
+
       // Ajustando para a estrutura de resposta do backend
       if (response.data && response.data.data) {
         setClients(response.data.data);
@@ -103,11 +103,11 @@ const Clients = () => {
   const fetchAddressByCep = async (cep) => {
     // Remove formatação
     const cleanCep = cep.replace(/\D/g, '');
-    
+
     if (cleanCep.length === 8) {
       try {
         const data = await lookupCep(cleanCep);
-        
+
         setFormData(prev => ({
           ...prev,
           address: data.street || '',
@@ -124,6 +124,7 @@ const Clients = () => {
   };
 
   const formatPhone = (value) => {
+    if (!value) return '';
     const cleaned = value.replace(/\D/g, '');
     const match = cleaned.match(/^(\d{2})(\d{4})(\d{4})$/);
     if (match) {
@@ -133,6 +134,7 @@ const Clients = () => {
   };
 
   const formatCellphone = (value) => {
+    if (!value) return '';
     const cleaned = value.replace(/\D/g, '');
     const match = cleaned.match(/^(\d{2})(\d{5})(\d{4})$/);
     if (match) {
@@ -142,6 +144,7 @@ const Clients = () => {
   };
 
   const formatCep = (value) => {
+    if (!value) return '';
     const cleaned = value.replace(/\D/g, '');
     const match = cleaned.match(/^(\d{5})(\d{3})$/);
     if (match) {
@@ -151,11 +154,12 @@ const Clients = () => {
   };
 
   const validateCPF = (cpf) => {
+    if (!cpf) return false;
     const cleaned = cpf.replace(/\D/g, '');
     if (cleaned.length !== 11) return false;
-    
+
     if (/^(\d)\1{10}$/.test(cleaned)) return false;
-    
+
     let sum = 0;
     for (let i = 0; i < 9; i++) {
       sum += parseInt(cleaned.charAt(i)) * (10 - i);
@@ -163,7 +167,7 @@ const Clients = () => {
     let remainder = (sum * 10) % 11;
     if (remainder === 10 || remainder === 11) remainder = 0;
     if (remainder !== parseInt(cleaned.charAt(9))) return false;
-    
+
     sum = 0;
     for (let i = 0; i < 10; i++) {
       sum += parseInt(cleaned.charAt(i)) * (11 - i);
@@ -171,16 +175,17 @@ const Clients = () => {
     remainder = (sum * 10) % 11;
     if (remainder === 10 || remainder === 11) remainder = 0;
     if (remainder !== parseInt(cleaned.charAt(10))) return false;
-    
+
     return true;
   };
 
   const validateCNPJ = (cnpj) => {
+    if (!cnpj) return false;
     const cleaned = cnpj.replace(/\D/g, '');
     if (cleaned.length !== 14) return false;
-    
+
     if (/^(\d)\1{13}$/.test(cleaned)) return false;
-    
+
     let sum = 0;
     let weight = 2;
     for (let i = 11; i >= 0; i--) {
@@ -190,7 +195,7 @@ const Clients = () => {
     let remainder = sum % 11;
     const digit1 = remainder < 2 ? 0 : 11 - remainder;
     if (digit1 !== parseInt(cleaned.charAt(12))) return false;
-    
+
     sum = 0;
     weight = 2;
     for (let i = 12; i >= 0; i--) {
@@ -200,11 +205,12 @@ const Clients = () => {
     remainder = sum % 11;
     const digit2 = remainder < 2 ? 0 : 11 - remainder;
     if (digit2 !== parseInt(cleaned.charAt(13))) return false;
-    
+
     return true;
   };
 
   const formatCpfCnpj = (value) => {
+    if (!value) return '';
     const cleaned = value.replace(/\D/g, '');
     if (cleaned.length <= 11) {
       return cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
@@ -226,7 +232,7 @@ const Clients = () => {
   const openModal = (mode, client = null) => {
     setModalMode(mode);
     setSelectedClient(client);
-    
+
     if (mode === 'create') {
       setFormData({
         name: '',
@@ -260,7 +266,7 @@ const Clients = () => {
         country: client.country || 'Brasil'
       });
     }
-    
+
     setShowModal(true);
     setError('');
     setSuccess('');
@@ -410,7 +416,7 @@ const Clients = () => {
 
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
-      
+
       if (error.response?.status === 400) {
         setError(error.response.data.message || 'Dados inválidos');
       } else if (error.response?.status === 409) {
@@ -467,7 +473,7 @@ const Clients = () => {
           </h1>
           <p style={styles.subtitle}>Gerencie seus clientes</p>
         </div>
-        
+
         <div style={styles.headerActions}>
           <div style={styles.searchContainer}>
             <div style={styles.searchInputContainer}>
@@ -481,7 +487,7 @@ const Clients = () => {
               />
             </div>
           </div>
-          
+
           <button
             className="btn-base btn-new-green"
             onClick={() =>
@@ -498,7 +504,7 @@ const Clients = () => {
           <button
             className="btn-base btn-new"
             onClick={() => openModal('create')}
-            
+
           >
             <Plus size={20} />
             Novo Cliente
@@ -507,24 +513,24 @@ const Clients = () => {
       </div>
 
       {/* Alertas */}
-      <AlertToast 
-        open={!!error} 
-        variant="danger" 
-        title="Erro" 
-        message={error} 
-        onClose={() => setError('')} 
+      <AlertToast
+        open={!!error}
+        variant="danger"
+        title="Erro"
+        message={error}
+        onClose={() => setError('')}
       />
-      <AlertToast 
-        open={!!success} 
-        variant="success" 
-        title="Sucesso" 
-        message={success} 
-        onClose={() => setSuccess('')} 
+      <AlertToast
+        open={!!success}
+        variant="success"
+        title="Sucesso"
+        message={success}
+        onClose={() => setSuccess('')}
       />
 
       {/* Estatísticas */}
       <div style={styles.statsContainer}>
-        <div style={{...styles.statCard, borderLeft: `4px solid ${currentTheme.primary || '#3b82f6'}`}}>
+        <div style={{ ...styles.statCard, borderLeft: `4px solid ${currentTheme.primary || '#3b82f6'}` }}>
           <div style={styles.statsIcon}>
             <Users size={24} />
           </div>
@@ -533,9 +539,9 @@ const Clients = () => {
             <p style={styles.statNumber}>{totalClients}</p>
           </div>
         </div>
-        
-        <div style={{...styles.statCard, borderLeft: `4px solid #10b981`}}>
-          <div style={{...styles.statsIcon, backgroundColor: '#10b98120', color: '#10b981'}}>
+
+        <div style={{ ...styles.statCard, borderLeft: `4px solid #10b981` }}>
+          <div style={{ ...styles.statsIcon, backgroundColor: '#10b98120', color: '#10b981' }}>
             <Building size={24} />
           </div>
           <div>
@@ -543,9 +549,9 @@ const Clients = () => {
             <p style={styles.statNumber}>{activeClients}</p>
           </div>
         </div>
-        
-        <div style={{...styles.statCard, borderLeft: `4px solid #f59e0b`}}>
-          <div style={{...styles.statsIcon, backgroundColor: '#f59e0b20', color: '#f59e0b'}}>
+
+        <div style={{ ...styles.statCard, borderLeft: `4px solid #f59e0b` }}>
+          <div style={{ ...styles.statsIcon, backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
             <User size={24} />
           </div>
           <div>
@@ -560,7 +566,7 @@ const Clients = () => {
         <div style={styles.tableHeader}>
           <h2 style={styles.tableTitle}>Lista de Clientes</h2>
         </div>
-        
+
         <div>
           {loading ? (
             <div style={styles.loading}>
@@ -616,14 +622,14 @@ const Clients = () => {
                         </button>
                         <button
                           onClick={() => openModal('edit', client)}
-                          style={{...styles.actionButton, ...styles.editButton}}
+                          style={{ ...styles.actionButton, ...styles.editButton }}
                           title="Editar"
                         >
                           <Edit size={16} />
                         </button>
                         <button
                           onClick={() => openDeleteModal(client)}
-                          style={{...styles.actionButton, ...styles.deleteButton}}
+                          style={{ ...styles.actionButton, ...styles.deleteButton }}
                           title="Excluir"
                         >
                           <Trash2 size={16} />
@@ -989,7 +995,7 @@ const getStyles = (theme) => ({
     minHeight: '100vh',
     fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif'
   },
-  
+
   header: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -998,14 +1004,14 @@ const getStyles = (theme) => ({
     flexWrap: 'wrap',
     gap: '16px'
   },
-  
+
   headerActions: {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
     flexWrap: 'wrap'
   },
-  
+
   title: {
     fontSize: '32px',
     fontWeight: '700',
@@ -1015,17 +1021,17 @@ const getStyles = (theme) => ({
     alignItems: 'center',
     gap: '12px'
   },
-  
+
   titleIcon: {
     color: theme.primary
   },
-  
+
   subtitle: {
     fontSize: '16px',
     color: theme.textSecondary,
     margin: 0
   },
-  
+
   addButton: {
     display: 'flex',
     alignItems: 'center',
@@ -1044,19 +1050,19 @@ const getStyles = (theme) => ({
     }
   },
   importButton: {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '12px 20px',
-  backgroundColor: '#16a34a', // verde
-  color: 'white',
-  border: 'none',
-  borderRadius: '8px',
-  fontSize: '14px',
-  fontWeight: '600',
-  cursor: 'pointer',
-  transition: 'all 0.2s',
-},
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '12px 20px',
+    backgroundColor: '#16a34a', // verde
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
 
   addButtonImportContacts: {
     display: 'flex',
@@ -1075,14 +1081,14 @@ const getStyles = (theme) => ({
       backgroundColor: theme.primaryDark || theme.primary
     }
   },
-  
+
   statsContainer: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
     gap: '20px',
     marginBottom: '32px'
   },
-  
+
   statCard: {
     backgroundColor: theme.cardBackground,
     padding: '24px',
@@ -1093,7 +1099,7 @@ const getStyles = (theme) => ({
     alignItems: 'center',
     gap: '16px'
   },
-  
+
   statsIcon: {
     width: '48px',
     height: '48px',
@@ -1104,39 +1110,39 @@ const getStyles = (theme) => ({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  
+
   statLabel: {
     fontSize: '14px',
     color: theme.textSecondary,
     margin: '0 0 4px 0'
   },
-  
+
   statNumber: {
     fontSize: '28px',
     fontWeight: '700',
     color: theme.textPrimary,
     margin: 0
   },
-  
+
   searchContainer: {
     flex: 1,
     minWidth: '300px'
   },
-  
+
   searchInputContainer: {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
     maxWidth: '400px'
   },
-  
+
   searchIcon: {
     position: 'absolute',
     left: '12px',
     color: theme.textSecondary,
     zIndex: 1
   },
-  
+
   searchInput: {
     width: '100%',
     padding: '12px 12px 12px 40px',
@@ -1151,7 +1157,7 @@ const getStyles = (theme) => ({
       color: theme.textSecondary
     }
   },
-  
+
   tableContainer: {
     backgroundColor: theme.cardBackground,
     borderRadius: '12px',
@@ -1160,7 +1166,7 @@ const getStyles = (theme) => ({
     overflow: 'hidden',
     marginBottom: '32px'
   },
-  
+
   tableHeader: {
     padding: '24px',
     borderBottom: `1px solid ${theme.border}`,
@@ -1168,7 +1174,7 @@ const getStyles = (theme) => ({
     justifyContent: 'space-between',
     alignItems: 'center'
   },
-  
+
   refreshButton: {
     padding: '8px',
     border: 'none',
@@ -1184,19 +1190,19 @@ const getStyles = (theme) => ({
       backgroundColor: theme.border
     }
   },
-  
+
   tableTitle: {
     fontSize: '20px',
     fontWeight: '600',
     color: theme.textPrimary,
     margin: 0
   },
-  
+
   table: {
     width: '100%',
     borderCollapse: 'collapse'
   },
-  
+
   th: {
     padding: '16px 24px',
     textAlign: 'left',
@@ -1206,7 +1212,7 @@ const getStyles = (theme) => ({
     backgroundColor: theme.background,
     borderBottom: `1px solid ${theme.border}`
   },
-  
+
   tableRow: {
     borderBottom: `1px solid ${theme.border}`,
     transition: 'all 0.2s',
@@ -1214,18 +1220,18 @@ const getStyles = (theme) => ({
       backgroundColor: theme.borderLight
     }
   },
-  
+
   td: {
     padding: '16px 24px',
     fontSize: '14px',
     color: theme.textPrimary
   },
-  
+
   actionButtons: {
     display: 'flex',
     gap: '8px'
   },
-  
+
   actionButton: {
     padding: '8px',
     border: 'none',
@@ -1241,7 +1247,7 @@ const getStyles = (theme) => ({
       backgroundColor: '#3b82f640'
     }
   },
-  
+
   editButton: {
     backgroundColor: '#f59e0b20',
     color: '#f59e0b',
@@ -1249,7 +1255,7 @@ const getStyles = (theme) => ({
       backgroundColor: '#f59e0b40'
     }
   },
-  
+
   deleteButton: {
     backgroundColor: '#ef444420',
     color: '#ef4444',
@@ -1257,14 +1263,14 @@ const getStyles = (theme) => ({
       backgroundColor: '#ef444440'
     }
   },
-  
+
   pagination: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     gap: '12px'
   },
-  
+
   paginationButton: {
     padding: '8px 16px',
     border: `1px solid ${theme.border}`,
@@ -1279,12 +1285,12 @@ const getStyles = (theme) => ({
       backgroundColor: theme.borderLight
     }
   },
-  
+
   paginationInfo: {
     fontSize: '14px',
     color: theme.textSecondary
   },
-  
+
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -1298,7 +1304,7 @@ const getStyles = (theme) => ({
     zIndex: 1000,
     padding: '20px'
   },
-  
+
   modal: {
     backgroundColor: theme.cardBackground,
     borderRadius: '12px',
@@ -1310,7 +1316,7 @@ const getStyles = (theme) => ({
     display: 'flex',
     flexDirection: 'column'
   },
-  
+
   deleteModal: {
     backgroundColor: theme.cardBackground,
     borderRadius: '12px',
@@ -1319,7 +1325,7 @@ const getStyles = (theme) => ({
     maxWidth: '500px',
     overflow: 'hidden'
   },
-  
+
   modalHeader: {
     padding: '24px',
     borderBottom: `1px solid ${theme.border}`,
@@ -1327,7 +1333,7 @@ const getStyles = (theme) => ({
     justifyContent: 'space-between',
     alignItems: 'center'
   },
-  
+
   modalTitle: {
     fontSize: '20px',
     fontWeight: '600',
@@ -1336,7 +1342,7 @@ const getStyles = (theme) => ({
     display: 'flex',
     alignItems: 'center'
   },
-  
+
   closeButton: {
     background: 'none',
     border: 'none',
@@ -1350,38 +1356,38 @@ const getStyles = (theme) => ({
       backgroundColor: theme.borderLight
     }
   },
-  
+
   modalContent: {
     padding: '24px',
     flex: 1,
     overflowY: 'auto'
   },
-  
+
   form: {
     display: 'flex',
     flexDirection: 'column',
     gap: '20px'
   },
-  
+
   formGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
     gap: '20px',
     marginBottom: '24px'
   },
-  
+
   formGroup: {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px'
   },
-  
+
   label: {
     fontSize: '14px',
     fontWeight: '500',
     color: theme.textPrimary
   },
-  
+
   input: {
     padding: '12px 16px',
     border: `1px solid ${theme.border}`,
@@ -1396,7 +1402,7 @@ const getStyles = (theme) => ({
       boxShadow: `0 0 0 3px ${theme.primary}20`
     }
   },
-  
+
   modalActions: {
     display: 'flex',
     justifyContent: 'flex-end',
@@ -1404,7 +1410,7 @@ const getStyles = (theme) => ({
     paddingTop: '24px',
     borderTop: `1px solid ${theme.border}`
   },
-  
+
   cancelButton: {
     padding: '12px 24px',
     border: `1px solid ${theme.border}`,
@@ -1419,7 +1425,7 @@ const getStyles = (theme) => ({
       backgroundColor: theme.borderLight
     }
   },
-  
+
   saveButton: {
     display: 'flex',
     alignItems: 'center',
@@ -1437,7 +1443,7 @@ const getStyles = (theme) => ({
       backgroundColor: theme.primaryDark || theme.primary
     }
   },
-  
+
   confirmDeleteButton: {
     padding: '12px 24px',
     backgroundColor: '#dc3545',
@@ -1452,19 +1458,19 @@ const getStyles = (theme) => ({
       backgroundColor: '#c82333'
     }
   },
-  
+
   viewContainer: {
     display: 'flex',
     flexDirection: 'column',
     gap: '24px'
   },
-  
+
   viewSection: {
     display: 'flex',
     flexDirection: 'column',
     gap: '16px'
   },
-  
+
   viewSectionTitle: {
     fontSize: '18px',
     fontWeight: '600',
@@ -1474,19 +1480,19 @@ const getStyles = (theme) => ({
     gap: '8px',
     marginBottom: '8px'
   },
-  
+
   viewGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
     gap: '16px'
   },
-  
+
   viewField: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px'
   },
-  
+
   viewLabel: {
     fontSize: '12px',
     fontWeight: '500',
@@ -1494,26 +1500,26 @@ const getStyles = (theme) => ({
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
-  
+
   viewValue: {
     fontSize: '14px',
     color: theme.textPrimary,
     fontWeight: '400'
   },
-  
+
   deleteText: {
     fontSize: '14px',
     color: theme.textPrimary,
     marginBottom: '16px',
     lineHeight: '1.5'
   },
-  
+
   deleteWarning: {
     fontSize: '13px',
     color: '#dc3545',
     marginBottom: '24px'
   },
-  
+
   errorMessage: {
     display: 'flex',
     alignItems: 'center',
@@ -1527,7 +1533,7 @@ const getStyles = (theme) => ({
     color: '#dc2626',
     border: '1px solid #fecaca'
   },
-  
+
   successMessage: {
     display: 'flex',
     alignItems: 'center',
@@ -1541,7 +1547,7 @@ const getStyles = (theme) => ({
     color: '#059669',
     border: '1px solid #a7f3d0'
   },
-  
+
   loading: {
     display: 'flex',
     flexDirection: 'column',
@@ -1550,7 +1556,7 @@ const getStyles = (theme) => ({
     padding: '64px',
     color: theme.textSecondary
   },
-  
+
   spinner: {
     width: '32px',
     height: '32px',
@@ -1560,7 +1566,7 @@ const getStyles = (theme) => ({
     animation: 'spin 1s linear infinite',
     marginBottom: '16px'
   },
-  
+
   emptyState: {
     display: 'flex',
     flexDirection: 'column',
@@ -1569,7 +1575,7 @@ const getStyles = (theme) => ({
     padding: '64px',
     color: theme.textSecondary
   },
-  
+
   emptyIcon: {
     marginBottom: '16px',
     opacity: 0.5

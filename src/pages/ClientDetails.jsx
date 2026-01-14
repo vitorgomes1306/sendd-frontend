@@ -27,7 +27,7 @@ const ClientDetails = () => {
     mediaId: null // ID da mídia selecionada ou recém-enviada
   });
   const [sending, setSending] = useState(false);
-  
+
   // Estados para anexo de mídia
   const [showMediaOptions, setShowMediaOptions] = useState(false); // Menu de escolha: Upload ou Galeria
   const [showGallery, setShowGallery] = useState(false); // Modal da Galeria
@@ -56,24 +56,24 @@ const ClientDetails = () => {
 
   const loadMessages = async () => {
     try {
-        // Como a rota de listar mensagens não filtra por cliente específico ainda (apenas por usuário criador),
-        // idealmente a rota GET /notifications deveria aceitar um filtro clientId.
-        // Vou assumir que o backend lista todas do usuário e filtrar aqui no front por enquanto,
-        // ou melhor, implementar um filtro básico no front já que não mexi no GET do backend para filtrar por selectedClients.
-        
-        // Correção: O backend GET /notifications retorna { data: [], pagination: {} }
-        const response = await apiService.getNotifications({ limit: 100 });
-        const allMsgs = response.data?.data || [];
-        
-        // Filtrar mensagens onde este cliente está em selectedClients
-        // Como selectedClients é array de IDs, verificamos se o ID do cliente atual está incluso.
-        const clientMsgs = allMsgs.filter(msg => 
-            msg.selectedClients && msg.selectedClients.includes(Number(id))
-        );
-        
-        setMessages(clientMsgs);
+      // Como a rota de listar mensagens não filtra por cliente específico ainda (apenas por usuário criador),
+      // idealmente a rota GET /notifications deveria aceitar um filtro clientId.
+      // Vou assumir que o backend lista todas do usuário e filtrar aqui no front por enquanto,
+      // ou melhor, implementar um filtro básico no front já que não mexi no GET do backend para filtrar por selectedClients.
+
+      // Correção: O backend GET /notifications retorna { data: [], pagination: {} }
+      const response = await apiService.getNotifications({ limit: 100 });
+      const allMsgs = response.data?.data || [];
+
+      // Filtrar mensagens onde este cliente está em selectedClients
+      // Como selectedClients é array de IDs, verificamos se o ID do cliente atual está incluso.
+      const clientMsgs = allMsgs.filter(msg =>
+        msg.selectedClients && msg.selectedClients.includes(Number(id))
+      );
+
+      setMessages(clientMsgs);
     } catch (err) {
-        console.error('Erro ao carregar mensagens:', err);
+      console.error('Erro ao carregar mensagens:', err);
     }
   };
 
@@ -83,7 +83,7 @@ const ClientDetails = () => {
       // Temporariamente removendo filtro estrito de 'connected' para debug/uso
       // ou permitindo 'open' que é o status retornado pela Evolution
       const allInstances = response.data?.instances || [];
-      
+
       // Filtrar instâncias que parecem estar operacionais
       // Status possíveis: 'open', 'connected', 'connecting'
       // Se não tiver status, assume que está disponível se tiver ID
@@ -91,7 +91,7 @@ const ClientDetails = () => {
         const s = (i.status || i.connectionStatus || '').toLowerCase();
         return s === 'open' || s === 'connected' || s === 'connecting' || !s;
       });
-      
+
       setInstances(available.length > 0 ? available : allInstances);
     } catch (err) {
       console.error('Erro ao carregar instâncias:', err);
@@ -106,17 +106,17 @@ const ClientDetails = () => {
     }
 
     if (!client.cellphone) {
-        setError('Cliente não possui número de celular cadastrado.');
-        return;
+      setError('Cliente não possui número de celular cadastrado.');
+      return;
     }
 
     setSending(true);
     setError('');
-    
+
     try {
       // 1. Encontrar a instância selecionada para pegar os dados
       const selectedInstance = instances.find(i => i.id === Number(msgData.instanceId));
-      
+
       if (!selectedInstance) throw new Error('Instância não encontrada');
 
       // 2. Preparar payload para salvar notificação manual
@@ -133,7 +133,7 @@ const ClientDetails = () => {
 
       // 3. Chamar API interna que vai processar o envio
       await apiService.saveNotification(notificationData);
-      
+
       setSuccess('Mensagem enviada com sucesso!');
       setShowMsgModal(false);
       setMsgData({ instanceId: '', message: '', mediaId: null });
@@ -152,7 +152,7 @@ const ClientDetails = () => {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     // Validar tamanho (10MB)
     if (file.size > 10 * 1024 * 1024) {
       setError('Arquivo muito grande. Limite máximo de 10MB.');
@@ -166,7 +166,7 @@ const ClientDetails = () => {
       setSending(true); // Bloquear UI enquanto faz upload
       const response = await apiService.uploadMedia(formData);
       const media = response.data;
-      
+
       setMsgData(prev => ({ ...prev, mediaId: media.id }));
       setSelectedMedia(media);
       setShowMediaOptions(false);
@@ -263,7 +263,7 @@ const ClientDetails = () => {
           </div>
         </div>
 
-        <button 
+        <button
           onClick={() => setShowMsgModal(true)}
           style={styles.sendButton}
         >
@@ -273,19 +273,19 @@ const ClientDetails = () => {
       </div>
 
       {/* Alerts */}
-      <AlertToast 
-        open={!!error} 
-        variant="danger" 
-        title="Erro" 
-        message={error} 
-        onClose={() => setError('')} 
+      <AlertToast
+        open={!!error}
+        variant="danger"
+        title="Erro"
+        message={error}
+        onClose={() => setError('')}
       />
-      <AlertToast 
-        open={!!success} 
-        variant="success" 
-        title="Sucesso" 
-        message={success} 
-        onClose={() => setSuccess('')} 
+      <AlertToast
+        open={!!success}
+        variant="success"
+        title="Sucesso"
+        message={success}
+        onClose={() => setSuccess('')}
       />
 
       {/* Tabs */}
@@ -379,6 +379,41 @@ const ClientDetails = () => {
                 </div>
               </div>
             </div>
+            <div style={styles.card}>
+              <div style={styles.cardHeader}>
+                <FileText size={20} style={{ color: currentTheme.primary }} />
+                <h2 style={styles.cardTitle}>Contratos</h2>
+              </div>
+              <div style={styles.cardContent}>
+                {!client.contracts || client.contracts.length === 0 ? (
+                  <p style={{ color: currentTheme.textSecondary, fontSize: '14px' }}>Nenhum contrato vinculado.</p>
+                ) : (
+                  client.contracts.map((contract, index) => (
+                    <div key={contract.id} style={{
+                      paddingBottom: index < client.contracts.length - 1 ? '16px' : '0',
+                      borderBottom: index < client.contracts.length - 1 ? `1px solid ${currentTheme.borderLight}` : 'none'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontWeight: '600', color: currentTheme.textPrimary, fontSize: '14px' }}>
+                          Contrato #{contract.externalId || contract.id}
+                        </span>
+                        <span style={{
+                          padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase',
+                          backgroundColor: (contract.status || '').toLowerCase().includes('ativo') ? '#d1fae5' : '#fee2e2',
+                          color: (contract.status || '').toLowerCase().includes('ativo') ? '#059669' : '#dc2626'
+                        }}>
+                          {contract.status || 'Desconhecido'}
+                        </span>
+                      </div>
+                      <div style={styles.infoRow}>
+                        <span style={styles.label}>Plano:</span>
+                        <span style={styles.value}>{contract.plan || '-'}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -418,8 +453,8 @@ const ClientDetails = () => {
                       </div>
                       {msg.imagePath && (
                         <div style={styles.timelineAttachment}>
-                            <Paperclip size={14} style={{ marginRight: '4px' }} />
-                            <span>{msg.imageOriginalName || 'Anexo'}</span>
+                          <Paperclip size={14} style={{ marginRight: '4px' }} />
+                          <span>{msg.imageOriginalName || 'Anexo'}</span>
                         </div>
                       )}
                     </div>
@@ -445,145 +480,149 @@ const ClientDetails = () => {
         )}
       </div>
       {/* Modal de Envio de Mensagem */}
-      {showMsgModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Enviar Mensagem</h2>
-              <button onClick={() => setShowMsgModal(false)} style={styles.closeButton}>
-                <X size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSendMessage} style={styles.modalContent}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Instância (WhatsApp) *</label>
-                <select
-                  value={msgData.instanceId}
-                  onChange={(e) => setMsgData({...msgData, instanceId: e.target.value})}
-                  style={styles.input}
-                  required
-                >
-                  <option value="">Selecione uma instância...</option>
-                  {instances.map(inst => (
-                    <option key={inst.id} value={inst.id}>
-                      {inst.name} ({inst.instanceName})
-                    </option>
-                  ))}
-                </select>
-                {instances.length === 0 && (
-                  <span style={styles.helperText}>Nenhuma instância conectada disponível.</span>
-                )}
+      {
+        showMsgModal && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modal}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Enviar Mensagem</h2>
+                <button onClick={() => setShowMsgModal(false)} style={styles.closeButton}>
+                  <X size={24} />
+                </button>
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Mensagem</label>
-                <textarea
-                  value={msgData.message}
-                  onChange={(e) => setMsgData({...msgData, message: e.target.value})}
-                  style={{...styles.input, minHeight: '120px', resize: 'vertical'}}
-                  placeholder="Digite sua mensagem..."
-                />
-              </div>
+              <form onSubmit={handleSendMessage} style={styles.modalContent}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Instância (WhatsApp) *</label>
+                  <select
+                    value={msgData.instanceId}
+                    onChange={(e) => setMsgData({ ...msgData, instanceId: e.target.value })}
+                    style={styles.input}
+                    required
+                  >
+                    <option value="">Selecione uma instância...</option>
+                    {instances.map(inst => (
+                      <option key={inst.id} value={inst.id}>
+                        {inst.name} ({inst.instanceName})
+                      </option>
+                    ))}
+                  </select>
+                  {instances.length === 0 && (
+                    <span style={styles.helperText}>Nenhuma instância conectada disponível.</span>
+                  )}
+                </div>
 
-              {/* Área de Anexo */}
-              <div style={styles.attachmentArea}>
-                {selectedMedia ? (
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Mensagem</label>
+                  <textarea
+                    value={msgData.message}
+                    onChange={(e) => setMsgData({ ...msgData, message: e.target.value })}
+                    style={{ ...styles.input, minHeight: '120px', resize: 'vertical' }}
+                    placeholder="Digite sua mensagem..."
+                  />
+                </div>
+
+                {/* Área de Anexo */}
+                <div style={styles.attachmentArea}>
+                  {selectedMedia ? (
                     <div style={styles.selectedMedia}>
-                        <div style={styles.mediaPreview}>
-                            {selectedMedia.type === 'image' ? (
-                                <img src={getFileUrl(selectedMedia.path)} alt="Preview" style={styles.mediaThumb} />
-                            ) : (
-                                <div style={styles.mediaIcon}>{getFileIcon(selectedMedia.type)}</div>
-                            )}
-                            <span style={styles.mediaName}>{selectedMedia.name || selectedMedia.filename}</span>
-                        </div>
-                        <button type="button" onClick={removeMedia} style={styles.removeMediaBtn}>
-                            <X size={16} />
-                        </button>
-                    </div>
-                ) : (
-                    <div style={styles.attachmentOptions}>
-                        <button 
-                            type="button" 
-                            onClick={() => setShowMediaOptions(!showMediaOptions)}
-                            style={styles.attachBtn}
-                        >
-                            <Paperclip size={18} />
-                            Anexar Mídia
-                        </button>
-                        
-                        {showMediaOptions && (
-                            <div style={styles.optionsMenu}>
-                                <button type="button" onClick={() => fileInputRef.current?.click()} style={styles.optionItem}>
-                                    <Upload size={16} /> Upload
-                                </button>
-                                <button type="button" onClick={openGallery} style={styles.optionItem}>
-                                    <ImageIcon size={16} /> Galeria
-                                </button>
-                            </div>
+                      <div style={styles.mediaPreview}>
+                        {selectedMedia.type === 'image' ? (
+                          <img src={getFileUrl(selectedMedia.path)} alt="Preview" style={styles.mediaThumb} />
+                        ) : (
+                          <div style={styles.mediaIcon}>{getFileIcon(selectedMedia.type)}</div>
                         )}
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileUpload}
-                            style={{ display: 'none' }}
-                            accept="image/*,video/*,audio/*,application/pdf"
-                        />
+                        <span style={styles.mediaName}>{selectedMedia.name || selectedMedia.filename}</span>
+                      </div>
+                      <button type="button" onClick={removeMedia} style={styles.removeMediaBtn}>
+                        <X size={16} />
+                      </button>
                     </div>
-                )}
-              </div>
+                  ) : (
+                    <div style={styles.attachmentOptions}>
+                      <button
+                        type="button"
+                        onClick={() => setShowMediaOptions(!showMediaOptions)}
+                        style={styles.attachBtn}
+                      >
+                        <Paperclip size={18} />
+                        Anexar Mídia
+                      </button>
 
-              <div style={styles.modalActions}>
-                <button
-                  type="button"
-                  onClick={() => setShowMsgModal(false)}
-                  style={styles.cancelButton}
-                  disabled={sending}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  style={styles.sendButton}
-                  disabled={sending || instances.length === 0 || (!msgData.message && !selectedMedia)}
-                >
-                  {sending ? 'Enviando...' : 'Enviar'}
-                </button>
-              </div>
-            </form>
+                      {showMediaOptions && (
+                        <div style={styles.optionsMenu}>
+                          <button type="button" onClick={() => fileInputRef.current?.click()} style={styles.optionItem}>
+                            <Upload size={16} /> Upload
+                          </button>
+                          <button type="button" onClick={openGallery} style={styles.optionItem}>
+                            <ImageIcon size={16} /> Galeria
+                          </button>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        style={{ display: 'none' }}
+                        accept="image/*,video/*,audio/*,application/pdf"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div style={styles.modalActions}>
+                  <button
+                    type="button"
+                    onClick={() => setShowMsgModal(false)}
+                    style={styles.cancelButton}
+                    disabled={sending}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    style={styles.sendButton}
+                    disabled={sending || instances.length === 0 || (!msgData.message && !selectedMedia)}
+                  >
+                    {sending ? 'Enviando...' : 'Enviar'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Modal da Galeria */}
-      {showGallery && (
-        <div style={styles.modalOverlay}>
-            <div style={{...styles.modal, maxWidth: '800px', maxHeight: '80vh'}}>
-                <div style={styles.modalHeader}>
-                    <h2 style={styles.modalTitle}>Selecionar da Galeria</h2>
-                    <button onClick={() => setShowGallery(false)} style={styles.closeButton}>
-                        <X size={24} />
-                    </button>
-                </div>
-                <div style={{...styles.modalContent, overflowY: 'auto'}}>
-                    <div style={styles.galleryGrid}>
-                        {galleryMedias.map(media => (
-                            <div key={media.id} style={styles.galleryItem} onClick={() => selectGalleryMedia(media)}>
-                                {media.type === 'image' ? (
-                                    <img src={getFileUrl(media.path)} alt={media.filename} style={styles.galleryThumb} />
-                                ) : (
-                                    <div style={styles.galleryIcon}>{getFileIcon(media.type)}</div>
-                                )}
-                                <span style={styles.galleryName}>{media.name || media.filename}</span>
-                            </div>
-                        ))}
+      {
+        showGallery && (
+          <div style={styles.modalOverlay}>
+            <div style={{ ...styles.modal, maxWidth: '800px', maxHeight: '80vh' }}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Selecionar da Galeria</h2>
+                <button onClick={() => setShowGallery(false)} style={styles.closeButton}>
+                  <X size={24} />
+                </button>
+              </div>
+              <div style={{ ...styles.modalContent, overflowY: 'auto' }}>
+                <div style={styles.galleryGrid}>
+                  {galleryMedias.map(media => (
+                    <div key={media.id} style={styles.galleryItem} onClick={() => selectGalleryMedia(media)}>
+                      {media.type === 'image' ? (
+                        <img src={getFileUrl(media.path)} alt={media.filename} style={styles.galleryThumb} />
+                      ) : (
+                        <div style={styles.galleryIcon}>{getFileIcon(media.type)}</div>
+                      )}
+                      <span style={styles.galleryName}>{media.name || media.filename}</span>
                     </div>
+                  ))}
                 </div>
+              </div>
             </div>
-        </div>
-      )}
-    </div>
+          </div>
+        )
+      }
+    </div >
   );
 };
 

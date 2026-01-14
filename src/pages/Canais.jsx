@@ -14,7 +14,7 @@ const Canais = () => {
   const navigate = useNavigate();
   const { currentTheme } = useTheme();
   const { user } = useAuth();
-  
+
   // Obter estilos com o tema atual
   const styles = getStyles(currentTheme);
 
@@ -34,12 +34,12 @@ const Canais = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // Estados para polling de status
   const [isPolling, setIsPolling] = useState(false);
   const [pollingInstanceId, setPollingInstanceId] = useState(null);
   const pollingIntervalRef = useRef(null);
-  
+
   // Estados do formulário
   const [formData, setFormData] = useState({
     instanceName: '',
@@ -48,8 +48,11 @@ const Canais = () => {
     tipo: 'WHATSAPP_WEB',
     organizationId: '',
     atendimento: false,
-    notificacoes: false
+    notificacoes: false,
+    botFlowId: ''
   });
+
+  const [botFlows, setBotFlows] = useState([]);
 
   // Estados das estatísticas
   const [stats, setStats] = useState({
@@ -78,6 +81,23 @@ const Canais = () => {
   useEffect(() => {
     updateStats();
   }, [instances]);
+
+  const loadBotFlows = async (orgId) => {
+    if (!orgId) return;
+    try {
+      const response = await apiService.get(`/private/bot-flows?organizationId=${orgId}`);
+      setBotFlows(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar fluxos do bot:', error);
+    }
+  };
+
+  // Recarregar fluxos quando a organização mudar no formulário
+  useEffect(() => {
+    if (formData.organizationId) {
+      loadBotFlows(formData.organizationId);
+    }
+  }, [formData.organizationId]);
 
   // Função para carregar organizações
   const loadOrganizations = async () => {
@@ -108,7 +128,7 @@ const Canais = () => {
         try {
           const instanceResponse = await apiService.get(`/private/organizations/${org.id}/instances`);
           const orgInstances = instanceResponse.data.instances || []; // Acessar a propriedade instances
-          
+
           // Adicionar informação da organização a cada instância
           const instancesWithOrg = orgInstances.map(instance => ({
             ...instance,
@@ -143,9 +163,9 @@ const Canais = () => {
   // Função para filtrar instâncias
   const filteredInstances = instances.filter(instance => {
     const matchesSearch = instance.instanceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (instance.number && instance.number.includes(searchTerm)) ||
-                         (instance.organizationName && instance.organizationName.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+      (instance.number && instance.number.includes(searchTerm)) ||
+      (instance.organizationName && instance.organizationName.toLowerCase().includes(searchTerm.toLowerCase()));
+
     const matchesFilter = filterStatus === 'all' || instance.status === filterStatus;
 
     return matchesSearch && matchesFilter;
@@ -155,7 +175,7 @@ const Canais = () => {
   const openModal = (mode, instance = null) => {
     setModalMode(mode);
     setSelectedInstance(instance);
-    
+
     if (mode === 'add') {
       setFormData({
         instanceName: '',
@@ -163,7 +183,8 @@ const Canais = () => {
         tipo: 'WHATSAPP_WEB',
         organizationId: organizations.length > 0 ? organizations[0].id : '',
         atendimento: false,
-        notificacoes: false
+        notificacoes: false,
+        botFlowId: ''
       });
     } else if (instance) {
       setFormData({
@@ -173,10 +194,11 @@ const Canais = () => {
         tipo: instance.tipo || 'WHATSAPP_WEB',
         organizationId: instance.organizationId || '',
         atendimento: instance.atendimento || false,
-        notificacoes: instance.notificacoes || false
+        notificacoes: instance.notificacoes || false,
+        botFlowId: instance.botFlowId || ''
       });
     }
-    
+
     setShowModal(true);
     setError('');
     setSuccess('');
@@ -217,23 +239,23 @@ const Canais = () => {
         console.log(`📡 Verificando status... (Instância: ${instanceId})`);
         // Usar a rota do backend que já implementa a lógica do fetchInstances e atualização do banco
         const statusData = await checkInstanceStatus(instanceId, organizationId);
-        
+
         if (statusData) {
           console.log(`🔍 Status recebido:`, statusData.status);
-          
+
           // Se a instância foi conectada
           if (statusData.status === 'connected') {
             console.log('✅ Instância conectada! Parando polling...');
-            
+
             // Parar polling
             stopStatusPolling();
-            
+
             // Fechar modal do QR Code
             closeQrModal();
-            
+
             // Mostrar mensagem de sucesso
             setSuccess('Instância conectada com sucesso!');
-            
+
             // Recarregar lista de instâncias
             loadInstances();
           }
@@ -260,34 +282,34 @@ const Canais = () => {
   // Função para abrir modal de QR Code (Existente)
   const openQrModal = async (instance) => {
     setSelectedInstance(instance);
-    
+
     // Verificar status antes de abrir
     try {
-        const statusData = await checkInstanceStatus(instance.id, instance.organizationId);
-        
-        if (statusData && statusData.status === 'connected') {
-            setSuccess('QR Code já lido! Instância conectada.');
-            // Limpar mensagem de sucesso após 3 segundos
-            setTimeout(() => setSuccess(''), 3000);
-            return; // Não abre o modal
-        }
+      const statusData = await checkInstanceStatus(instance.id, instance.organizationId);
+
+      if (statusData && statusData.status === 'connected') {
+        setSuccess('QR Code já lido! Instância conectada.');
+        // Limpar mensagem de sucesso após 3 segundos
+        setTimeout(() => setSuccess(''), 3000);
+        return; // Não abre o modal
+      }
     } catch (e) {
-        console.warn('Erro ao verificar status inicial:', e);
+      console.warn('Erro ao verificar status inicial:', e);
     }
 
     setQrCodeData(null);
     setShowQrModal(true);
-    
+
     // Iniciar polling IMEDIATAMENTE ao abrir o modal, independente do resultado do QR Code
     // Isso garante que se o usuário já estiver conectando ou conectar rápido, o sistema pegue
     startStatusPolling(instance.id, instance.organizationId);
-    
+
     // Buscar QR Code da instância existente
     try {
       // Primeiro, tentar conectar a instância na Evolution API para gerar QR Code
       const evolutionApiUrl = import.meta.env.VITE_EVOLUTION_API_URL || 'http://localhost:8080';
       const evolutionApiKey = import.meta.env.VITE_EVOLUTION_API_KEY;
-      
+
       // Fazer requisição para conectar a instância e obter QR Code
       const response = await fetch(`${evolutionApiUrl}/instance/connect/${instance.instanceName}`, {
         method: 'GET',
@@ -299,7 +321,7 @@ const Canais = () => {
       if (response.ok) {
         const data = await response.json();
         console.log('Resposta da Evolution API:', data);
-        
+
         if (data.base64) {
           setQrCodeData(data);
           // Polling já foi iniciado acima
@@ -322,7 +344,7 @@ const Canais = () => {
     // Parar polling APENAS se o modal estiver sendo fechado manualmente ou por sucesso
     // Não parar se for apenas uma renderização
     stopStatusPolling();
-    
+
     setShowQrModal(false);
     setSelectedInstance(null);
     setQrCodeData(null);
@@ -358,7 +380,7 @@ const Canais = () => {
 
     try {
       let response;
-      
+
       if (modalMode === 'edit') {
         response = await apiService.put(`/private/organizations/${formData.organizationId}/instances/${selectedInstance.id}`, formData);
       } else {
@@ -368,31 +390,31 @@ const Canais = () => {
       const data = response.data;
       console.log('Resposta do backend:', data); // Debug log
       setSuccess(modalMode === 'edit' ? 'Instância atualizada com sucesso!' : 'Instância criada com sucesso!');
-      
+
       // Se foi criada uma nova instância e tem QR Code, mostrar
       if (modalMode === 'add' && data.qrcode) {
         console.log('QR Code encontrado:', data.qrcode); // Debug log
         setQrCodeData(data.qrcode);
-        
+
         // Importante: definir selectedInstance ANTES de chamar openQrModal ou iniciar polling
         // pois o polling usa o ID da instância selecionada
         const newInstance = data.instance || { instanceName: formData.instanceName };
-        setSelectedInstance(newInstance); 
-        
+        setSelectedInstance(newInstance);
+
         closeModal();
         setShowQrModal(true);
-        
+
         // Iniciar polling explicitamente para a nova instância criada
         // Usar setTimeout para garantir que o estado selectedInstance tenha sido atualizado ou passar IDs diretamente
         setTimeout(() => {
-            startStatusPolling(newInstance.id, newInstance.organizationId);
+          startStatusPolling(newInstance.id, newInstance.organizationId);
         }, 100);
-        
+
       } else {
         console.log('Sem QR Code na resposta ou não é modo add:', { modalMode, hasQrcode: !!data.qrcode }); // Debug log
         closeModal();
       }
-      
+
       loadInstances();
     } catch (error) {
       console.error('Erro ao salvar instância:', error);
@@ -406,9 +428,9 @@ const Canais = () => {
   const handleDelete = async () => {
     try {
       const instance = instances.find(i => i.id === deleteInstanceData.id);
-      
+
       await apiService.delete(`/private/organizations/${instance.organizationId}/instances/${deleteInstanceData.id}`);
-      
+
       setSuccess('Instância excluída com sucesso!');
       loadInstances();
     } catch (error) {
@@ -444,7 +466,7 @@ const Canais = () => {
           </h1>
           <p style={styles.subtitle}>Gerencie suas instâncias WhatsApp</p>
         </div>
-        
+
         <div style={styles.headerActions}>
           <div style={styles.searchContainer}>
             <Search size={20} style={styles.searchIcon} />
@@ -457,7 +479,7 @@ const Canais = () => {
               style={styles.searchInput}
             />
           </div>
-          
+
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -468,7 +490,7 @@ const Canais = () => {
             <option value="disconnected">Desconectados</option>
             <option value="created">Criados</option>
           </select>
-          
+
           <button
             className="btn-base btn-new"
             onClick={() => openModal('add')}
@@ -481,25 +503,25 @@ const Canais = () => {
       </div>
 
       {/* Alertas com AlertToast */}
-      <AlertToast 
-        open={!!error} 
-        variant="danger" 
-        title="Erro" 
-        message={error} 
-        onClose={() => setError('')} 
+      <AlertToast
+        open={!!error}
+        variant="danger"
+        title="Erro"
+        message={error}
+        onClose={() => setError('')}
       />
-      
-      <AlertToast 
-        open={!!success} 
-        variant="success" 
-        title="Sucesso" 
-        message={success} 
-        onClose={() => setSuccess('')} 
+
+      <AlertToast
+        open={!!success}
+        variant="success"
+        title="Sucesso"
+        message={success}
+        onClose={() => setSuccess('')}
       />
 
       {/* Cards de Estatísticas */}
       <div style={styles.statsGrid}>
-        <div style={{...styles.statsCard, borderLeft: `4px solid ${currentTheme.primary || '#3b82f6'}`}}>
+        <div style={{ ...styles.statsCard, borderLeft: `4px solid ${currentTheme.primary || '#3b82f6'}` }}>
           <div style={styles.statsIcon}>
             <Smartphone size={24} />
           </div>
@@ -508,9 +530,9 @@ const Canais = () => {
             <p style={styles.statsValue}>{stats.total}</p>
           </div>
         </div>
-        
-        <div style={{...styles.statsCard, borderLeft: `4px solid #10b981`}}>
-          <div style={{...styles.statsIcon, backgroundColor: '#10b98120', color: '#10b981'}}>
+
+        <div style={{ ...styles.statsCard, borderLeft: `4px solid #10b981` }}>
+          <div style={{ ...styles.statsIcon, backgroundColor: '#10b98120', color: '#10b981' }}>
             <Wifi size={24} />
           </div>
           <div>
@@ -518,9 +540,9 @@ const Canais = () => {
             <p style={styles.statsValue}>{stats.connected}</p>
           </div>
         </div>
-        
-        <div style={{...styles.statsCard, borderLeft: `4px solid #ef4444`}}>
-          <div style={{...styles.statsIcon, backgroundColor: '#ef444420', color: '#ef4444'}}>
+
+        <div style={{ ...styles.statsCard, borderLeft: `4px solid #ef4444` }}>
+          <div style={{ ...styles.statsIcon, backgroundColor: '#ef444420', color: '#ef4444' }}>
             <WifiOff size={24} />
           </div>
           <div>
@@ -529,8 +551,8 @@ const Canais = () => {
           </div>
         </div>
 
-        <div style={{...styles.statsCard, borderLeft: `4px solid #f59e0b`}}>
-          <div style={{...styles.statsIcon, backgroundColor: '#f59e0b20', color: '#f59e0b'}}>
+        <div style={{ ...styles.statsCard, borderLeft: `4px solid #f59e0b` }}>
+          <div style={{ ...styles.statsIcon, backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
             <Plus size={24} />
           </div>
           <div>
@@ -552,7 +574,7 @@ const Canais = () => {
             <RefreshCw size={16} />
           </button>
         </div>
-        
+
         <div style={styles.tableContainer}>
           {loading ? (
             <div style={styles.loadingContainer}>
@@ -568,7 +590,7 @@ const Canais = () => {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={{...styles.th, width: '60px'}}>Foto</th>
+                  <th style={{ ...styles.th, width: '60px' }}>Foto</th>
                   <th style={styles.th}>Nome</th>
                   <th style={styles.th}>Organização</th>
                   <th style={styles.th}>Número</th>
@@ -584,20 +606,20 @@ const Canais = () => {
                       <td style={styles.td}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {instance.profilePicUrl ? (
-                            <img 
-                              src={instance.profilePicUrl} 
-                              alt={instance.name} 
+                            <img
+                              src={instance.profilePicUrl}
+                              alt={instance.name}
                               className="profilePic"
                               onError={(e) => {
-                                e.target.onerror = null; 
+                                e.target.onerror = null;
                                 e.target.style.display = 'none';
                                 e.target.nextSibling.style.display = 'flex';
                               }}
                             />
                           ) : null}
                           {/* Fallback caso a imagem falhe ou não exista */}
-                          <div 
-                            className="profilePicPlaceholder" 
+                          <div
+                            className="profilePicPlaceholder"
                             style={{ display: instance.profilePicUrl ? 'none' : 'flex' }}
                           >
                             <User size={20} />
@@ -620,28 +642,28 @@ const Canais = () => {
                         <div style={styles.actionButtons}>
                           <button
                             onClick={() => openQrModal(instance)}
-                            style={{...styles.actionButton, ...styles.qrButton}}
+                            style={{ ...styles.actionButton, ...styles.qrButton }}
                             title="QR Code"
                           >
                             <QrCode size={16} />
                           </button>
                           <button
                             onClick={() => navigate(`/canais/${instance.id}`)}
-                            style={{...styles.actionButton, ...styles.viewButton}}
+                            style={{ ...styles.actionButton, ...styles.viewButton }}
                             title="Ver Detalhes"
                           >
                             <Eye size={16} />
                           </button>
                           <button
                             onClick={() => openModal('edit', instance)}
-                            style={{...styles.actionButton, ...styles.editButton}}
+                            style={{ ...styles.actionButton, ...styles.editButton }}
                             title="Editar"
                           >
                             <Edit size={16} />
                           </button>
                           <button
                             onClick={() => openDeleteModal(instance)}
-                            style={{...styles.actionButton, ...styles.deleteButton}}
+                            style={{ ...styles.actionButton, ...styles.deleteButton }}
                             title="Excluir"
                           >
                             <Trash2 size={16} />
@@ -669,81 +691,106 @@ const Canais = () => {
                 ×
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} style={styles.modalBody}>
               <div style={styles.formGrid}>
-                 <div style={styles.formGroup}>
-                   <label style={styles.label}>Nome da Instância *</label>
-                   <input
-                     type="text"
-                     name="name"
-                     value={formData.name}
-                     onChange={handleInputChange}
-                     required
-                     style={styles.input}
-                     placeholder="Digite o nome da instância"
-                   />
-                 </div>
-                 
-                 <div style={styles.formGroup}>
-                   <label style={styles.label}>Tipo *</label>
-                   <select
-                     name="tipo"
-                     value={formData.tipo}
-                     onChange={handleInputChange}
-                     required
-                     style={styles.input}
-                   >
-                     <option value="WHATSAPP_WEB">WhatsApp Web</option>
-                     <option value="META_CLOUD_API">Meta Cloud API</option>
-                   </select>
-                 </div>
-                 
-                 <div style={styles.formGroup}>
-                   <label style={styles.label}>Organização *</label>
-                   <select
-                     name="organizationId"
-                     value={formData.organizationId}
-                     onChange={handleInputChange}
-                     required
-                     style={styles.input}
-                   >
-                     <option value="">Selecione uma organização</option>
-                     {organizations.map((org) => (
-                       <option key={org.id} value={org.id}>
-                         {org.razaoSocial || org.nomeFantasia}
-                       </option>
-                     ))}
-                   </select>
-                 </div>
-                 
-                 <div style={styles.formGroup}>
-                   <label style={styles.label}>
-                     <input
-                       type="checkbox"
-                       name="atendimento"
-                       checked={formData.atendimento}
-                       onChange={handleInputChange}
-                       style={{ marginRight: '8px' }}
-                     />
-                     Atendimento
-                   </label>
-                 </div>
-                 
-                 <div style={styles.formGroup}>
-                   <label style={styles.label}>
-                     <input
-                       type="checkbox"
-                       name="notificacoes"
-                       checked={formData.notificacoes}
-                       onChange={handleInputChange}
-                       style={{ marginRight: '8px' }}
-                     />
-                     Notificações
-                   </label>
-                 </div>
-               </div>
-              
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Nome da Instância *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                    style={styles.input}
+                    placeholder="Digite o nome da instância"
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Tipo *</label>
+                  <select
+                    name="tipo"
+                    value={formData.tipo}
+                    onChange={handleInputChange}
+                    required
+                    style={styles.input}
+                  >
+                    <option value="WHATSAPP_WEB">WhatsApp Web</option>
+                    <option value="META_CLOUD_API">Meta Cloud API</option>
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Organização *</label>
+                  <select
+                    name="organizationId"
+                    value={formData.organizationId}
+                    onChange={handleInputChange}
+                    required
+                    style={styles.input}
+                  >
+                    <option value="">Selecione uma organização</option>
+                    {organizations.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.razaoSocial || org.nomeFantasia}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    <input
+                      type="checkbox"
+                      name="atendimento"
+                      checked={formData.atendimento}
+                      onChange={handleInputChange}
+                      style={{ marginRight: '8px' }}
+                    />
+                    Habilitar Atendimento Automatizado (Bot)
+                  </label>
+                </div>
+
+                {formData.atendimento && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Escolha o Fluxo do Bot *</label>
+                    <select
+                      name="botFlowId"
+                      value={formData.botFlowId}
+                      onChange={handleInputChange}
+                      required={formData.atendimento}
+                      style={styles.input}
+                    >
+                      <option value="">Selecione um fluxo</option>
+                      {botFlows.map((flow) => (
+                        <option key={flow.id} value={flow.id}>
+                          {flow.name}
+                        </option>
+                      ))}
+                    </select>
+                    {botFlows.length === 0 && (
+                      <p style={{ fontSize: '12px', color: '#ff4d4f', marginTop: '4px' }}>
+                        Nenhum fluxo encontrado para esta organização.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    <input
+                      type="checkbox"
+                      name="notificacoes"
+                      checked={formData.notificacoes}
+                      onChange={handleInputChange}
+                      style={{ marginRight: '8px' }}
+                    />
+                    Notificações
+                  </label>
+                </div>
+              </div>
+
               <div style={styles.modalFooter}>
                 <button
                   type="button"
@@ -791,20 +838,20 @@ const Canais = () => {
                 ×
               </button>
             </div>
-            
+
             <div style={styles.qrModalBody}>
               {qrCodeData ? (
                 <div style={styles.qrContainer}>
-                  <img 
-                    src={typeof qrCodeData === 'object' && qrCodeData.base64 ? qrCodeData.base64 : qrCodeData} 
-                    alt="QR Code WhatsApp" 
+                  <img
+                    src={typeof qrCodeData === 'object' && qrCodeData.base64 ? qrCodeData.base64 : qrCodeData}
+                    alt="QR Code WhatsApp"
                     style={styles.qrImage}
                     onLoad={() => console.log('QR Code image loaded successfully')}
                     onError={(e) => {
                       console.error('Erro ao carregar imagem do QR Code:', e);
                       console.log('QR Code data type:', typeof qrCodeData);
                       console.log('QR Code data:', qrCodeData);
-                      
+
                       // Verificar se é string antes de usar substring
                       if (typeof qrCodeData === 'string') {
                         console.log('QR Code data preview:', qrCodeData.substring(0, 100));
@@ -817,7 +864,7 @@ const Canais = () => {
                   <p style={styles.qrInstructions}>
                     Escaneie este QR Code com o WhatsApp para conectar a instância
                   </p>
-                  
+
                   {/* Indicador de polling */}
                   {isPolling && (
                     <div style={styles.pollingIndicator}>
@@ -891,7 +938,7 @@ const getStyles = (theme) => ({
     minHeight: '100vh',
     fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif'
   },
-  
+
   header: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -900,7 +947,7 @@ const getStyles = (theme) => ({
     flexWrap: 'wrap',
     gap: '16px'
   },
-  
+
   title: {
     fontSize: '32px',
     fontWeight: '700',
@@ -910,37 +957,37 @@ const getStyles = (theme) => ({
     alignItems: 'center',
     gap: '12px'
   },
-  
+
   titleIcon: {
     color: theme.primary
   },
-  
+
   subtitle: {
     fontSize: '16px',
     color: theme.textSecondary,
     margin: 0
   },
-  
+
   headerActions: {
     display: 'flex',
     gap: '12px',
     alignItems: 'center',
     flexWrap: 'wrap'
   },
-  
+
   searchContainer: {
     position: 'relative',
     display: 'flex',
     alignItems: 'center'
   },
-  
+
   searchIcon: {
     position: 'absolute',
     left: '12px',
     color: theme.textSecondary,
     zIndex: 1
   },
-  
+
   searchInput: {
     padding: '12px 12px 12px 40px',
     border: `1px solid ${theme.border}`,
@@ -955,7 +1002,7 @@ const getStyles = (theme) => ({
       color: theme.textSecondary
     }
   },
-  
+
   filterSelect: {
     padding: '12px 16px',
     border: `1px solid ${theme.border}`,
@@ -966,7 +1013,7 @@ const getStyles = (theme) => ({
     cursor: 'pointer',
     outline: 'none'
   },
-  
+
   addButton: {
     display: 'flex',
     alignItems: 'center',
@@ -984,7 +1031,7 @@ const getStyles = (theme) => ({
       backgroundColor: theme.primaryDark || theme.primary
     }
   },
-  
+
   refreshButton: {
     display: 'flex',
     alignItems: 'center',
@@ -1001,7 +1048,7 @@ const getStyles = (theme) => ({
       color: theme.textPrimary
     }
   },
-  
+
   alert: {
     display: 'flex',
     alignItems: 'center',
@@ -1012,26 +1059,26 @@ const getStyles = (theme) => ({
     fontSize: '14px',
     fontWeight: '500'
   },
-  
+
   alertError: {
     backgroundColor: '#fee2e2',
     color: '#dc2626',
     border: '1px solid #fecaca'
   },
-  
+
   alertSuccess: {
     backgroundColor: '#d1fae5',
     color: '#059669',
     border: '1px solid #a7f3d0'
   },
-  
+
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
     gap: '20px',
     marginBottom: '32px'
   },
-  
+
   statsCard: {
     backgroundColor: theme.cardBackground,
     padding: '24px',
@@ -1042,7 +1089,7 @@ const getStyles = (theme) => ({
     alignItems: 'center',
     gap: '16px'
   },
-  
+
   statsIcon: {
     width: '48px',
     height: '48px',
@@ -1053,20 +1100,20 @@ const getStyles = (theme) => ({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  
+
   statsLabel: {
     fontSize: '14px',
     color: theme.textSecondary,
     margin: '0 0 4px 0'
   },
-  
+
   statsValue: {
     fontSize: '28px',
     fontWeight: '700',
     color: theme.textPrimary,
     margin: 0
   },
-  
+
   tableCard: {
     backgroundColor: theme.cardBackground,
     borderRadius: '12px',
@@ -1074,7 +1121,7 @@ const getStyles = (theme) => ({
     border: `1px solid ${theme.border}`,
     overflow: 'hidden'
   },
-  
+
   tableHeader: {
     padding: '24px',
     borderBottom: `1px solid ${theme.border}`,
@@ -1082,23 +1129,23 @@ const getStyles = (theme) => ({
     justifyContent: 'space-between',
     alignItems: 'center'
   },
-  
+
   tableTitle: {
     fontSize: '20px',
     fontWeight: '600',
     color: theme.textPrimary,
     margin: 0
   },
-  
+
   tableContainer: {
     overflowX: 'auto'
   },
-  
+
   table: {
     width: '100%',
     borderCollapse: 'collapse'
   },
-  
+
   th: {
     padding: '16px 24px',
     textAlign: 'left',
@@ -1108,7 +1155,7 @@ const getStyles = (theme) => ({
     backgroundColor: theme.background,
     borderBottom: `1px solid ${theme.border}`
   },
-  
+
   tr: {
     borderBottom: `1px solid ${theme.border}`,
     transition: 'all 0.2s',
@@ -1116,13 +1163,13 @@ const getStyles = (theme) => ({
       backgroundColor: theme.borderLight
     }
   },
-  
+
   td: {
     padding: '16px 24px',
     fontSize: '14px',
     color: theme.textPrimary
   },
-  
+
   status: {
     padding: '6px 12px',
     borderRadius: '20px',
@@ -1131,12 +1178,12 @@ const getStyles = (theme) => ({
     textTransform: 'uppercase',
     letterSpacing: '0.5px'
   },
-  
+
   actionButtons: {
     display: 'flex',
     gap: '8px'
   },
-  
+
   actionButton: {
     padding: '8px',
     border: 'none',
@@ -1147,7 +1194,7 @@ const getStyles = (theme) => ({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  
+
   qrButton: {
     backgroundColor: '#3b82f620',
     color: '#3b82f6',
@@ -1155,7 +1202,7 @@ const getStyles = (theme) => ({
       backgroundColor: '#3b82f640'
     }
   },
-  
+
   viewButton: {
     backgroundColor: '#8b5cf620',
     color: '#8b5cf6',
@@ -1171,7 +1218,7 @@ const getStyles = (theme) => ({
       backgroundColor: '#f59e0b40'
     }
   },
-  
+
   deleteButton: {
     backgroundColor: '#ef444420',
     color: '#ef4444',
@@ -1179,7 +1226,7 @@ const getStyles = (theme) => ({
       backgroundColor: '#ef444440'
     }
   },
-  
+
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column',
@@ -1188,7 +1235,7 @@ const getStyles = (theme) => ({
     padding: '64px',
     color: theme.textSecondary
   },
-  
+
   spinner: {
     width: '32px',
     height: '32px',
@@ -1198,7 +1245,7 @@ const getStyles = (theme) => ({
     animation: 'spin 1s linear infinite',
     marginBottom: '16px'
   },
-  
+
   emptyState: {
     display: 'flex',
     flexDirection: 'column',
@@ -1207,12 +1254,12 @@ const getStyles = (theme) => ({
     padding: '64px',
     color: theme.textSecondary
   },
-  
+
   emptyIcon: {
     marginBottom: '16px',
     opacity: 0.5
   },
-  
+
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -1226,7 +1273,7 @@ const getStyles = (theme) => ({
     zIndex: 1000,
     padding: '20px'
   },
-  
+
   modal: {
     backgroundColor: theme.cardBackground,
     borderRadius: '12px',
@@ -1238,7 +1285,7 @@ const getStyles = (theme) => ({
     display: 'flex',
     flexDirection: 'column'
   },
-  
+
   qrModal: {
     backgroundColor: theme.cardBackground,
     borderRadius: '12px',
@@ -1247,7 +1294,7 @@ const getStyles = (theme) => ({
     maxWidth: '400px',
     overflow: 'hidden'
   },
-  
+
   modalHeader: {
     padding: '24px',
     borderBottom: `1px solid ${theme.border}`,
@@ -1255,7 +1302,7 @@ const getStyles = (theme) => ({
     justifyContent: 'space-between',
     alignItems: 'center'
   },
-  
+
   modalTitle: {
     fontSize: '20px',
     fontWeight: '600',
@@ -1264,7 +1311,7 @@ const getStyles = (theme) => ({
     display: 'flex',
     alignItems: 'center'
   },
-  
+
   closeButton: {
     background: 'none',
     border: 'none',
@@ -1278,39 +1325,39 @@ const getStyles = (theme) => ({
       backgroundColor: theme.borderLight
     }
   },
-  
+
   modalBody: {
     padding: '24px',
     flex: 1,
     overflowY: 'auto'
   },
-  
+
   qrModalBody: {
     padding: '24px',
     textAlign: 'center'
   },
-  
+
   qrContainer: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     gap: '16px'
   },
-  
+
   qrImage: {
     width: '256px',
     height: '256px',
     border: `2px solid ${theme.border}`,
     borderRadius: '8px'
   },
-  
+
   qrInstructions: {
     fontSize: '14px',
     color: theme.textSecondary,
     margin: 0,
     textAlign: 'center'
   },
-  
+
   qrLoading: {
     display: 'flex',
     flexDirection: 'column',
@@ -1318,7 +1365,7 @@ const getStyles = (theme) => ({
     gap: '16px',
     padding: '32px'
   },
-  
+
   // Estilos para o indicador de polling
   pollingIndicator: {
     display: 'flex',
@@ -1331,7 +1378,7 @@ const getStyles = (theme) => ({
     border: `1px solid ${theme.primary}30`,
     marginTop: '16px'
   },
-  
+
   pollingSpinner: {
     width: '20px',
     height: '20px',
@@ -1340,7 +1387,7 @@ const getStyles = (theme) => ({
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
   },
-  
+
   pollingText: {
     fontSize: '12px',
     color: theme.primary,
@@ -1348,26 +1395,26 @@ const getStyles = (theme) => ({
     textAlign: 'center',
     fontWeight: '500'
   },
-  
+
   formGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
     gap: '20px',
     marginBottom: '24px'
   },
-  
+
   formGroup: {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px'
   },
-  
+
   label: {
     fontSize: '14px',
     fontWeight: '500',
     color: theme.textPrimary
   },
-  
+
   input: {
     padding: '12px 16px',
     border: `1px solid ${theme.border}`,
@@ -1382,7 +1429,7 @@ const getStyles = (theme) => ({
       boxShadow: `0 0 0 3px ${theme.primary}20`
     }
   },
-  
+
   modalFooter: {
     display: 'flex',
     justifyContent: 'flex-end',
@@ -1390,7 +1437,7 @@ const getStyles = (theme) => ({
     paddingTop: '24px',
     borderTop: `1px solid ${theme.border}`
   },
-  
+
   cancelButton: {
     padding: '12px 24px',
     border: `1px solid ${theme.border}`,
@@ -1405,7 +1452,7 @@ const getStyles = (theme) => ({
       backgroundColor: theme.borderLight
     }
   },
-  
+
   submitButton: {
     display: 'flex',
     alignItems: 'center',
@@ -1423,7 +1470,7 @@ const getStyles = (theme) => ({
       backgroundColor: theme.primaryDark || theme.primary
     }
   },
-  
+
   submitButtonDisabled: {
     backgroundColor: theme.textSecondary,
     cursor: 'not-allowed',
@@ -1431,7 +1478,7 @@ const getStyles = (theme) => ({
       backgroundColor: theme.textSecondary
     }
   },
-  
+
   buttonSpinner: {
     width: '16px',
     height: '16px',
