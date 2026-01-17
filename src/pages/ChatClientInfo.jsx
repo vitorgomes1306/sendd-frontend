@@ -653,14 +653,14 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
             {/* Invoice Modal */}
             {showInvoiceModal && (
                 <div style={styles.modalOverlay}>
-                    <div style={{ ...styles.modalContent, width: '600px', maxWidth: '95%' }}>
+                    <div style={{ ...styles.modalContent, width: '600px', height: '600px' }}>
                         <div style={styles.modalHeader}>
                             <h4 style={styles.modalTitle}>Faturas em Aberto</h4>
                             <button onClick={() => setShowInvoiceModal(false)} style={styles.closeButton}><X size={16} /></button>
                         </div>
 
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                        <div >
+                            <table style={{ width: '100%', height: '100%', fontSize: '13px' }}>
                                 <thead>
                                     <tr style={{ borderBottom: `1px solid ${styles.divider.borderTop ? styles.divider.borderTop.split(' ')[2] : '#eee'}`, textAlign: 'left' }}>
                                         <th style={{ padding: '8px' }}>Nº</th>
@@ -1135,7 +1135,7 @@ const InvoiceDropdown = ({ invoice, onAction, styles }) => {
                     marginTop: '4px', textAlign: 'left'
                 }}>
                     {invoice.digitableLine && (
-                        <div style={styles.menuItem} onClick={() => { onAction(invoice, 'linha'); setIsOpen(false); }}>
+                        <div style={styles.menuItem} onClick={() => { onAction(invoice, 'linha'); setIsOpen(false); }} o>
                             <Barcode size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Linha Digitável
                         </div>
                     )}

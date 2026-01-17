@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Database, ExternalLink, ShieldCheck, ToggleLeft, ToggleRight, RefreshCcw } from 'lucide-react';
+import { Plus, Trash2, Edit2, Database, ExternalLink, ShieldCheck, ToggleLeft, Workflow, ToggleRight, RefreshCcw, Eye, EyeOff } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,6 +13,7 @@ const Integracoes = () => {
     const [activeOrgId, setActiveOrgId] = useState(user?.organizationId || null);
     const [showModal, setShowModal] = useState(false);
     const [editingIntegration, setEditingIntegration] = useState(null);
+    const [showToken, setShowToken] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         type: 'SGP',
@@ -145,17 +146,51 @@ const Integracoes = () => {
         }
     };
 
+    const [activeTab, setActiveTab] = useState('erp');
+
+    // ... existing initialization code ...
+
+    const filteredIntegrations = integrations.filter(integ => {
+        if (activeTab === 'erp') return ['SGP', 'IXC', 'MK_AUTH', 'GENERIC'].includes(integ.type);
+        if (activeTab === 'banking') return ['ISP_FLASH'].includes(integ.type);
+        return false;
+    });
+
+    const getAvailableTypes = () => {
+        if (activeTab === 'erp') {
+            return [
+                { value: 'SGP', label: 'SGP - Sistema de Gestão de Provedores' },
+                { value: 'IXC', label: 'IXC Soft' },
+                { value: 'MK_AUTH', label: 'MK-Auth' },
+                { value: 'GENERIC', label: 'API Genérica' }
+            ];
+        } else {
+            return [
+                { value: 'ISP_FLASH', label: 'ISP Flash (Carteira de auto custódia)' },
+                { value: 'paguedev', label: 'Pague.dev (PIX)' },
+                { value: 'sicoob', label: 'Sicoob' },
+                { value: 'inter', label: 'Inter' },
+
+            ];
+        }
+    };
+
     return (
         <div style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div>
-                    <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}>Integrações Externas</h1>
-                    <p style={{ color: '#666', margin: '4px 0 0 0' }}>Gerencie conexões com sistemas de terceiros (SGP, IXC, MK-Auth, etc.)</p>
+                    
+                    <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}><Workflow /> Integrações Externas</h1>
+                    <p style={{ color: '#666', margin: '4px 0 0 0' }}>Gerencie conexões com sistemas de terceiros</p>
                 </div>
                 <button
                     onClick={() => {
                         setEditingIntegration(null);
-                        setFormData({ name: '', type: 'SGP', url: '', token: '', app: '', active: true });
+                        setFormData({
+                            name: '',
+                            type: activeTab === 'erp' ? 'SGP' : 'ISP_FLASH',
+                            url: '', token: '', app: '', active: true
+                        });
                         setShowModal(true);
                     }}
                     className="btn-base btn-new"
@@ -165,11 +200,44 @@ const Integracoes = () => {
                 </button>
             </div>
 
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', borderBottom: '1px solid #eee' }}>
+                <button
+                    onClick={() => setActiveTab('erp')}
+                    style={{
+                        padding: '12px 24px',
+                        background: 'none',
+                        border: 'none',
+                        borderBottom: activeTab === 'erp' ? `2px solid ${currentTheme.primary}` : '2px solid transparent',
+                        color: activeTab === 'erp' ? currentTheme.primary : '#666',
+                        fontWeight: activeTab === 'erp' ? 'bold' : 'normal',
+                        cursor: 'pointer',
+                        fontSize: '15px'
+                    }}
+                >
+                    Integrações ERP (Sistemas)
+                </button>
+                <button
+                    onClick={() => setActiveTab('banking')}
+                    style={{
+                        padding: '12px 24px',
+                        background: 'none',
+                        border: 'none',
+                        borderBottom: activeTab === 'banking' ? `2px solid ${currentTheme.primary}` : '2px solid transparent',
+                        color: activeTab === 'banking' ? currentTheme.primary : '#666',
+                        fontWeight: activeTab === 'banking' ? 'bold' : 'normal',
+                        cursor: 'pointer',
+                        fontSize: '15px'
+                    }}
+                >
+                    Integrações Bancárias
+                </button>
+            </div>
+
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '48px' }}>Carregando...</div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
-                    {integrations.map(integ => (
+                    {filteredIntegrations.map(integ => (
                         <div key={integ.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #eee', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -184,7 +252,7 @@ const Integracoes = () => {
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '8px' }}>
-                                    {integ.type === 'SGP' && (
+                                    {['SGP', 'IXC', 'MK_AUTH'].includes(integ.type) && (
                                         <button
                                             onClick={() => handleSync(integ)}
                                             disabled={syncing[integ.id]}
@@ -222,10 +290,10 @@ const Integracoes = () => {
                             </div>
                         </div>
                     ))}
-                    {integrations.length === 0 && (
+                    {filteredIntegrations.length === 0 && (
                         <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '64px', backgroundColor: '#f9fafb', borderRadius: '16px', border: '2px dashed #eee' }}>
                             <Database size={48} color="#ccc" style={{ marginBottom: '16px' }} />
-                            <p style={{ color: '#999' }}>Nenhuma integração configurada ainda.</p>
+                            <p style={{ color: '#999' }}>Nenhuma integração configurada nesta seção.</p>
                         </div>
                     )}
                 </div>
@@ -240,7 +308,7 @@ const Integracoes = () => {
                                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>Nome da Integração</label>
                                 <input
                                     className="form-input"
-                                    placeholder="Ex: SGP Produção"
+                                    placeholder="Ex: Minha Integração"
                                     value={formData.name}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                                     required
@@ -252,16 +320,18 @@ const Integracoes = () => {
                                     className="form-input"
                                     value={formData.type}
                                     onChange={e => setFormData({ ...formData, type: e.target.value })}
+                                    disabled={!!editingIntegration} // Prevent changing type on edit to avoid issues
                                 >
-                                    <option value="SGP">SGP (Sistema de Gestão de Provedores)</option>
-                                    <option value="GENERIC">API Genérica</option>
+                                    {getAvailableTypes().map(t => (
+                                        <option key={t.value} value={t.value}>{t.label}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>URL Base (ou Endpoint)</label>
                                 <input
                                     className="form-input"
-                                    placeholder="https://sgp.suaempresa.com.br"
+                                    placeholder="https://api.sistema.com.br"
                                     value={formData.url}
                                     onChange={e => setFormData({ ...formData, url: e.target.value })}
                                     required
@@ -270,13 +340,34 @@ const Integracoes = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>Token / Key</label>
-                                    <input
-                                        className="form-input"
-                                        type="password"
-                                        placeholder="••••••••"
-                                        value={formData.token}
-                                        onChange={e => setFormData({ ...formData, token: e.target.value })}
-                                    />
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            className="form-input"
+                                            type={showToken ? "text" : "password"}
+                                            placeholder="••••••••"
+                                            value={formData.token}
+                                            onChange={e => setFormData({ ...formData, token: e.target.value })}
+                                            style={{ paddingRight: '40px' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowToken(!showToken)}
+                                            style={{
+                                                position: 'absolute',
+                                                right: '10px',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                color: '#666',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                        >
+                                            {showToken ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '14px', fontWeight: 'bold', marginBottom: '4px' }}>App ID (se houver)</label>
