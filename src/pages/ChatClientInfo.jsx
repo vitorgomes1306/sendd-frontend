@@ -1141,7 +1141,7 @@ const InvoiceDropdown = ({ invoice, onAction, styles }) => {
                     )}
                     {invoice.pixCode && (
                         <div style={styles.menuItem} onClick={() => { onAction(invoice, 'pix'); setIsOpen(false); }}>
-                            <QrCode size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> QR Code PIX
+                            <QrCode size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Chave PIX
                         </div>
                     )}
                     {invoice.pixCode && (
