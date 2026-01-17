@@ -59,9 +59,9 @@ function App() {
           <div className="app">
             <Routes>
               {/* Rota principal agora é a Landing Page */}
-              {/* <Route path="/" element={<ExternalRedirect url="https://sendd-landing-page.vercel.app/" />} /> */}
+              <Route path="/" element={<ExternalRedirect url="https://sendd-landing-page.vercel.app/" />} />
 
-              <Route path="/" element={<Home />} />
+              {/* <Route path="/" element={<Home />} /> */}
 
               {/* Rotas públicas (sem sidebar) */}
               <Route path="/login" element={<Login />} />
