@@ -8,10 +8,8 @@ import AdminRoute from './components/ui/AdminRoute';
 import Dash from './pages/Dash';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import PublicInvoice from './pages/PublicInvoice';
 import Home from './pages/Home';
-
-
-// importa a pagina de canais
 import Canais from './pages/Canais';
 import InstanceDetails from './pages/InstanceDetails';
 
@@ -68,6 +66,7 @@ function App() {
               {/* Rotas públicas (sem sidebar) */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/fatura/:token" element={<PublicInvoice />} />
 
               {/* Rotas internas (com sidebar) - Protegidas */}
               <Route path="/dash" element={

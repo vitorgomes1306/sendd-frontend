@@ -14,14 +14,18 @@
   flex-direction: column;
   border-right: 1px solid #333;
   transition: transform 0.3s ease;
-  overflow-y: visible !important;
-  /* Allow flyouts to overflow */
-  overflow-x: visible !important;
+  overflow-y: auto !important;
+  /* Enable Scroll */
+  overflow-x: hidden !important;
+  scrollbar-width: none;
+  /* Firefox */
 }
 
 /* Scrollbar tweaks */
 .sidebar::-webkit-scrollbar {
   width: 0px;
+  display: none;
+  /* Chrome/Safari */
 }
 
 /* Sidebar Item */
@@ -78,31 +82,32 @@
 
 /* Flyout Submenu Container */
 .sidebar-flyout {
-  position: absolute;
-  left: 100%;
-  top: 0;
+  /* Positioning handled by JS (fixed) */
   background-color: #1a1a1a;
   border: 1px solid #333;
   border-left: none;
-  /* Connect visually */
-  min-width: 200px;
+  min-width: 220px;
   box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateX(-10px);
-  transition: all 0.2s ease;
   z-index: 1002;
   border-radius: 0 8px 8px 0;
-  padding: 0.5rem 0;
+  padding: 0;
+  overflow: hidden;
 }
 
-/* Show Flyout on Hover of Parent Item */
-.sidebar-item-group:hover .sidebar-flyout {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(0);
+/* Header for Submenu */
+.sidebar-flyout-header {
+  padding: 0.75rem 1rem;
+  background-color: #262626;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #333;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
+/* Items inside Flyout */
 .sidebar-flyout-item {
   display: flex;
   align-items: center;
@@ -135,6 +140,8 @@
   align-items: center;
   border-bottom: 1px solid #333;
   margin-bottom: 0.5rem;
+  flex-shrink: 0;
+  /* Don't shrink logo on scroll area resize */
 }
 
 .sidebar-logo img {

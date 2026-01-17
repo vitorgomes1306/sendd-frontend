@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { GitBranch, Plus, Search, Edit2, Trash2, ArrowRight, Smartphone, Clock, MessageSquare, Import } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { GitBranch, Plus, Search, Edit2, Trash2, ArrowRight, Smartphone, Clock, MessageSquare, Import, Download } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
@@ -11,8 +11,10 @@ const Flows = () => {
     const { currentTheme } = useTheme();
     const { user } = useAuth();
     const { showToast } = useToast();
+    const fileInputRef = useRef(null);
 
     const [flows, setFlows] = useState([]);
+    // ... existing states ...
     const [organizations, setOrganizations] = useState([]);
     const [instances, setInstances] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -20,6 +22,7 @@ const Flows = () => {
     const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
     const [selectedFlow, setSelectedFlow] = useState(null);
     const [isBuilding, setIsBuilding] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const [formData, setFormData] = useState({
         name: '',
@@ -46,10 +49,14 @@ const Flows = () => {
         }
     }, [organizations, formData.organizationId, modalMode]);
 
+    // ... existing load functions ...
     const loadOrganizations = async () => {
         try {
             const response = await apiService.get('/private/organizations');
             setOrganizations(response.data);
+            if (response.data.length > 0 && !formData.organizationId) {
+                setFormData(prev => ({ ...prev, organizationId: response.data[0].id }));
+            }
         } catch (error) {
             console.error('Erro ao carregar organizações:', error);
         }
@@ -107,7 +114,64 @@ const Flows = () => {
         }
     };
 
+    const handleExport = async (e, flow) => {
+        e.stopPropagation();
+        try {
+            const response = await apiService.get(`/private/bot-flows/${flow.id}/export`);
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(response.data, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `fluxo_${flow.name.replace(/\s+/g, '_').toLowerCase()}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showToast({ title: 'Exportado', message: 'Download iniciado!', variant: 'success' });
+        } catch (error) {
+            console.error(error);
+            showToast({ title: 'Erro', message: 'Falha ao exportar fluxo', variant: 'error' });
+        }
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current.click();
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const flowData = JSON.parse(event.target.result);
+                // Usa a organização atual selecionada ou do form data
+                const orgId = formData.organizationId || (organizations.length > 0 ? organizations[0].id : null);
+
+                if (!orgId) {
+                    showToast({ title: 'Atenção', message: 'Nenhuma organização selecionada.', variant: 'warning' });
+                    return;
+                }
+
+                await apiService.post('/private/bot-flows/import', {
+                    organizationId: orgId,
+                    flowData
+                });
+
+                showToast({ title: 'Sucesso', message: 'Fluxo importado com sucesso!', variant: 'success' });
+                loadFlows(orgId); // Recarrega a lista
+            } catch (error) {
+                console.error(error);
+                showToast({ title: 'Erro', message: 'Arquivo inválido ou erro na importação.', variant: 'error' });
+            } finally {
+                // Reset input
+                e.target.value = null;
+            }
+        };
+        reader.readAsText(file);
+    };
+
     const openCreateModal = () => {
+        // ... implementation as before
         setModalMode('add');
         setFormData({
             name: '',
@@ -119,6 +183,31 @@ const Flows = () => {
         });
         setShowModal(true);
     };
+
+    // ... existing methods for openEditModal, toggleInstanceSelection, openBuilder ...
+
+    // ... render methods ... 
+
+    // Inject logic to render
+    // Inside return:
+
+    // Header button replacement:
+    /*
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    style={{ display: 'none' }} 
+                    accept=".json" 
+                    onChange={handleFileChange} 
+                />
+                <button
+                    onClick={handleImportClick}
+                    className="btn-base btn-new-green"
+                >
+                    <Import size={20} /> Importar Fluxo
+                </button>
+    */
+
 
     const openEditModal = (e, flow) => {
         e.stopPropagation();
@@ -200,181 +289,216 @@ const Flows = () => {
                     </h1>
                     <p style={{ color: '#666' }}>Gerencie os menus e caminhos do seu Bot</p>
                 </div>
-                <button
-                    onClick={() =>
-                        showToast({
-                            title: 'Função não habilitada',
-                            message: 'A importação de contatos será liberada em breve.',
-                            variant: 'warning'
-                        })
-                    }
-                    className="btn-base btn-new-green"
-                >
-                    <Import size={20} /> Importar Fluxo
-                </button>
-                <button
-                    onClick={openCreateModal}
-                    className="btn-base btn-new"
-                >
-                    <Plus size={20} /> Novo Fluxo
-                </button>
-            </div>
 
-            {loading ? (
-                <p>Carregando fluxos...</p>
-            ) : flows.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '48px', backgroundColor: '#f9fafb', borderRadius: '12px' }}>
-                    <GitBranch size={48} color="#ccc" style={{ marginBottom: '16px' }} />
-                    <h3>Nenhum fluxo criado</h3>
-                    <p>Crie o seu primeiro fluxo profissional para automatizar seu atendimento.</p>
-                </div>
-            ) : (
-                <div style={styles.grid}>
-                    {flows.map(flow => (
-                        <div
-                            key={flow.id}
-                            style={styles.card}
-                            onClick={() => openBuilder(flow)}
-                            onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'}
-                            onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
-                        >
-                            <div style={styles.cardHeader}>
-                                <span style={styles.badge}>{flow.nodes?.length || 0} nós</span>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button
-                                        onClick={(e) => openEditModal(e, flow)}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
-                                    >
-                                        <Edit2 size={16} color="#666" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => handleDeleteFlow(e, flow.id)}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
-                                    >
-                                        <Trash2 size={16} color="#ef4444" />
-                                    </button>
-                                </div>
-                            </div>
-                            <h3 style={styles.cardTitle}>{flow.name}</h3>
-
-                            <div style={{ marginTop: '12px', fontSize: '13px', color: '#666' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                                    <Smartphone size={14} />
-                                    {flow.instances?.length > 0
-                                        ? `${flow.instances.length} canal(is) configurado(s)`
-                                        : 'Nenhum canal associado'}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <Clock size={14} />
-                                    {flow.botInactivityLimit
-                                        ? `Timeout: ${flow.botInactivityLimit} min`
-                                        : 'Sem limite de inatividade'}
-                                </div>
-                            </div>
-
-                            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '4px', color: currentTheme.primary, fontWeight: '600' }}>
-                                Abrir Builder <ArrowRight size={16} />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {showModal && (
-                <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
-                    <div style={styles.modal} onClick={e => e.stopPropagation()}>
-                        <h2 style={{ marginBottom: '20px' }}>{modalMode === 'add' ? 'Novo Fluxo' : 'Configurações do Fluxo'}</h2>
-                        <form onSubmit={handleCreateOrUpdateFlow}>
-                            <div style={styles.sectionTitle}><MessageSquare size={16} /> Informações Básicas</div>
-                            <label>Nome do Fluxo</label>
-                            <input
-                                style={styles.input}
-                                placeholder="Ex: Atendimento Principal"
-                                value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                required
-                            />
-
-                            {modalMode === 'add' && (
-                                <>
-                                    <label>Organização</label>
-                                    <select
-                                        style={styles.input}
-                                        value={formData.organizationId}
-                                        onChange={e => setFormData({ ...formData, organizationId: e.target.value })}
-                                    >
-                                        {organizations.map(org => (
-                                            <option key={org.id} value={org.id}>{org.razaoSocial || org.nomeFantasia}</option>
-                                        ))}
-                                    </select>
-                                </>
-                            )}
-
-                            <div style={styles.sectionTitle}><Smartphone size={16} /> Canais (Instâncias)</div>
-                            <div style={styles.instanceGrid}>
-                                {instances.map(inst => (
-                                    <div
-                                        key={inst.id}
-                                        style={{
-                                            ...styles.instanceItem,
-                                            backgroundColor: formData.instanceIds.includes(inst.id) ? `${currentTheme.primary}15` : 'transparent',
-                                            borderColor: formData.instanceIds.includes(inst.id) ? currentTheme.primary : '#eee'
-                                        }}
-                                        onClick={() => toggleInstanceSelection(inst.id)}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.instanceIds.includes(inst.id)}
-                                            onChange={() => { }} // Handle via parent onClick
-                                            style={{ pointerEvents: 'none' }}
-                                        />
-                                        {inst.name}
-                                    </div>
-                                ))}
-                                {instances.length === 0 && <p style={{ fontSize: '12px', color: '#999' }}>Nenhuma instância encontrada.</p>}
-                            </div>
-
-                            <div style={styles.sectionTitle}><Clock size={16} /> Limites de Inatividade</div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                <div>
-                                    <label>Limite Inatividade Bot (min)</label>
-                                    <input
-                                        type="number"
-                                        style={styles.input}
-                                        placeholder="Ex: 15 ou vazio"
-                                        value={formData.botInactivityLimit}
-                                        onChange={e => setFormData({ ...formData, botInactivityLimit: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label>Limite Inatividade Fila (min)</label>
-                                    <input
-                                        type="number"
-                                        style={styles.input}
-                                        placeholder="Ex: 30 ou vazio"
-                                        value={formData.queueInactivityLimit}
-                                        onChange={e => setFormData({ ...formData, queueInactivityLimit: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <label>Mensagem Inatividade Atingida (Bot)</label>
-                            <textarea
-                                style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
-                                placeholder="Ex: Sua conversa foi finalizada por inatividade..."
-                                value={formData.inactivityMessage}
-                                onChange={e => setFormData({ ...formData, inactivityMessage: e.target.value })}
-                            />
-
-                            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                                <button type="button" onClick={() => setShowModal(false)} className="btn-base" style={{ flex: 1, backgroundColor: '#eee', color: '#333' }}>Cancelar</button>
-                                <button type="submit" className="btn-base btn-new" style={{ flex: 1 }}>{modalMode === 'add' ? 'Criar' : 'Salvar Alterações'}</button>
-                            </div>
-                        </form>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 20px' }}>
+                    <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+                        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                        <input
+                            type="text"
+                            placeholder="Pesquisar fluxos..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '10px 10px 10px 40px',
+                                borderRadius: '8px',
+                                border: '1px solid #e5e7eb',
+                                outline: 'none',
+                                fontSize: '14px'
+                            }}
+                        />
                     </div>
                 </div>
-            )}
-        </div>
+
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        style={{ display: 'none' }}
+                        accept=".json"
+                        onChange={handleFileChange}
+                    />
+                    <button
+                        onClick={handleImportClick}
+                        className="btn-base btn-new-green"
+                    >
+                        <Import size={20} /> Importar Fluxo
+                    </button>
+                    <button
+                        onClick={openCreateModal}
+                        className="btn-base btn-new"
+                    >
+                        <Plus size={20} /> Novo Fluxo
+                    </button>
+                </div>
+            </div>
+
+            {
+                loading ? (
+                    <p>Carregando fluxos...</p>
+                ) : flows.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '48px', backgroundColor: '#f9fafb', borderRadius: '12px' }}>
+                        <GitBranch size={48} color="#ccc" style={{ marginBottom: '16px' }} />
+                        <h3>Nenhum fluxo criado</h3>
+                        <p>Crie o seu primeiro fluxo profissional para automatizar seu atendimento.</p>
+                    </div>
+                ) : (
+                    <div style={styles.grid}>
+                        {flows.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).map(flow => (
+                            <div
+                                key={flow.id}
+                                style={styles.card}
+                                onClick={() => openBuilder(flow)}
+                                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'}
+                                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                            >
+                                <div style={styles.cardHeader}>
+                                    <span style={styles.badge}>{flow.nodes?.length || 0} nós</span>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button
+                                            title="Exportar Fluxo"
+                                            onClick={(e) => handleExport(e, flow)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                        >
+                                            <Download size={16} color="#0369a1" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => openEditModal(e, flow)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                        >
+                                            <Edit2 size={16} color="#666" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => handleDeleteFlow(e, flow.id)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                        >
+                                            <Trash2 size={16} color="#ef4444" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <h3 style={styles.cardTitle}>{flow.name}</h3>
+
+                                <div style={{ marginTop: '12px', fontSize: '13px', color: '#666' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                        <Smartphone size={14} />
+                                        {flow.instances?.length > 0
+                                            ? `${flow.instances.length} canal(is) configurado(s)`
+                                            : 'Nenhum canal associado'}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <Clock size={14} />
+                                        {flow.botInactivityLimit
+                                            ? `Timeout: ${flow.botInactivityLimit} min`
+                                            : 'Sem limite de inatividade'}
+                                    </div>
+                                </div>
+
+                                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '4px', color: currentTheme.primary, fontWeight: '600' }}>
+                                    Abrir Builder <ArrowRight size={16} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )
+            }
+
+            {
+                showModal && (
+                    <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
+                        <div style={styles.modal} onClick={e => e.stopPropagation()}>
+                            <h2 style={{ marginBottom: '20px' }}>{modalMode === 'add' ? 'Novo Fluxo' : 'Configurações do Fluxo'}</h2>
+                            <form onSubmit={handleCreateOrUpdateFlow}>
+                                <div style={styles.sectionTitle}><MessageSquare size={16} /> Informações Básicas</div>
+                                <label>Nome do Fluxo</label>
+                                <input
+                                    style={styles.input}
+                                    placeholder="Ex: Atendimento Principal"
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                    required
+                                />
+
+                                {modalMode === 'add' && (
+                                    <>
+                                        <label>Organização</label>
+                                        <select
+                                            style={styles.input}
+                                            value={formData.organizationId}
+                                            onChange={e => setFormData({ ...formData, organizationId: e.target.value })}
+                                        >
+                                            {organizations.map(org => (
+                                                <option key={org.id} value={org.id}>{org.razaoSocial || org.nomeFantasia}</option>
+                                            ))}
+                                        </select>
+                                    </>
+                                )}
+
+                                <div style={styles.sectionTitle}><Smartphone size={16} /> Canais (Instâncias)</div>
+                                <div style={styles.instanceGrid}>
+                                    {instances.map(inst => (
+                                        <div
+                                            key={inst.id}
+                                            style={{
+                                                ...styles.instanceItem,
+                                                backgroundColor: formData.instanceIds.includes(inst.id) ? `${currentTheme.primary}15` : 'transparent',
+                                                borderColor: formData.instanceIds.includes(inst.id) ? currentTheme.primary : '#eee'
+                                            }}
+                                            onClick={() => toggleInstanceSelection(inst.id)}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.instanceIds.includes(inst.id)}
+                                                onChange={() => { }} // Handle via parent onClick
+                                                style={{ pointerEvents: 'none' }}
+                                            />
+                                            {inst.name}
+                                        </div>
+                                    ))}
+                                    {instances.length === 0 && <p style={{ fontSize: '12px', color: '#999' }}>Nenhuma instância encontrada.</p>}
+                                </div>
+
+                                <div style={styles.sectionTitle}><Clock size={16} /> Limites de Inatividade</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <div>
+                                        <label>Limite Inatividade Bot (min)</label>
+                                        <input
+                                            type="number"
+                                            style={styles.input}
+                                            placeholder="Ex: 15 ou vazio"
+                                            value={formData.botInactivityLimit}
+                                            onChange={e => setFormData({ ...formData, botInactivityLimit: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Limite Inatividade Fila (min)</label>
+                                        <input
+                                            type="number"
+                                            style={styles.input}
+                                            placeholder="Ex: 30 ou vazio"
+                                            value={formData.queueInactivityLimit}
+                                            onChange={e => setFormData({ ...formData, queueInactivityLimit: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+
+                                <label>Mensagem Inatividade Atingida (Bot)</label>
+                                <textarea
+                                    style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
+                                    placeholder="Ex: Sua conversa foi finalizada por inatividade..."
+                                    value={formData.inactivityMessage}
+                                    onChange={e => setFormData({ ...formData, inactivityMessage: e.target.value })}
+                                />
+
+                                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                                    <button type="button" onClick={() => setShowModal(false)} className="btn-base" style={{ flex: 1, backgroundColor: '#eee', color: '#333' }}>Cancelar</button>
+                                    <button type="submit" className="btn-base btn-new" style={{ flex: 1 }}>{modalMode === 'add' ? 'Criar' : 'Salvar Alterações'}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

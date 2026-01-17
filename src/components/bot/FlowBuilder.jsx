@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Save, Trash2, ArrowRightCircle, MessageSquare, UserCheck, LogOut, GitBranch, Edit2, Database, Code, Settings } from 'lucide-react';
+import { ChevronLeft, Plus, Save, Trash2, ArrowRightCircle, MessageSquare, UserCheck, LogOut, GitBranch, Edit2, Database, Code, Settings, Search } from 'lucide-react';
 import { apiService } from '../../services/api';
 import { useTheme } from '../../contexts/ThemeContext';
 import AlertToast from '../ui/AlertToast';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import FlowVisualizer from './FlowVisualizer';
 
 const FlowBuilder = ({ flowId, onBack }) => {
     const { currentTheme } = useTheme();
@@ -15,12 +16,14 @@ const FlowBuilder = ({ flowId, onBack }) => {
     const [loading, setLoading] = useState(true);
     const [editingNode, setEditingNode] = useState(null);
     const [toast, setToast] = useState({ open: false, title: '', message: '', variant: 'success' });
+    const [activeTab, setActiveTab] = useState('list'); // 'list' | 'visual'
     const [confirmModal, setConfirmModal] = useState({
         isOpen: false,
         title: '',
         message: '',
         onConfirm: null
     });
+    const [searchTerm, setSearchTerm] = useState('');
 
     const showToast = (title, message, variant = 'success') => {
         setToast({ open: true, title, message, variant });
@@ -183,6 +186,8 @@ const FlowBuilder = ({ flowId, onBack }) => {
         handleConfigChange('mapping', currentMapping.filter((_, i) => i !== idx));
     };
 
+    // ... (keep existing imports and styles)
+
     return (
         <div style={styles.container}>
             <div style={styles.header}>
@@ -190,6 +195,46 @@ const FlowBuilder = ({ flowId, onBack }) => {
                     <ChevronLeft size={24} /> Voltar
                 </button>
                 <h2 style={{ margin: 0 }}>Fluxo: {flow.name}</h2>
+
+                {/* Tab Switcher */}
+                <div style={{ display: 'flex', backgroundColor: '#f3f4f6', padding: '4px', borderRadius: '8px', marginLeft: '24px' }}>
+                    <button
+                        onClick={() => setActiveTab('list')}
+                        style={{
+                            padding: '6px 16px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            backgroundColor: activeTab === 'list' ? 'white' : 'transparent',
+                            color: activeTab === 'list' ? currentTheme.primary : '#666',
+                            fontWeight: activeTab === 'list' ? 'bold' : 'normal',
+                            boxShadow: activeTab === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            cursor: 'pointer',
+                            transition: '0.2s'
+                        }}
+                    >
+                        Editor em Lista
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('visual')}
+                        style={{
+                            padding: '6px 16px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            backgroundColor: activeTab === 'visual' ? 'white' : 'transparent',
+                            color: activeTab === 'visual' ? currentTheme.primary : '#666',
+                            fontWeight: activeTab === 'visual' ? 'bold' : 'normal',
+                            boxShadow: activeTab === 'visual' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            cursor: 'pointer',
+                            transition: '0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}
+                    >
+                        <GitBranch size={16} /> Fluxograma
+                    </button>
+                </div>
+
                 <button
                     onClick={handleAddNode}
                     className="btn-base btn-new"
@@ -200,73 +245,105 @@ const FlowBuilder = ({ flowId, onBack }) => {
             </div>
 
             <div style={styles.content}>
-                <div style={styles.nodeList}>
-                    {flow.nodes.sort((a, b) => a.id - b.id).map(node => (
-                        <div
-                            key={node.id}
-                            style={{
-                                ...styles.nodeCard,
-                                boxShadow: editingNode?.id === node.id ? `0 0 0 2px ${currentTheme.primary}40` : 'none',
-                                borderColor: editingNode?.id === node.id ? currentTheme.primary : '#eee'
-                            }}
-                            onClick={() => setEditingNode({ ...node })}
-                        >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                <div style={{ ...styles.nodeType, ...getTypeStyle(node.type), margin: 0 }}>
-                                    {getNodeIcon(node.type)} {node.type}
-                                </div>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteNode(node.id);
-                                    }}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: '#ef4444',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                                    title="Excluir Nó"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                            <h4 style={{ margin: '0 0 4px 0', fontSize: '13px' }}>
-                                {node.name ? node.name : `Nó #${node.id}`}
-                                {node.name && <span style={{ color: '#999', fontWeight: 'normal', marginLeft: '4px' }}>(#{node.id})</span>}
-                            </h4>
-                            <p style={{ margin: '8px 0', fontSize: '14px', whiteSpace: 'pre-wrap', color: '#444' }}>
-                                {node.type === 'api' ? `Chamada API: ${node.config?.url || 'Não configurado'}` : node.content}
-                            </p>
-
-                            {node.nextNodeId && (
-                                <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
-                                    → Próximo: Nó #{node.nextNodeId}
-                                </div>
-                            )}
-
-                            {node.options && node.options.length > 0 && (
-                                <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '8px', marginTop: '8px' }}>
-                                    <span style={{ fontSize: '12px', color: '#666', fontWeight: '600' }}>Caminhos (Opções):</span>
-                                    {node.options.map(opt => (
-                                        <div key={opt.id} style={styles.optionItem}>
-                                            <span style={{ fontWeight: 'bold' }}>{opt.value}</span>
-                                            <span>{opt.label}</span>
-                                            <ArrowRightCircle size={14} style={{ marginLeft: 'auto', color: '#999' }} />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                {activeTab === 'list' ? (
+                    <div style={styles.nodeList}>
+                        <div style={{ position: 'relative', marginBottom: '16px' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                            <input
+                                type="text"
+                                placeholder="Buscar nó por nome ou ID..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 8px 8px 36px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #e5e7eb',
+                                    outline: 'none',
+                                    fontSize: '14px'
+                                }}
+                            />
                         </div>
-                    ))}
-                </div>
+
+                        {/* Existing List Content */}
+                        {flow.nodes
+                            .filter(n => {
+                                const term = searchTerm.toLowerCase();
+                                return (n.name && n.name.toLowerCase().includes(term)) ||
+                                    String(n.id).includes(term) ||
+                                    (n.content && n.content.toLowerCase().includes(term));
+                            })
+                            .sort((a, b) => a.id - b.id)
+                            .map(node => (
+                                <div
+                                    key={node.id}
+                                    style={{
+                                        ...styles.nodeCard,
+                                        boxShadow: editingNode?.id === node.id ? `0 0 0 2px ${currentTheme.primary}40` : 'none',
+                                        borderColor: editingNode?.id === node.id ? currentTheme.primary : '#eee'
+                                    }}
+                                    onClick={() => setEditingNode({ ...node })}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                        <div style={{ ...styles.nodeType, ...getTypeStyle(node.type), margin: 0 }}>
+                                            {getNodeIcon(node.type)} {node.type}
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteNode(node.id);
+                                            }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#ef4444',
+                                                cursor: 'pointer',
+                                                padding: '4px',
+                                                borderRadius: '4px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                            title="Excluir Nó"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                    <h4 style={{ margin: '0 0 4px 0', fontSize: '13px' }}>
+                                        {node.name ? node.name : `Nó #${node.id}`}
+                                        {node.name && <span style={{ color: '#999', fontWeight: 'normal', marginLeft: '4px' }}>(#{node.id})</span>}
+                                    </h4>
+                                    <p style={{ margin: '8px 0', fontSize: '14px', whiteSpace: 'pre-wrap', color: '#444' }}>
+                                        {node.type === 'api' ? `Chamada API: ${node.config?.url || 'Não configurado'}` : node.content}
+                                    </p>
+
+                                    {node.nextNodeId && (
+                                        <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                                            → Próximo: Nó #{node.nextNodeId}
+                                        </div>
+                                    )}
+
+                                    {node.options && node.options.length > 0 && (
+                                        <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '8px', marginTop: '8px' }}>
+                                            <span style={{ fontSize: '12px', color: '#666', fontWeight: '600' }}>Caminhos (Opções):</span>
+                                            {node.options.map(opt => (
+                                                <div key={opt.id} style={styles.optionItem}>
+                                                    <span style={{ fontWeight: 'bold' }}>{opt.value}</span>
+                                                    <span>{opt.label}</span>
+                                                    <ArrowRightCircle size={14} style={{ marginLeft: 'auto', color: '#999' }} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                    </div>
+                ) : (
+                    /* Visual Builder PlaceHolder */
+                    <FlowVisualizer flow={flow} onNodeClick={setEditingNode} theme={currentTheme} />
+                )}
 
                 <div style={{ height: '100%' }}>
                     {editingNode ? (

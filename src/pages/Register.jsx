@@ -19,7 +19,8 @@ function Register() {
     street: '',
     number: '',
     complement: '',
-    zone: ''
+    zone: '',
+    role: 'MASTER'
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');

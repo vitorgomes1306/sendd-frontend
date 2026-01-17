@@ -8,6 +8,7 @@ import '../styles/buttons.css';
 import { io } from 'socket.io-client';
 import logoSenddDark from '../../src/assets/img/sendd1.png';
 import logoSenddLight from '../../src/assets/img/sendd2.png';
+import '../styles/buttons.css'
 import {
   MessageSquare,
   Users,
@@ -46,6 +47,7 @@ import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import ChatClientInfo from './ChatClientInfo';
+import usePageTitleBadge from '../hooks/usePageTitleBadge';
 import { useToast } from '../contexts/ToastContext';
 import { playNotificationSound, AVAILABLE_SOUNDS } from '../utils/sounds';
 
@@ -118,6 +120,8 @@ const Chat = () => {
   const [activeTab, setActiveTab] = useState('history'); // history, bot, queue, my_chats
   const [selectedChat, setSelectedChat] = useState(null);
   const [chats, setChats] = useState([]);
+  const totalUnread = chats.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  usePageTitleBadge(totalUnread);
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -135,6 +139,108 @@ const Chat = () => {
   const [transferObservation, setTransferObservation] = useState('');
   const [isTransferring, setIsTransferring] = useState(false);
   const [showClientInfo, setShowClientInfo] = useState(false);
+
+  // Context Menu State
+  const [activeMenuChatId, setActiveMenuChatId] = useState(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setActiveMenuChatId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleToggleMenu = (e, chatId) => {
+    e.stopPropagation(); // Prevent chat selection
+    setActiveMenuChatId(prev => prev === chatId ? null : chatId);
+  };
+
+  const handleMarkAsRead = async (e, chat) => {
+    e.stopPropagation();
+    setActiveMenuChatId(null);
+    try {
+      await apiService.put(`/private/chats/${chat.id}/read`);
+      // Update local state locally for immediate feedback
+      setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unreadCount: 0 } : c));
+      // Force refresh from backend to be sure
+      fetchChats();
+    } catch (error) {
+      console.error('Error marking as read:', error);
+      showToast('Erro ao marcar como lido', 'error');
+    }
+  };
+
+  const handleFinishFromList = async (e, chat) => {
+    e.stopPropagation();
+    setActiveMenuChatId(null);
+
+    // Adapted handleFinish logic for list item
+    if (!window.confirm(`Deseja encerrar o atendimento de ${chat.name || chat.externalId}?`)) return;
+
+    try {
+      await apiService.put(`/private/chats/${chat.id}/finish`, {
+        closingMessage: '' // No closing message from list quick action? Or default?
+      });
+
+      // If current selected chat is the one being finished, deselect it?
+      if (selectedChat?.id === chat.id) {
+        setSelectedChat(null);
+        setShowFinishModal(false);
+      }
+
+      fetchChats();
+      showToast({
+        title: 'Sucesso',
+        message: 'Atendimento encerrado.',
+        variant: 'success'
+      });
+    } catch (error) {
+      console.error('Erro ao encerrar chat:', error);
+      showToast({
+        title: 'Erro',
+        message: 'Falha ao encerrar atendimento.',
+        variant: 'error'
+      });
+    }
+  };
+
+  const handleDeleteChat = async (e, chat) => {
+    e.stopPropagation();
+    setActiveMenuChatId(null);
+
+    // Critical Confirmation
+    if (!window.confirm(`ATENÇÃO: Deseja EXCLUIR PERMANENTEMENTE o chat de ${chat.name || chat.externalId}?\n\nEsta ação não pode ser desfeita e todo o histórico será perdido.`)) return;
+
+    try {
+      await apiService.delete(`/private/chats/${chat.id}`);
+
+      if (selectedChat?.id === chat.id) {
+        setSelectedChat(null);
+      }
+
+      // Remove from local list immediately
+      setChats(prev => prev.filter(c => c.id !== chat.id));
+
+      showToast({
+        title: 'Sucesso',
+        message: 'Chat excluído permanentemente.',
+        variant: 'success'
+      });
+    } catch (error) {
+      console.error('Erro ao excluir chat:', error);
+      showToast({
+        title: 'Erro',
+        message: error.response?.data?.error || 'Falha ao excluir chat.',
+        variant: 'error'
+      });
+    }
+  };
 
   // Focus Ref
   const inputRef = useRef(null);
@@ -360,6 +466,33 @@ const Chat = () => {
     } catch (error) {
       console.error('Erro ao carregar instâncias:', error);
     }
+  };
+
+  // Format phone number helper
+  const formatPhoneNumber = (jid) => {
+    if (!jid) return '';
+    let number = jid.split('@')[0];
+
+    // Check if it is a BR number (starts with 55 and has valid length)
+    // BR numbers usually: 55 + 2 DDD + 8 or 9 digits = 12 or 13 digits
+    if (number.startsWith('55') && (number.length === 12 || number.length === 13)) {
+      // Remove country code for display
+      number = number.substring(2);
+
+      const ddd = number.substring(0, 2);
+      const rest = number.substring(2);
+
+      if (rest.length === 9) {
+        // Cellular: (XX) X XXXX-XXXX
+        // rest: 9 8888 7777 -> 9 8888-7777
+        return `(${ddd}) ${rest.substring(0, 1)} ${rest.substring(1, 5)}-${rest.substring(5)}`;
+      } else if (rest.length === 8) {
+        // Fixed: (XX) XXXX-XXXX
+        return `(${ddd}) ${rest.substring(0, 4)}-${rest.substring(4)}`;
+      }
+    }
+
+    return number;
   };
 
   const fetchChats = async () => {
@@ -683,6 +816,17 @@ const Chat = () => {
         showToast('Erro', 'Falha ao enviar arquivo.', 'error');
       }
     };
+  };
+
+  const handleInputFocus = () => {
+    if (selectedChat && ((selectedChat.unreadCount && selectedChat.unreadCount > 0) || totalUnread > 0)) {
+      // Reset local state
+      setChats(prev => prev.map(c => c.id === selectedChat.id ? { ...c, unreadCount: 0 } : c));
+      setSelectedChat(prev => ({ ...prev, unreadCount: 0 }));
+
+      // Optional: Force backend sync if needed, but usually fetchMessages handles it.
+      // If fetchMessages was already called, backend is likely updated. We just need to update UI.
+    }
   };
 
   const handleSendMessage = async (e) => {
@@ -1163,49 +1307,67 @@ const Chat = () => {
             title="Histórico"
           >
             <Clock size={26} />
-            <span
-              className="tab-badge"
-              style={{
-                backgroundColor: socketConnected ? '#4bce97' : '#ff4d4f',
-                width: '10px',
-                height: '10px',
-                padding: 0,
-                minWidth: 'unset',
-                border: `1px solid ${currentTheme.cardBackground}`
-              }}
-              title={socketConnected ? 'Socket Conectado' : 'Socket Desconectado'}
-            />
           </button>
           <button
             className={`sidebar-tab ${activeTab === 'bot' ? 'active' : ''}`}
             onClick={() => setActiveTab('bot')}
-            title="Bot"
+            title="Atendimentos do Bot"
           >
             <Bot size={26} />
-            {chats.filter(c => c.status === 'bot').length > 0 && (
-              <span className="tab-badge">{chats.filter(c => c.status === 'bot').length}</span>
+            {chats.filter(c => c.status === 'bot' && (c.unreadCount || 0) > 0).length > 0 && (
+              <span className="tab-badge">{chats.filter(c => c.status === 'bot' && (c.unreadCount || 0) > 0).length}</span>
             )}
           </button>
           <button
             className={`sidebar-tab ${activeTab === 'queue' ? 'active' : ''}`}
             onClick={() => setActiveTab('queue')}
-            title="Fila"
+            title="Fila de Atendimentos"
           >
             <MessagesSquare size={26} />
-            {chats.filter(c => c.status === 'attendant' && !c.attendantId).length > 0 && (
-              <span className="tab-badge">{chats.filter(c => c.status === 'attendant' && !c.attendantId).length}</span>
+            {chats.filter(c => c.status === 'attendant' && !c.attendantId && (c.unreadCount || 0) > 0).length > 0 && (
+              <span className="tab-badge">{chats.filter(c => c.status === 'attendant' && !c.attendantId && (c.unreadCount || 0) > 0).length}</span>
             )}
           </button>
           <button
             className={`sidebar-tab ${activeTab === 'my_chats' ? 'active' : ''}`}
             onClick={() => setActiveTab('my_chats')}
-            title="Meus"
+            title="Meus Atendimentos"
           >
             <Headset size={26} />
-            {chats.filter(c => c.status === 'attendant' && Number(c.attendantId) === Number(user?.id)).length > 0 && (
-              <span className="tab-badge">{chats.filter(c => c.status === 'attendant' && Number(c.attendantId) === Number(user?.id)).length}</span>
+            {chats.filter(c => c.status === 'attendant' && Number(c.attendantId) === Number(user?.id) && (c.unreadCount || 0) > 0).length > 0 && (
+              <span className="tab-badge">{chats.filter(c => c.status === 'attendant' && Number(c.attendantId) === Number(user?.id) && (c.unreadCount || 0) > 0).length}</span>
             )}
           </button>
+        </div>
+
+        <div style={{
+          padding: '16px 16px 10px',
+          borderBottom: `1px solid ${currentTheme.border}`,
+          color: currentTheme.textPrimary,
+          fontWeight: '600',
+          fontSize: '15px',
+          display: 'flex',
+          alignItems: 'center'
+        }}>
+          {activeTab === 'history' && "Histórico"}
+          {activeTab === 'bot' && (
+            <>
+              Atendimentos do Bot
+              <span
+                style={{
+                  marginLeft: '8px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: socketConnected ? '#4bce97' : '#ff4d4f',
+                  display: 'inline-block'
+                }}
+                title={socketConnected ? 'Socket Conectado' : 'Socket Desconectado'}
+              />
+            </>
+          )}
+          {activeTab === 'queue' && "Fila de Atendimentos"}
+          {activeTab === 'my_chats' && "Meus Atendimentos"}
         </div>
 
         <div className="contact-list">
@@ -1225,17 +1387,104 @@ const Chat = () => {
                 key={chat.id}
                 className={`contact-item ${selectedChat?.id === chat.id ? 'active' : ''}`}
                 onClick={() => setSelectedChat(chat)}
+                style={{ position: 'relative' }} // Ensure positioning context
               >
                 <div className="contact-avatar">
                   <User size={20} />
                 </div>
                 <div className="contact-info">
-                  <div className="contact-name">{chat.name || chat.externalId.split('@')[0]}</div>
+                  <div className="contact-name" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{formatPhoneNumber(chat.name || chat.externalId)}</span>
+                  </div>
                   <div className="contact-preview">{chat.lastMessage}</div>
                 </div>
                 <div className="contact-meta">
                   {new Date(chat.dateUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {/* Context Menu Button */}
+                  <div
+                    className="contact-menu-btn"
+                    onClick={(e) => handleToggleMenu(e, chat.id)}
+                    style={{
+                      marginLeft: '4px',
+                      padding: '2px',
+                      cursor: 'pointer',
+                      opacity: 0.6,
+                      display: 'inline-flex'
+                    }}
+                    title="Opções"
+                  >
+                    <MoreVertical size={16} />
+                  </div>
                 </div>
+
+                {/* Dropdown Menu */}
+                {activeMenuChatId === chat.id && (
+                  <div
+                    ref={menuRef}
+                    className="contact-item-menu-dropdown"
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '40px',
+                      backgroundColor: currentTheme.cardBackground,
+                      border: `1px solid ${currentTheme.border}`,
+                      borderRadius: '4px',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                      zIndex: 100,
+                      minWidth: '150px',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <div
+                      onClick={(e) => handleMarkAsRead(e, chat)}
+                      style={{
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        color: currentTheme.textPrimary,
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        borderBottom: `1px solid ${currentTheme.border}`
+                      }}
+                      onMouseEnter={e => e.target.style.backgroundColor = isDark ? '#374151' : '#f5f5f5'}
+                      onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+                    >
+                      <CircleCheckBig size={14} /> Marcar como lido
+                    </div>
+                    <div
+                      onClick={(e) => handleFinishFromList(e, chat)}
+                      style={{
+                        padding: '8px 12px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        color: '#ef4444',
+                        display: 'flex', alignItems: 'center', gap: '8px'
+                      }}
+                      onMouseEnter={e => e.target.style.backgroundColor = isDark ? '#374151' : '#f5f5f5'}
+                      onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+                    >
+                      <CircleX size={14} /> Encerrar seção
+                    </div>
+                    {user?.role === 'MASTER' && (
+                      <div
+                        onClick={(e) => handleDeleteChat(e, chat)}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          color: '#dc2626', // Darker red
+                          fontWeight: 'bold',
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          borderTop: `1px solid ${currentTheme.border}`
+                        }}
+                        onMouseEnter={e => e.target.style.backgroundColor = isDark ? '#374151' : '#f5f5f5'}
+                        onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+                        title="Ação irreversível"
+                      >
+                        <Trash2 size={14} /> Excluir Chat
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -1260,64 +1509,46 @@ const Chat = () => {
                       {selectedChat.name || selectedChat.externalId.split('@')[0]}
                       <Info size={14} color={currentTheme.textSecondary} />
                     </div>
-                    <div style={{ fontSize: '12px', color: currentTheme.textSecondary }}>
+                    {/* <div style={{ fontSize: '12px', color: currentTheme.textSecondary }}>
                       {selectedChat.instance?.name || 'Instância Ativa'} • Status: {selectedChat.status}
                       {selectedChat.status === 'attendant' && selectedChat.attendant?.name && ` • Atendente: ${selectedChat.attendant.name}`}
                       {selectedChat.protocol && ` • Protocolo: ${selectedChat.protocol}`}
-                    </div>
+                    </div> */}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   {(selectedChat.status === 'bot' || selectedChat.status === 'attendant') && (
                     <>
                       <button
+                        className="action-button"
                         onClick={() => setShowFinishModal(true)}
                         disabled={selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)}
                         title="Finalizar Atendimento"
                         style={{
-                          background: 'transparent',
-                          border: 'none',
-                          padding: '6px',
                           cursor: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 'not-allowed' : 'pointer',
-                          opacity: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 0.5 : 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
+                          opacity: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 0.5 : 1
                         }}
                       >
                         <CircleCheck size={20} color="#ff4d4f" />
                       </button>
 
                       <button
+                        className="action-button"
                         onClick={handleOpenTransfer}
                         disabled={selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)}
                         title="Transferir Atendimento"
                         style={{
-                          background: 'transparent',
-                          border: 'none',
-                          padding: '6px',
                           cursor: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 'not-allowed' : 'pointer',
-                          opacity: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 0.5 : 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
+                          opacity: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 0.5 : 1
                         }}
                       >
                         <CircleUserRound size={20} color="#0084ff" />
                       </button>
 
                       <button
+                        className="action-button"
                         onClick={handleCloseChatView}
                         title="Fechar Conversa (Voltar ao Início)"
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          padding: '6px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
                       >
                         <CircleX size={20} color="#f59e0b" />
                       </button>
@@ -1342,16 +1573,8 @@ const Chat = () => {
                     </button>
                   )}
                   <button
+                    className="action-button"
                     onClick={() => setShowSearch(!showSearch)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      padding: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
                   >
                     <Search size={20} style={{ color: showSearch ? '#ff4d4f' : '#0084ff' }} />
                   </button>
@@ -1427,19 +1650,19 @@ const Chat = () => {
                     ) : (
                       <>
                         {msg.type === 'image' && (
-                          <img src={msg.text} alt="Imagem" style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: '4px' }} />
+                          <img src={msg.mediaUrl || msg.text} alt="Imagem" style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: '4px' }} />
                         )}
                         {msg.type === 'video' && (
-                          <video src={msg.text} controls style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: '4px' }} />
+                          <video src={msg.mediaUrl || msg.text} controls style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: '4px' }} />
                         )}
                         {msg.type === 'audio' && (
-                          <audio src={msg.text} controls style={{ width: '240px', marginBottom: '4px' }} />
+                          <audio src={msg.mediaUrl || msg.text} controls style={{ width: '240px', marginBottom: '4px' }} />
                         )}
                         {msg.type === 'document' && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: '8px', marginBottom: '4px', color: currentTheme.textPrimary }}>
                             <FileText size={24} />
-                            <a href={msg.text} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none', fontWeight: '500', wordBreak: 'break-all' }}>
-                              {msg.text.split('/').pop()}
+                            <a href={msg.mediaUrl || msg.text} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none', fontWeight: '500', wordBreak: 'break-all' }}>
+                              {(msg.mediaUrl || msg.text).split('/').pop()}
                             </a>
                           </div>
                         )}
@@ -1621,6 +1844,7 @@ const Chat = () => {
                               value={messageInput}
                               onChange={(e) => setMessageInput(e.target.value)}
                               onKeyPress={handleKeyPress}
+                              onFocus={handleInputFocus}
                             />
 
                             <button className="action-button" onClick={startRecording} title="Gravar Áudio">
@@ -1651,7 +1875,7 @@ const Chat = () => {
             <div style={{ fontSize: '64px', marginBottom: '20px' }}>
               <img src={isDark ? logoSenddDark : logoSenddLight} alt="Sendd - Chat" />
             </div>
-            <h2>Bem-vindo ao Chat Sendd</h2>
+            <h2>Bem vindo ao Chat Sendd</h2>
             <p>Selecione um contato para iniciar o atendimento.</p>
           </div>
         )}

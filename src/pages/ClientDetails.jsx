@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, MessageSquare, DollarSign, BarChart, MapPin, Mail, Phone, Edit, Trash2, Send, X, Paperclip, Image as ImageIcon, Video, FileText, Music, Upload } from 'lucide-react';
+import { ArrowLeft, User, MessageSquare, DollarSign, BarChart, MapPin, Mail, Phone, Edit, Trash2, Send, X, Paperclip, Image as ImageIcon, Video, FileText, Music, Upload, CircleDollarSign, Wifi, RefreshCw } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { apiService, getApiBaseUrl } from '../services/api';
 import AlertToast from '../components/ui/AlertToast';
@@ -34,6 +34,35 @@ const ClientDetails = () => {
   const [galleryMedias, setGalleryMedias] = useState([]); // Mídias da galeria
   const [selectedMedia, setSelectedMedia] = useState(null); // Objeto da mídia selecionada (para preview)
   const fileInputRef = useRef(null);
+
+  // States for Connection Check
+  const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const [connectionData, setConnectionData] = useState({ loading: false, result: null, error: null });
+
+  // Helpers
+  const formatBytes = (bytes, decimals = 2) => {
+    if (!bytes) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
+  const formatDuration = (startTime) => {
+    if (!startTime) return '-';
+    const start = new Date(startTime);
+    const now = new Date();
+    const diff = now - start;
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    const dStr = days > 0 ? `${String(days).padStart(2, '0')}d ` : '';
+    return `${dStr}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     loadClient();
@@ -202,6 +231,26 @@ const ClientDetails = () => {
     setSelectedMedia(null);
   };
 
+  const handleCheckConnection = async () => {
+    if (!client.cpfCnpj) {
+      setError('Cliente não possui CPF/CNPJ cadastrado para verificar conexão.');
+      return;
+    }
+    setShowConnectionModal(true);
+    setConnectionData({ loading: true, result: null, error: null });
+
+    try {
+      const response = await apiService.checkConnection({
+        cpfCnpj: client.cpfCnpj,
+        organizationId: client.organizationId
+      });
+      setConnectionData({ loading: false, result: response.data, error: null });
+    } catch (err) {
+      console.error('Connection Check Error:', err);
+      setConnectionData({ loading: false, result: null, error: 'Erro ao verificar conexão.' });
+    }
+  };
+
   const tabs = [
     { id: 'info', label: 'Informações', icon: <User size={18} /> },
     { id: 'messages', label: 'Histórico de Mensagens', icon: <MessageSquare size={18} /> },
@@ -263,13 +312,23 @@ const ClientDetails = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => setShowMsgModal(true)}
-          style={styles.sendButton}
-        >
-          <Send size={18} />
-          Enviar Mensagem
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={handleCheckConnection}
+            style={{ ...styles.sendButton, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}
+            title="Verificar Conexão"
+          >
+            <Wifi size={18} />
+            Status Conexão
+          </button>
+          <button
+            onClick={() => setShowMsgModal(true)}
+            style={styles.sendButton}
+          >
+            <Send size={18} />
+            Enviar Mensagem
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}
@@ -622,7 +681,98 @@ const ClientDetails = () => {
           </div>
         )
       }
-    </div >
+
+
+      {/* Modal de Status de Conexão */}
+      {
+        showConnectionModal && (
+          <div style={styles.modalOverlay}>
+            <div style={{ ...styles.modal, maxWidth: '600px' }}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Status da Conexão</h2>
+                <button onClick={() => setShowConnectionModal(false)} style={styles.closeButton}>
+                  <X size={24} />
+                </button>
+              </div>
+              <div style={styles.modalContent}>
+                {connectionData.loading ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: styles.label.color }}>
+                    <RefreshCw size={32} style={{ animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
+                    <p>Verificando conexão...</p>
+                  </div>
+                ) : connectionData.error ? (
+                  <div style={styles.errorState}>
+                    <p>{connectionData.error}</p>
+                  </div>
+                ) : (
+                  <div>
+                    {(!connectionData.result || !connectionData.result.result || connectionData.result.result.length === 0) ? (
+                      <div style={{ padding: '20px', textAlign: 'center', border: `1px solid ${currentTheme.border}`, borderRadius: '8px' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#6b7280', marginBottom: '8px' }}>OFFLINE</div>
+                        <p style={{ fontSize: '14px', color: '#9ca3af' }}>Nenhuma conexão ativa encontrada para este cliente.</p>
+                      </div>
+                    ) : (
+                      connectionData.result.result.map((conn, idx) => (
+                        <div key={idx} style={{ border: `1px solid ${currentTheme.border}`, borderRadius: '8px', overflow: 'hidden', marginBottom: '16px' }}>
+                          <div style={{ padding: '16px', borderBottom: `1px solid ${currentTheme.border}`, display: 'flex', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontWeight: '600', color: currentTheme.textPrimary }}>Status:</span>
+                              <span style={{ backgroundColor: '#10b981', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>ONLINE</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontWeight: '600', color: currentTheme.textPrimary }}>IP:</span>
+                              <span style={{ fontFamily: 'monospace', color: currentTheme.textSecondary }}>{conn.framedipaddress}</span>
+                            </div>
+                          </div>
+                          <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                            <div>
+                              <span style={{ display: 'block', fontSize: '12px', color: currentTheme.textSecondary, marginBottom: '4px' }}>Conectado em:</span>
+                              <span style={{ color: currentTheme.textPrimary, fontWeight: '500' }}>{new Date(conn.acctstarttime).toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <span style={{ display: 'block', fontSize: '12px', color: currentTheme.textSecondary, marginBottom: '4px' }}>Duração:</span>
+                              <span style={{ color: currentTheme.textPrimary, fontWeight: '500' }}>{formatDuration(conn.acctstarttime)}</span>
+                            </div>
+
+                            <div>
+                              <span style={{ display: 'block', fontSize: '12px', color: currentTheme.textSecondary, marginBottom: '4px' }}>Download:</span>
+                              <span style={{ color: currentTheme.textPrimary, fontWeight: '500' }}>{formatBytes(conn.acctinputoctets)}</span>
+                            </div>
+                            <div>
+                              <span style={{ display: 'block', fontSize: '12px', color: currentTheme.textSecondary, marginBottom: '4px' }}>Upload:</span>
+                              <span style={{ color: currentTheme.textPrimary, fontWeight: '500' }}>{formatBytes(conn.acctoutputoctets)}</span>
+                            </div>
+
+                            <div style={{ gridColumn: '1 / -1', borderTop: `1px solid ${currentTheme.borderLight}`, paddingTop: '12px', marginTop: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <div>
+                                  <span style={{ display: 'block', fontSize: '12px', color: currentTheme.textSecondary, marginBottom: '4px' }}>NAS:</span>
+                                  <span style={{ color: currentTheme.textPrimary, fontSize: '13px' }}>{conn.nasipaddress}</span>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <span style={{ display: 'block', fontSize: '12px', color: currentTheme.textSecondary, marginBottom: '4px' }}>Service:</span>
+                                  <span style={{ color: currentTheme.textPrimary, fontSize: '13px' }}>{conn.nasportid || conn.calledstationid}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+                <div style={{ marginTop: '16px', textAlign: 'right', fontSize: '11px', color: currentTheme.textSecondary }}>
+                  O status é atualizado automaticamente a cada 5 segundos (mock).
+                </div>
+              </div>
+              <div style={{ padding: '16px 24px', borderTop: `1px solid ${currentTheme.border}`, backgroundColor: currentTheme.backgroundSecondary, display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowConnectionModal(false)} style={styles.sendButton}>Fechar</button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div>
   );
 };
 

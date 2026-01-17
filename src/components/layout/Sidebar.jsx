@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LogoSendd from '../../assets/img/logo_sendd.png';
@@ -6,6 +7,16 @@ import './Sidebar.css';
 const Sidebar = ({ isHidden, isMobile, onMobileClose }) => {
   const location = useLocation();
   const { user } = useAuth();
+  const [hoveredSubmenu, setHoveredSubmenu] = useState(null);
+
+  const handleMouseEnter = (e, path) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredSubmenu({ path, top: rect.top });
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredSubmenu(null);
+  };
 
   const isActive = (path) => {
     if (location.pathname === path) return true;
@@ -71,7 +82,8 @@ const Sidebar = ({ isHidden, isMobile, onMobileClose }) => {
       )}
 
       <div className="sidebar" style={{
-        transform: isHidden ? 'translateX(-100%)' : 'translateX(0)'
+        transform: isHidden ? 'translateX(-100%)' : 'none',
+        overflowY: 'auto' // Enable scrolling
       }}>
 
         {/* Logo */}
@@ -82,44 +94,87 @@ const Sidebar = ({ isHidden, isMobile, onMobileClose }) => {
         {/* Menu */}
         <nav style={{ flex: 1, padding: '1rem 0' }}>
           {filteredItems.map((item) => (
-            <div key={item.path} className="sidebar-item-group" style={{ position: 'relative' }}>
+            <div
+              key={item.path}
+              className="sidebar-item-group"
+              style={{ position: 'relative' }}
+              onMouseEnter={(e) => handleMouseEnter(e, item.path)}
+              onMouseLeave={handleMouseLeave}
+            >
 
               {item.submenu ? (
-                // Item with Submenu (Flyout)
+                // Item with Submenu (Flyout managed by JS)
                 <>
-                  <div
-                    className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}
-                  >
+                  <div className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}>
                     <i className={`bi ${item.icon}`}></i>
-                    {/* Tooltip for main item name */}
-                    <span className="sidebar-label">{item.name}</span>
+                    {/* CSS Label removed as it's clipped. Relying on JS fixed label below if hovered */}
                   </div>
 
                   {/* Flyout Submenu */}
-                  <div className="sidebar-flyout">
-                    {item.submenu.map(subItem => (
-                      <Link
-                        key={subItem.path}
-                        to={subItem.path}
-                        className={`sidebar-flyout-item ${location.pathname === subItem.path ? 'active' : ''}`}
-                        onClick={onMobileClose}
-                      >
-                        <i className={`bi ${subItem.icon}`}></i>
-                        <span>{subItem.name}</span>
-                      </Link>
-                    ))}
-                  </div>
+                  {hoveredSubmenu?.path === item.path && (
+                    <div
+                      className="sidebar-flyout fixed-flyout"
+                      style={{
+                        top: hoveredSubmenu.top,
+                        position: 'fixed',
+                        left: '80px',
+                        transform: 'none',
+                        opacity: 1,
+                        visibility: 'visible',
+                        marginTop: '0'
+                      }}
+                    >
+                      <div className="sidebar-flyout-header">{item.name}</div>
+                      {item.submenu.map(subItem => (
+                        <Link
+                          key={subItem.path}
+                          to={subItem.path}
+                          className={`sidebar-flyout-item ${location.pathname === subItem.path ? 'active' : ''}`}
+                          onClick={onMobileClose}
+                        >
+                          <i className={`bi ${subItem.icon}`}></i>
+                          <span>{subItem.name}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : (
                 // Standard Item
-                <Link
-                  to={item.path}
-                  className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}
-                  onClick={onMobileClose}
-                >
-                  <i className={`bi ${item.icon}`}></i>
-                  <span className="sidebar-label">{item.name}</span>
-                </Link>
+                <>
+                  <Link
+                    to={item.path}
+                    className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}
+                    onClick={onMobileClose}
+                  >
+                    <i className={`bi ${item.icon}`}></i>
+                  </Link>
+
+                  {/* Fixed Label via JS - Rendered outside overflow container effectively due to fixed pos */}
+                  {hoveredSubmenu?.path === item.path && (
+                    <div
+                      style={{
+                        position: 'fixed',
+                        top: hoveredSubmenu.top + 10, // Slightly centered (50px height -> 10px padding top/bottom roughly)
+                        left: '80px',
+                        backgroundColor: '#1a1a1a',
+                        color: 'white',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '0 4px 4px 0',
+                        whiteSpace: 'nowrap',
+                        zIndex: 1002,
+                        border: '1px solid #333',
+                        borderLeft: 'none',
+                        boxShadow: '4px 0 10px rgba(0,0,0,0.5)',
+                        fontWeight: '500',
+                        fontSize: '0.9rem',
+                        pointerEvents: 'none' // Don't block clicking things if overlapping (shouldn't happen here)
+                      }}
+                    >
+                      {item.name}
+                    </div>
+                  )}
+                </>
               )}
 
             </div>

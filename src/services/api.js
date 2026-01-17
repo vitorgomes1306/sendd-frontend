@@ -143,6 +143,14 @@ export const apiService = {
   getChatClientInfo: (chatId) => api.get(`/private/chats/${chatId}/client-info`),
   linkClientToChat: (chatId, clientId) => api.post(`/private/chats/${chatId}/link-client`, { clientId }),
   syncClientForChat: (chatId) => api.post(`/private/chats/${chatId}/sync-client`),
+  sendMessageManual: (chatId, data) => api.post(`/private/chats/${chatId}/send-message`, data),
+  performUnlock: (chatId, contractId) => api.post(`/private/chats/${chatId}/unlock`, { contractId }),
+
+  // Ticket / Chamados
+  getTicketSubjects: (chatId) => api.get(`/private/chats/${chatId}/ticket-subjects`),
+  createTicket: (chatId, data) => api.post(`/private/chats/${chatId}/ticket`, data),
+  getTickets: (chatId, contractId) => api.post(`/private/chats/${chatId}/tickets`, { contractId }),
+  checkConnection: (data) => api.post('/private/integrations/check-connection', data),
 
   // Campanhas
   getCampaigns: (params) => api.get('/private/campaigns', { params }),

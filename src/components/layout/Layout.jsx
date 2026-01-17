@@ -399,7 +399,7 @@ const Layout = ({ children }) => {
             fontFamily: 'Poppins, sans-serif'
           }}>
             <a
-              href="https://vixplay.altersoft.dev.br"
+              href="https://sendd.altersoft.dev.br"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -410,7 +410,7 @@ const Layout = ({ children }) => {
               onMouseEnter={(e) => e.target.style.color = currentTheme.primary || '#3b82f6'}
               onMouseLeave={(e) => e.target.style.color = 'inherit'}
             >
-              © 2025 Vix Play - Sistema de Gerenciamento de Mídia indoor e Tv corporativa
+              © 2025 Sendd - Sistema de Gerenciamento multiplataforma WhatsApp
             </a>
           </footer>
         )}

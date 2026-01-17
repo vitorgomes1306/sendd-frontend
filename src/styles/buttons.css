@@ -97,3 +97,29 @@
 .btn-remove-tag:hover {
   background-color: rgba(0, 0, 0, 0.2);
 }
+
+/* Botoes do chat em cima*/
+
+.btn-hover-circle {
+  position: relative;
+}
+
+/* círculo de destaque */
+.btn-hover-circle::before {
+  content: '';
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 77, 79, 0.15);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: all 0.2s ease;
+  z-index: -1;
+}
+
+/* hover somente se NÃO estiver desabilitado */
+.btn-hover-circle:not(:disabled):hover::before {
+  opacity: 1;
+  transform: scale(1);
+}
