@@ -151,6 +151,8 @@ export const apiService = {
   createTicket: (chatId, data) => api.post(`/private/chats/${chatId}/ticket`, data),
   getTickets: (chatId, contractId) => api.post(`/private/chats/${chatId}/tickets`, { contractId }),
   checkConnection: (data) => api.post('/private/integrations/check-connection', data),
+  getIntegrations: (params) => api.get('/private/integrations', { params }),
+  createExternalInvoice: (data) => api.post('/private/integrations/create-invoice', data),
 
   // Campanhas
   getCampaigns: (params) => api.get('/private/campaigns', { params }),

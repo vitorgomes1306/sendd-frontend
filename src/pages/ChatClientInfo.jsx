@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../contexts/ToastContext';
-import { User, MapPin, FileText, CheckCircle, LockKeyholeOpen, AlertTriangle, Wifi, FileCheck, ClipboardList, MonitorUp, PenTool, Plus, Trash2, X, Link, Search, RefreshCw, QrCode, Barcode, MessageSquare, Send, CircleDollarSign, Zap } from 'lucide-react';
+import { User, MapPin, FileText, CheckCircle, Bitcoin, LockKeyholeOpen, AlertTriangle, Wifi, FileCheck, ClipboardList, MonitorUp, PenTool, Plus, Trash2, X, Link, Search, RefreshCw, QrCode, Barcode, MessageSquare, Send, CircleDollarSign, Zap } from 'lucide-react';
 
 // ... (existing code top)
 
@@ -104,6 +104,9 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
     const [showConnectionModal, setShowConnectionModal] = useState(false);
     const [connectionData, setConnectionData] = useState({ loading: false, result: null, error: null });
 
+    // Integrations State
+    const [integrations, setIntegrations] = useState([]);
+
 
 
     useEffect(() => {
@@ -112,6 +115,12 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
             loadClientInfo();
         }
     }, [chat?.id]);
+
+    useEffect(() => {
+        if (clientInfo?.organizationId) {
+            loadIntegrations(clientInfo.organizationId);
+        }
+    }, [clientInfo?.organizationId]);
 
     useEffect(() => {
         if (chat?.context?.selected_contract && clientInfo?.contracts) {
@@ -128,11 +137,11 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
             setLoading(true);
 
             // Tentar sincronizar dados atualizados do ERP/Integração antes de exibir
-            try {
-                await apiService.syncClientForChat(chat.id);
-            } catch (err) {
-                console.warn("[ChatClientInfo] Sync failed, proceeding with existing data:", err);
-            }
+            // try {
+            //     await apiService.syncClientForChat(chat.id);
+            // } catch (err) {
+            //     console.warn("[ChatClientInfo] Sync failed, proceeding with existing data:", err);
+            // }
 
             const response = await apiService.getChatClientInfo(chat.id);
             const data = response.data?.client;
@@ -205,6 +214,18 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
             setLoading(false);
         }
     };
+
+    const loadIntegrations = async (orgId) => {
+        try {
+            const response = await apiService.getIntegrations({ organizationId: orgId });
+            setIntegrations(response.data || []);
+        } catch (err) {
+            console.error('Erro ao carregar integrações:', err);
+        }
+    };
+
+    // Check if ISP_FLASH is active
+    const ispFlashIntegration = integrations.find(i => i.type === 'ISP_FLASH' && i.active);
 
     // Invoice Handlers
     const executeUnlock = async () => {
@@ -377,6 +398,81 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
         } else if (type === 'manual') {
             // Disable manual message
             return toast.info("Função desabilitada no momento");
+        } else if (type === 'pix_cripto') {
+            if (!ispFlashIntegration) return toast.warning('Integração ISP FLASH não configurada.');
+
+            try {
+                // Determine Boleto ID
+                const boletoId = invoice.externalId || invoice.id; // Try external first
+                if (!boletoId) return toast.warning('ID do boleto não identificado na fatura.');
+
+                const cleanCpf = clientInfo.cpfCnpj ? clientInfo.cpfCnpj.replace(/\D/g, '') : '';
+                if (!cleanCpf) return toast.warning('CPF/CNPJ não encontrado no cadastro.');
+
+                toast.info('Gerando PIX Cripto...');
+
+                let baseUrl = ispFlashIntegration.url;
+                if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+
+                // User provided example: https://ispflash.space/api/isp/vlinktelecom/gerar-boleto?cpf=...
+                // Previously assumed: /token/gerar-boleto
+                // Adapting to user example which suggests /gerar-boleto might be direct if base url includes /api/isp/company
+                // However, I will keep /token/ if that was the original spec, BUT user usage suggests checking path.
+                // The safest is to stick to the previous path but changing to POST as explicitly requested.
+                // User example: https://ispflash.space/api/isp/vlinktelecom/gerar-boleto
+
+                const endpoint = `${baseUrl}/${ispFlashIntegration.token}/gerar-boleto?cpf=${cleanCpf}&boletos=${boletoId}`;
+
+                console.log('Gerando PIX Cripto POST:', endpoint);
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (!response.ok) throw new Error('Falha na comunicação com ISP FLASH');
+
+                const data = await response.json();
+
+                const qrCopyPaste = data.pix?.data?.response?.qrCopyPaste;
+                const value = data.reais;
+
+                if (qrCopyPaste) {
+                    messagesToSend.push({ text: `Segue PIX Cripto da fatura *${invoice.description}* (R$ ${value}):` });
+                    messagesToSend.push({ text: qrCopyPaste });
+
+                    // Generate Short Link via Backend
+                    try {
+                        const invoiceData = {
+                            clientId: clientInfo.id,
+                            contractId: selectedContract?.id,
+                            externalId: String(boletoId),
+                            value: value,
+                            description: invoice.description,
+                            pixCode: qrCopyPaste,
+                            dueDate: invoice.dueDate,
+                            digitableLine: invoice.digitableLine,
+                            clientName: clientInfo.name
+                        };
+
+                        const shortLinkRes = await apiService.createExternalInvoice(invoiceData);
+                        if (shortLinkRes.data && shortLinkRes.data.token) {
+                            const publicLink = `${window.location.origin}/fatura/${shortLinkRes.data.token}`;
+                            messagesToSend.push({ text: `Ou pague pelo link:\n${publicLink}` });
+                        }
+                    } catch (linkErr) {
+                        console.error('Error creating short link:', linkErr);
+                    }
+
+                } else {
+                    return toast.warning('PIX não retornado pela integração.');
+                }
+
+            } catch (err) {
+                console.error(err);
+                return toast.error('Erro ao gerar PIX Cripto: ' + err.message);
+            }
         }
 
         if (messagesToSend.length === 0) return toast.warning('Dado não disponível para esta fatura');
@@ -700,6 +796,7 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
                                                     invoice={inv}
                                                     onAction={handleSendInvoiceOption}
                                                     styles={styles}
+                                                    hasIspFlash={!!ispFlashIntegration}
                                                 />
                                             </td>
                                         </tr>
@@ -1006,7 +1103,7 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
                                                             <span style={{ backgroundColor: '#10b981', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>ONLINE</span>
                                                         </div>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <MonitorUp style={{ color: '#10b981' }} alt="Acessar roteador do cliente"/>
+                                                            <MonitorUp style={{ color: '#10b981' }} alt="Acessar roteador do cliente" />
                                                             <span style={{ fontWeight: '600', color: '#374151', fontSize: '13px' }}>IP:</span>
                                                             <a href={`http://${ip}:8888`} target="_blank" rel="noopener noreferrer" alt="Acessar roteador do cliente"><span style={{ fontFamily: 'monospace', color: '#6b7280', fontSize: '13px' }}>{ip || '-'}</span></a>
                                                         </div>
@@ -1102,7 +1199,7 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
     );
 };
 
-const InvoiceDropdown = ({ invoice, onAction, styles }) => {
+const InvoiceDropdown = ({ invoice, onAction, styles, hasIspFlash }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = React.useRef(null);
 
@@ -1135,13 +1232,18 @@ const InvoiceDropdown = ({ invoice, onAction, styles }) => {
                     marginTop: '4px', textAlign: 'left'
                 }}>
                     {invoice.digitableLine && (
-                        <div style={styles.menuItem} onClick={() => { onAction(invoice, 'linha'); setIsOpen(false); }} o>
+                        <div style={styles.menuItem} onClick={() => { onAction(invoice, 'linha'); setIsOpen(false); }}>
                             <Barcode size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Linha Digitável
                         </div>
                     )}
                     {invoice.pixCode && (
                         <div style={styles.menuItem} onClick={() => { onAction(invoice, 'pix'); setIsOpen(false); }}>
                             <QrCode size={14} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Chave PIX
+                        </div>
+                    )}
+                    {hasIspFlash && (
+                        <div style={styles.menuItem} onClick={() => { onAction(invoice, 'pix_cripto'); setIsOpen(false); }}>
+                            <Bitcoin size={14} style={{ marginRight: '8px', verticalAlign: 'middle', color: '#f59e0b' }} /> PIX Cripto
                         </div>
                     )}
                     {invoice.pixCode && (

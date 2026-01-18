@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { Download, Copy, CheckCircle, AlertTriangle, FileText, Barcode, QrCode, AlertCircle } from 'lucide-react';
 import logoSendd from '../../src/assets/img/sendd2.png';
@@ -8,6 +8,7 @@ import QRCode from 'qrcode';
 
 const PublicInvoice = () => {
     const { token } = useParams();
+    const location = useLocation();
     const [invoice, setInvoice] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -17,6 +18,69 @@ const PublicInvoice = () => {
 
     useEffect(() => {
         const fetchInvoice = async () => {
+            // Check if we have data passed via state (from ISP FLASH integration)
+            if (location.state?.invoiceData) {
+                const data = location.state.invoiceData;
+                setInvoice({
+                    value: data.reais,
+                    clientName: data.customer?.nome || 'Cliente',
+                    clientDoc: data.customer?.cpf_cnpj || '---',
+                    pixCode: data.pix?.data?.response?.qrCopyPaste,
+                    description: 'Fatura ISP Flash',
+                    dueDate: new Date().toISOString(), // Default to now as we don't have due date in this response
+                    status: 'PENDING'
+                });
+
+                if (data.pix?.data?.response?.qrImageUrl) {
+                    setQrCodeUrl(data.pix.data.response.qrImageUrl);
+                }
+
+                setLoading(false);
+                return;
+                setLoading(false);
+                return;
+            }
+
+            // Check if we have data passed via URL query param (base64 encoded)
+            const searchParams = new URLSearchParams(location.search);
+            const dataParam = searchParams.get('data');
+
+            if (dataParam) {
+                try {
+                    const decoded = JSON.parse(atob(dataParam));
+                    // Handle both old full structure (fallback) and new minimal structure
+                    const pixCode = decoded.p || decoded.pix?.data?.response?.qrCopyPaste;
+
+                    setInvoice({
+                        value: decoded.v || decoded.reais,
+                        clientName: decoded.n || decoded.customer?.nome || 'Cliente',
+                        clientDoc: decoded.d || decoded.customer?.cpf_cnpj || '---',
+                        pixCode: pixCode,
+                        description: 'Fatura ISP Flash',
+                        dueDate: new Date().toISOString(),
+                        status: 'PENDING'
+                    });
+
+                    // Generate QR Code locally if not provided in URL
+                    const remoteQr = decoded.pix?.data?.response?.qrImageUrl;
+                    if (remoteQr) {
+                        setQrCodeUrl(remoteQr);
+                    } else if (pixCode) {
+                        try {
+                            const url = await QRCode.toDataURL(pixCode);
+                            setQrCodeUrl(url);
+                        } catch (qrErr) {
+                            console.error("Error generating QR:", qrErr);
+                        }
+                    }
+
+                    setLoading(false);
+                    return;
+                } catch (e) {
+                    console.error('Failed to parse invoice data from URL', e);
+                }
+            }
+
             try {
                 const response = await apiService.get(`/public/invoice/${token}`);
                 setInvoice(response.data);
@@ -39,7 +103,7 @@ const PublicInvoice = () => {
             }
         };
         fetchInvoice();
-    }, [token]);
+    }, [token, location.search]);
 
     const handleCopyPix = () => {
         if (!invoice?.pixCode) return;

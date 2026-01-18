@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, MessageSquare, DollarSign, BarChart, MapPin, Mail, Phone, Edit, Trash2, Send, X, Paperclip, Image as ImageIcon, Video, FileText, Music, Upload, CircleDollarSign, Wifi, RefreshCw } from 'lucide-react';
+import { ArrowLeft, User, MessageSquare, DollarSign, BarChart, MapPin, Mail, Phone, Edit, Trash2, Send, X, Paperclip, Image as ImageIcon, Video, FileText, Music, Upload, CircleDollarSign, Wifi, RefreshCw, CreditCard } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { apiService, getApiBaseUrl } from '../services/api';
 import AlertToast from '../components/ui/AlertToast';
@@ -39,6 +39,12 @@ const ClientDetails = () => {
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [connectionData, setConnectionData] = useState({ loading: false, result: null, error: null });
 
+  // States for Invoice Integration (ISP_FLASH)
+  const [integrations, setIntegrations] = useState([]);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceBoletoId, setInvoiceBoletoId] = useState('');
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
+
   // Helpers
   const formatBytes = (bytes, decimals = 2) => {
     if (!bytes) return '0 Bytes';
@@ -67,8 +73,17 @@ const ClientDetails = () => {
   useEffect(() => {
     loadClient();
     loadInstances();
+    loadClient();
+    loadInstances();
     loadMessages(); // Carregar mensagens ao montar
+    if (client?.organizationId || id) loadIntegrations();
   }, [id]);
+
+  useEffect(() => {
+    if (client?.organizationId) {
+      loadIntegrations(client.organizationId);
+    }
+  }, [client]);
 
   const loadClient = async () => {
     try {
@@ -124,6 +139,80 @@ const ClientDetails = () => {
       setInstances(available.length > 0 ? available : allInstances);
     } catch (err) {
       console.error('Erro ao carregar instâncias:', err);
+    }
+  };
+
+  const loadIntegrations = async (orgId) => {
+    try {
+      const response = await apiService.getIntegrations({ organizationId: orgId });
+      setIntegrations(response.data || []);
+    } catch (err) {
+      console.error('Erro ao carregar integrações:', err);
+    }
+  };
+
+  const ispFlashIntegration = integrations.find(i => i.type === 'ISP_FLASH' && i.active);
+
+  const handleGenerateInvoice = async (e) => {
+    e.preventDefault();
+    if (!invoiceBoletoId.trim()) {
+      setError('Por favor, informe o ID do Boleto.');
+      return;
+    }
+
+    if (!client.cpfCnpj) {
+      setError('Cliente não possui CPF/CNPJ cadastrado.');
+      return;
+    }
+
+    if (!ispFlashIntegration) {
+      setError('Integração ISP_FLASH não encontrada ou inativa.');
+      return;
+    }
+
+    setGeneratingInvoice(true);
+    setError('');
+
+    try {
+      // Construct the URL
+      const cleanCpf = client.cpfCnpj.replace(/\D/g, '');
+      // Assuming current integration url structure based on request
+      // URL/token/gerar-boleto?cpf=CPF&boletos=ID
+
+      let baseUrl = ispFlashIntegration.url;
+      if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+
+      const endpoint = `${baseUrl}/${ispFlashIntegration.token}/gerar-boleto?cpf=${cleanCpf}&boletos=${invoiceBoletoId}`;
+
+      console.log('Generando Fatura ISP Flash POST:', endpoint);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro na requisição: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Navigate to preview
+      setShowInvoiceModal(false);
+      setInvoiceBoletoId('');
+
+      // We navigate to a specific public invoice route but passing data via state
+      // We can use a dummy token or a specific route. existing route is /fatura/:token
+      // We can use 'preview' as token and handle it in PublicInvoice
+      navigate('/fatura/preview', { state: { invoiceData: data } });
+
+    } catch (err) {
+      console.error('Erro ao gerar fatura:', err);
+      setError('Erro ao gerar fatura. Verifique os dados e tente novamente.');
+    } finally {
+      setGeneratingInvoice(false);
     }
   };
 
@@ -313,6 +402,15 @@ const ClientDetails = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          {ispFlashIntegration && (
+            <button
+              onClick={() => setShowInvoiceModal(true)}
+              style={{ ...styles.sendButton, backgroundColor: '#10b981', ':hover': { backgroundColor: '#059669' } }}
+            >
+              <CreditCard size={18} />
+              Faturas
+            </button>
+          )}
           <button
             onClick={handleCheckConnection}
             style={{ ...styles.sendButton, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}
@@ -772,6 +870,52 @@ const ClientDetails = () => {
           </div>
         )
       }
+      {/* Modal de Faturas (ISP FLASH) */}
+      {showInvoiceModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>Gerar Fatura (ISP Flash)</h2>
+              <button onClick={() => setShowInvoiceModal(false)} style={styles.closeButton}>
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleGenerateInvoice} style={styles.modalContent}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>ID do Boleto *</label>
+                <input
+                  type="text"
+                  value={invoiceBoletoId}
+                  onChange={(e) => setInvoiceBoletoId(e.target.value)}
+                  style={styles.input}
+                  placeholder="Digite o ID do boleto"
+                  required
+                />
+                <span style={{ ...styles.helperText, color: '#6b7280' }}>
+                  Informe o ID do boleto para gerar o PIX/Código de Barras.
+                </span>
+              </div>
+              <div style={styles.modalActions}>
+                <button
+                  type="button"
+                  onClick={() => setShowInvoiceModal(false)}
+                  style={styles.cancelButton}
+                  disabled={generatingInvoice}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={styles.sendButton}
+                  disabled={generatingInvoice || !invoiceBoletoId}
+                >
+                  {generatingInvoice ? 'Gerando...' : 'Gerar Fatura'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
