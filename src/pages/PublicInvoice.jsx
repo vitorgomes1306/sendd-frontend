@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { apiService } from '../services/api';
+import { apiService, getApiBaseUrl } from '../services/api';
 import { Download, Copy, CheckCircle, AlertTriangle, FileText, Barcode, QrCode, AlertCircle } from 'lucide-react';
 import logoSendd from '../../src/assets/img/sendd2.png';
 
@@ -130,6 +130,7 @@ const PublicInvoice = () => {
     );
 
     const isPaid = invoice.status?.toLowerCase() === 'pago' || invoice.status?.toLowerCase() === 'liquidado';
+    const apiBaseUrl = getApiBaseUrl();
 
     return (
         <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif' }} className="invoice-container">
@@ -139,6 +140,11 @@ const PublicInvoice = () => {
                 .invoice-header { padding: 24px; }
                 .invoice-value { fontSize: 28px; }
                 
+                @media (max-width: 768px) {
+                    .invoice-wrapper { flexDirection: column !important; alignItems: center !important; }
+                    .org-card { width: 100% !important; maxWidth: 420px !important; }
+                }
+
                 @media (max-width: 480px) {
                     .invoice-container { padding: 12px; }
                     .invoice-card-content { padding: 16px; }
@@ -147,155 +153,212 @@ const PublicInvoice = () => {
                 }
             `}</style>
 
-            <div style={{ width: '100%', maxWidth: '420px', backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)', overflow: 'hidden' }}>
+            <div className="invoice-wrapper" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start', width: '100%', maxWidth: '900px' }}>
 
-                {/* Header */}
-                <div className="invoice-header" style={{ backgroundColor: '#2563eb', color: 'white', textAlign: 'center' }}>
-                    <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>Pagamento de Fatura</div>
-                    <div className="invoice-value" style={{ fontWeight: 'bold' }}>
-                        {Number(invoice.value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </div>
-                    <div style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '20px', fontSize: '13px' }}>
-                        {isPaid ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
-                        {isPaid ? 'Paga' : `Vence em ${new Date(invoice.dueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`}
-                    </div>
-                </div>
+                {/* INVOICE CARD */}
+                <div style={{ width: '100%', maxWidth: '420px', backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)', overflow: 'hidden' }}>
 
-                {/* Content */}
-                <div className="invoice-card-content">
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-                        {/* Client Info */}
-                        <div style={{ fontSize: '14px', color: '#4b5563', borderBottom: '1px solid #eee', paddingBottom: '16px' }}>
-                            <div style={{ fontWeight: '600', color: '#111', fontSize: '16px', marginBottom: '2px' }}>{invoice.clientName}</div>
-                            <div style={{ fontSize: '13px' }}>Doc: {invoice.clientDoc || '---'}</div>
-                            <div style={{ marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>Ref: {invoice.description || 'Fatura mensal'}</div>
+                    {/* Header */}
+                    <div className="invoice-header" style={{ backgroundColor: '#2563eb', color: 'white', textAlign: 'center' }}>
+                        <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>Pagamento de Fatura</div>
+                        <div className="invoice-value" style={{ fontWeight: 'bold' }}>
+                            {Number(invoice.value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </div>
+                        <div style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '20px', fontSize: '13px' }}>
+                            {isPaid ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
+                            {isPaid ? 'Paga' : `Vence em ${new Date(invoice.dueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`}
+                        </div>
+                    </div>
 
-                        {/* PIX Option */}
-                        {invoice.pixCode && !isPaid && (
-                            <div>
-                                <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                    <QrCode size={18} color="#2563eb" /> Pix Copia e Cola
-                                </label>
+                    {/* Content */}
+                    <div className="invoice-card-content">
 
-                                {/* QR Code Image */}
-                                {qrCodeUrl && (
-                                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-                                        <img src={qrCodeUrl} alt="QR Code PIX" style={{ width: '180px', height: '180px', border: '1px solid #eee', borderRadius: '8px' }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+                            {/* Client Info */}
+                            <div style={{ fontSize: '14px', color: '#4b5563', borderBottom: '1px solid #eee', paddingBottom: '16px' }}>
+                                <div style={{ fontWeight: '600', color: '#111', fontSize: '16px', marginBottom: '2px' }}>{invoice.clientName}</div>
+                                <div style={{ fontSize: '13px' }}>Doc: {invoice.clientDoc || '---'}</div>
+                                <div style={{ marginTop: '6px', fontSize: '13px', color: '#6b7280' }}>Ref: {invoice.description || 'Fatura mensal'}</div>
+                            </div>
+
+                            {/* PIX Option */}
+                            {invoice.pixCode && !isPaid && (
+                                <div>
+                                    <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                        <QrCode size={18} color="#2563eb" /> Pix Copia e Cola
+                                    </label>
+
+                                    {/* QR Code Image */}
+                                    {qrCodeUrl && (
+                                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                                            <img src={qrCodeUrl} alt="QR Code PIX" style={{ width: '180px', height: '180px', border: '1px solid #eee', borderRadius: '8px' }} />
+                                        </div>
+                                    )}
+
+                                    <div style={{ position: 'relative' }}>
+                                        <textarea
+                                            readOnly
+                                            value={invoice.pixCode}
+                                            style={{ width: '100%', height: '80px', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '13px', resize: 'none', backgroundColor: '#f9fafb', color: '#4b5563', fontFamily: 'monospace' }}
+                                        />
+                                        <button
+                                            onClick={handleCopyPix}
+                                            style={{
+                                                width: '100%',
+                                                padding: '14px',
+                                                marginTop: '8px',
+                                                backgroundColor: copiedPix ? '#10b981' : '#2563eb',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                fontSize: '15px',
+                                                fontWeight: '600',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '8px',
+                                                transition: 'transform 0.1s',
+                                                transform: copiedPix ? 'scale(0.98)' : 'scale(1)'
+                                            }}
+                                        >
+                                            {copiedPix ? <CheckCircle size={20} /> : <Copy size={20} />}
+                                            {copiedPix ? 'Copiado para área de transferência!' : 'Copiar Código Pix'}
+                                        </button>
                                     </div>
-                                )}
+                                </div>
+                            )}
 
-                                <div style={{ position: 'relative' }}>
-                                    <textarea
-                                        readOnly
-                                        value={invoice.pixCode}
-                                        style={{ width: '100%', height: '80px', padding: '12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '13px', resize: 'none', backgroundColor: '#f9fafb', color: '#4b5563', fontFamily: 'monospace' }}
-                                    />
+                            {/* Barcode Option */}
+                            {(invoice.digitableLine || invoice.barCode) && !isPaid && (
+                                <div style={{ marginTop: '8px' }}>
+                                    <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                        <Barcode size={18} color="#2563eb" /> Código de Barras
+                                    </label>
+                                    <div style={{ backgroundColor: '#f3f4f6', padding: '14px', borderRadius: '8px', fontSize: '13px', wordBreak: 'break-all', fontFamily: 'monospace', color: '#374151', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                                        {invoice.digitableLine || invoice.barCode}
+                                    </div>
                                     <button
-                                        onClick={handleCopyPix}
+                                        onClick={handleCopyBar}
                                         style={{
                                             width: '100%',
-                                            padding: '14px',
+                                            padding: '12px',
                                             marginTop: '8px',
-                                            backgroundColor: copiedPix ? '#10b981' : '#2563eb',
-                                            color: 'white',
-                                            border: 'none',
+                                            backgroundColor: 'white',
+                                            color: copiedBar ? '#10b981' : '#374151',
+                                            border: `1px solid ${copiedBar ? '#10b981' : '#d1d5db'}`,
                                             borderRadius: '8px',
-                                            fontSize: '15px',
+                                            fontSize: '14px',
                                             fontWeight: '600',
                                             cursor: 'pointer',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                             gap: '8px',
-                                            transition: 'transform 0.1s',
-                                            transform: copiedPix ? 'scale(0.98)' : 'scale(1)'
+                                            transition: '0.2s'
                                         }}
                                     >
-                                        {copiedPix ? <CheckCircle size={20} /> : <Copy size={20} />}
-                                        {copiedPix ? 'Copiado para área de transferência!' : 'Copiar Código Pix'}
+                                        {copiedBar ? <CheckCircle size={18} /> : <Copy size={18} />}
+                                        {copiedBar ? 'Copiado!' : 'Copiar Números'}
                                     </button>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Barcode Option */}
-                        {(invoice.digitableLine || invoice.barCode) && !isPaid && (
-                            <div style={{ marginTop: '8px' }}>
-                                <label style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                    <Barcode size={18} color="#2563eb" /> Código de Barras
-                                </label>
-                                <div style={{ backgroundColor: '#f3f4f6', padding: '14px', borderRadius: '8px', fontSize: '13px', wordBreak: 'break-all', fontFamily: 'monospace', color: '#374151', border: '1px solid #e5e7eb', textAlign: 'center' }}>
-                                    {invoice.digitableLine || invoice.barCode}
-                                </div>
-                                <button
-                                    onClick={handleCopyBar}
+                            {/* PDF Download */}
+                            {invoice.pdfLink && (
+                                <a
+                                    href={invoice.pdfLink}
+                                    target="_blank"
+                                    rel="noreferrer"
                                     style={{
-                                        width: '100%',
-                                        padding: '12px',
-                                        marginTop: '8px',
-                                        backgroundColor: 'white',
-                                        color: copiedBar ? '#10b981' : '#374151',
-                                        border: `1px solid ${copiedBar ? '#10b981' : '#d1d5db'}`,
-                                        borderRadius: '8px',
-                                        fontSize: '14px',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         gap: '8px',
-                                        transition: '0.2s'
+                                        width: '100%',
+                                        padding: '14px',
+                                        backgroundColor: '#f3f4f6',
+                                        color: '#4b5563',
+                                        textDecoration: 'none',
+                                        borderRadius: '8px',
+                                        fontWeight: '600',
+                                        fontSize: '14px',
+                                        border: '1px solid #e5e7eb',
+                                        marginTop: '8px'
                                     }}
                                 >
-                                    {copiedBar ? <CheckCircle size={18} /> : <Copy size={18} />}
-                                    {copiedBar ? 'Copiado!' : 'Copiar Números'}
-                                </button>
-                            </div>
-                        )}
+                                    <FileText size={18} />
+                                    Baixar PDF Original
+                                </a>
+                            )}
 
-                        {/* PDF Download */}
-                        {invoice.pdfLink && (
-                            <a
-                                href={invoice.pdfLink}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px',
-                                    width: '100%',
-                                    padding: '14px',
-                                    backgroundColor: '#f3f4f6',
-                                    color: '#4b5563',
-                                    textDecoration: 'none',
-                                    borderRadius: '8px',
-                                    fontWeight: '600',
-                                    fontSize: '14px',
-                                    border: '1px solid #e5e7eb',
-                                    marginTop: '8px'
-                                }}
-                            >
-                                <FileText size={18} />
-                                Baixar PDF Original
-                            </a>
-                        )}
+                        </div>
+                    </div>
 
+                    <div style={{ backgroundColor: '#f9fafb', padding: '16px', textAlign: 'center', fontSize: '12px', color: '#9ca3af', borderTop: '1px solid #eee' }}>
+                        <AlertCircle size={18} color="#dc2626" />
+                        Esta cobrança é de total responsabilidade do emitente. Verifique todos os dados antes de realizar o pagamento.
                     </div>
                 </div>
 
-                <div style={{ backgroundColor: '#f9fafb', padding: '16px', textAlign: 'center', fontSize: '12px', color: '#9ca3af', borderTop: '1px solid #eee' }}>
-                    <AlertCircle size={18} color="#dc2626" />
-                    Esta cobrança é de total responsabilidade do emitente. Verifique todos os dados antes de realizar o pagamento e se tiver dúvidas, confirme com a empresa emitente sua autoria.
-                </div>
-                <div style={{ textAlign: 'center', marginTop: '16px' }}>
-                    <strong style={{ color: '#111827', fontSize: '12px' }}>Desenvolvido por:</strong>
-                </div>
-                <div style={{ textAlign: 'center', marginTop: '16px' }}>
-                    <a href="https://sendd.altersoft.dev.br" target="_blank" rel="noreferrer"><img src={logoSendd} alt="Logo Sendd" style={{ width: '100px', height: '100px', objectFit: 'contain' }} /></a>
+                {/* ORGANIZATION INFO CARD */}
+                {invoice.organization && (
+                    <div className="org-card" style={{
+                        width: '100%',
+                        maxWidth: '350px',
+                        backgroundColor: 'white',
+                        borderRadius: '16px',
+                        padding: '24px',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        alignSelf: 'flex-start'
+                    }}>
+                        <h3 style={{ fontSize: '18px', marginBottom: '16px', color: '#111827', fontWeight: '600' }}>Dados do Emissor</h3>
+
+                        {invoice.organization.logo && (
+                            <img
+                                src={`${apiBaseUrl}/${invoice.organization.logo}`}
+                                alt="Logo Empresa"
+                                style={{ maxWidth: '140px', maxHeight: '140px', objectFit: 'contain', marginBottom: '20px', borderRadius: '8px' }}
+                            />
+                        )}
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+                            <div style={{ borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
+                                <div style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Razão Social</div>
+                                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#374151', marginTop: '4px' }}>{invoice.organization.razaoSocial}</div>
+                                {invoice.organization.nomeFantasia && (
+                                    <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '2px' }}>{invoice.organization.nomeFantasia}</div>
+                                )}
+                            </div>
+
+                            <div style={{ borderBottom: '1px solid #f3f4f6', paddingBottom: '12px' }}>
+                                <div style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>CNPJ</div>
+                                <div style={{ fontSize: '14px', fontWeight: '500', color: '#374151', fontFamily: 'monospace', marginTop: '4px' }}>{invoice.organization.cnpj}</div>
+                            </div>
+
+                            {(invoice.organization.email || invoice.organization.telefone) && (
+                                <div style={{ paddingTop: '4px' }}>
+                                    <div style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Contato</div>
+                                    {invoice.organization.email && <div style={{ fontSize: '14px', color: '#374151', wordBreak: 'break-all', marginBottom: '4px' }}>{invoice.organization.email}</div>}
+                                    {invoice.organization.telefone && <div style={{ fontSize: '14px', color: '#374151' }}>{invoice.organization.telefone}</div>}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: '24px', opacity: 0.8 }}>
+                <strong style={{ color: '#111827', fontSize: '12px' }}>Plataforma:</strong>
+                <div style={{ marginTop: '8px' }}>
+                    <a href="https://sendd.altersoft.dev.br" target="_blank" rel="noreferrer">
+                        <img src={logoSendd} alt="Logo Sendd" style={{ height: '32px', objectFit: 'contain', filter: 'grayscale(100%)', opacity: 0.6 }} />
+                    </a>
                 </div>
             </div>
         </div>
