@@ -453,6 +453,19 @@ const FlowBuilder = ({ flowId, onBack }) => {
                                     )}
 
                                     <div>
+                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Tipo da Ação (SGP)</label>
+                                        <select
+                                            className="form-input"
+                                            value={editingNode.config?.action || 'sync'}
+                                            onChange={e => handleConfigChange('action', e.target.value)}
+                                        >
+                                            <option value="sync">Identificação (Sincronizar)</option>
+                                            <option value="invoice">2ª Via de Fatura</option>
+                                            <option value="unlock">Desbloqueio de Confiança</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
                                         <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
                                             Mapeamento da Resposta
                                             <button type="button" onClick={addMappingRow} style={{ color: currentTheme.primary, background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer' }}>+ Adicionar</button>
@@ -474,6 +487,22 @@ const FlowBuilder = ({ flowId, onBack }) => {
                                             </div>
                                         ))}
                                     </div>
+
+                                    {editingNode.config?.action === 'invoice' && (
+                                        <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                                            <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#166534' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editingNode.config?.preferIspFlash || false}
+                                                    onChange={e => handleConfigChange('preferIspFlash', e.target.checked)}
+                                                />
+                                                Priorizar Link ISP Flash
+                                            </label>
+                                            <p style={{ fontSize: '10px', color: '#15803d', margin: '4px 0 0 22px' }}>
+                                                Se houver uma integração ISP Flash ativa, o bot tentará gerar e enviar o link por ela.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
