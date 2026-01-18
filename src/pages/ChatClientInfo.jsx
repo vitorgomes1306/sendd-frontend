@@ -545,7 +545,7 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
             {/* Contract Selector */}
             <div style={styles.section}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{ ...styles.label, marginBottom: 0 }}>CONTRATOS</label>
+                    <label style={{ ...styles.label, marginBottom: 0 }}>CONTRATOS DO CLIENTE</label>
                     <button
                         onClick={() => setShowAddModal(true)}
                         style={styles.plusButton}
