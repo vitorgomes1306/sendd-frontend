@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import InstanceModal from '../components/ui/InstanceModal';
-import { apiService } from '../services/api';
+import AlertToast from '../components/ui/AlertToast'; // Import AlertToast
+import { apiService, getApiBaseUrl } from '../services/api';
+import '../styles/buttons.css'
 
 const Organizations = () => {
   const { currentTheme } = useTheme();
@@ -13,6 +15,14 @@ const Organizations = () => {
   const [showInstanceModal, setShowInstanceModal] = useState(false);
   const [selectedOrganization, setSelectedOrganization] = useState(null);
   const [editingOrg, setEditingOrg] = useState(null);
+  const [logoFile, setLogoFile] = useState(null); // State for the logo file
+
+  // State variables for AlertToast
+  const [toast, setToast] = useState({ open: false, variant: 'info', title: '', message: '' });
+
+  // State variables for Delete Confirmation Modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [orgToDelete, setOrgToDelete] = useState(null);
   const [formData, setFormData] = useState({
     razaoSocial: '',
     cnpj: '',
@@ -24,8 +34,12 @@ const Organizations = () => {
     bairro: '',
     cep: '',
     estado: '',
-    cidade: ''
+    cidade: '',
+    logo: '',
   });
+
+  // Base URL for images
+  const apiBaseUrl = getApiBaseUrl();
 
   // Buscar organizações
   const fetchOrganizations = async () => {
@@ -60,8 +74,10 @@ const Organizations = () => {
       bairro: '',
       cep: '',
       estado: '',
-      cidade: ''
+      cidade: '',
+      logo: '',
     });
+    setLogoFile(null);
     setEditingOrg(null);
   };
 
@@ -84,8 +100,10 @@ const Organizations = () => {
       bairro: org.bairro || '',
       cep: org.cep || '',
       estado: org.estado || '',
-      cidade: org.cidade || ''
+      cidade: org.cidade || '',
+      logo: org.logo || '',
     });
+    setLogoFile(null); // Reset file input on edit open (user might not want to change it)
     setEditingOrg(org);
     setShowModal(true);
   };
@@ -96,41 +114,104 @@ const Organizations = () => {
     setShowInstanceModal(true);
   };
 
+  // Handle file selection
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setLogoFile(e.target.files[0]);
+    }
+  };
+
   // Salvar organização
   const handleSave = async (e) => {
     e.preventDefault();
-    
+
     try {
-      if (editingOrg) {
-        await apiService.put(`/private/organizations/${editingOrg.id}`, formData);
-      } else {
-        await apiService.post('/private/organizations', formData);
+      const data = new FormData();
+      Object.keys(formData).forEach(key => {
+        // Ignora o campo 'logo' do state formData para não enviar string
+        if (key !== 'logo') {
+          data.append(key, formData[key] || '');
+        }
+      });
+
+      if (logoFile) {
+        data.append('logo', logoFile);
       }
-      
+
+      // Config de headers não é estritamente necessária se o axios detectar FormData, 
+      // mas podemos passar explicitamente ou deixar o browser setar o boundary.
+      // apiService.post/put usam api.post/put direto.
+
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      };
+
+      if (editingOrg) {
+        await apiService.put(`/private/organizations/${editingOrg.id}`, data, config);
+        setToast({
+          open: true,
+          variant: 'success',
+          title: 'Sucesso',
+          message: 'Organização atualizada com sucesso!'
+        });
+      } else {
+        await apiService.post('/private/organizations', data, config);
+        setToast({
+          open: true,
+          variant: 'success',
+          title: 'Sucesso',
+          message: 'Organização criada com sucesso!'
+        });
+      }
+
       setShowModal(false);
       resetForm();
       fetchOrganizations();
     } catch (error) {
       console.error('Erro ao salvar organização:', error);
-      alert(error.response?.data?.error || 'Erro ao salvar organização');
+      setToast({
+        open: true,
+        variant: 'danger',
+        title: 'Erro',
+        message: error.response?.data?.error || error.response?.data?.message || 'Erro ao salvar organização'
+      });
     }
   };
 
-  // Deletar organização
-  const handleDelete = async (org) => {
-    if (!confirm(`Tem certeza que deseja deletar a organização "${org.razaoSocial}"?`)) {
-      return;
-    }
+  // Solicitar confirmação de exclusão
+  const confirmDelete = (org) => {
+    setOrgToDelete(org);
+    setShowDeleteModal(true);
+  };
+
+  // Executar exclusão
+  const executeDelete = async () => {
+    if (!orgToDelete) return;
 
     try {
-      await apiService.delete(`/private/organizations/${org.id}`);
+      await apiService.delete(`/private/organizations/${orgToDelete.id}`);
+      setToast({
+        open: true,
+        variant: 'success',
+        title: 'Sucesso',
+        message: 'Organização removida com sucesso!'
+      });
       fetchOrganizations();
     } catch (error) {
       console.error('Erro ao deletar organização:', error);
-      alert(error.response?.data?.error || 'Erro ao deletar organização');
+      setToast({
+        open: true,
+        variant: 'danger',
+        title: 'Erro',
+        message: 'Erro ao deletar organização'
+      });
+    } finally {
+      setShowDeleteModal(false);
+      setOrgToDelete(null);
     }
   };
-
   // Atualizar campo do formulário
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -186,34 +267,13 @@ const Organizations = () => {
             Gerencie suas organizações
           </p>
         </div>
-        
+
         <button
           onClick={handleCreate}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: currentTheme.primary,
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.5rem',
-            fontSize: '0.875rem',
-            fontWeight: '500',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-1px)';
-            e.target.style.boxShadow = currentTheme.shadow;
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = 'none';
-          }}
+          className="btn-base btn-new"
         >
           <i className="bi bi-plus-lg"></i>
-          Nova Organização
+          Nova Empresa
         </button>
       </div>
 
@@ -246,16 +306,8 @@ const Organizations = () => {
           </p>
           <button
             onClick={handleCreate}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: currentTheme.primary,
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.5rem',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: 'pointer'
-            }}
+            className="btn-base btn-new"
+
           >
             Criar Organização
           </button>
@@ -274,7 +326,9 @@ const Organizations = () => {
                 border: `1px solid ${currentTheme.border}`,
                 borderRadius: '0.75rem',
                 padding: '1.5rem',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                display: 'flex',
+                flexDirection: 'column'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
@@ -291,37 +345,79 @@ const Organizations = () => {
                 alignItems: 'flex-start',
                 marginBottom: '1rem'
               }}>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{
-                    fontSize: '1.125rem',
-                    fontWeight: '600',
-                    margin: '0 0 0.25rem 0',
-                    color: currentTheme.textPrimary
-                  }}>
-                    {org.razaoSocial}
-                  </h3>
-                  {org.nomeFantasia && (
-                    <p style={{
-                      fontSize: '0.875rem',
-                      color: currentTheme.textSecondary,
-                      margin: '0 0 0.5rem 0'
+                <div style={{ display: 'flex', gap: '1rem', flex: 1 }}>
+                  {/* Logo Display */}
+                  {org.logo ? (
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      border: `1px solid ${currentTheme.border}`
                     }}>
-                      {org.nomeFantasia}
-                    </p>
+                      <img
+                        src={`${apiBaseUrl}/${org.logo}`}
+                        alt={org.razaoSocial}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '8px',
+                      backgroundColor: currentTheme.borderLight, // Placeholder color
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      color: currentTheme.textSecondary
+                    }}>
+                      <i className="bi bi-building"></i>
+                    </div>
                   )}
-                  <p style={{
-                    fontSize: '0.75rem',
-                    color: currentTheme.textSecondary,
-                    margin: 0,
-                    fontFamily: 'monospace'
-                  }}>
-                    CNPJ: {org.cnpj}
-                  </p>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 style={{
+                      fontSize: '1.125rem',
+                      fontWeight: '600',
+                      margin: '0 0 0.25rem 0',
+                      color: currentTheme.textPrimary,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {org.razaoSocial}
+                    </h3>
+                    {org.nomeFantasia && (
+                      <p style={{
+                        fontSize: '0.875rem',
+                        color: currentTheme.textSecondary,
+                        margin: '0 0 0.5rem 0'
+                      }}>
+                        {org.nomeFantasia}
+                      </p>
+                    )}
+                    <p style={{
+                      fontSize: '0.75rem',
+                      color: currentTheme.textSecondary,
+                      margin: 0,
+                      fontFamily: 'monospace'
+                    }}>
+                      CNPJ: {org.cnpj}
+                    </p>
+                  </div>
                 </div>
-                
+
                 <div style={{
                   display: 'flex',
-                  gap: '0.5rem'
+                  gap: '0.5rem',
+                  marginLeft: '0.5rem'
                 }}>
                   <button
                     onClick={() => handleInstances(org)}
@@ -371,7 +467,7 @@ const Organizations = () => {
                     <i className="bi bi-pencil"></i>
                   </button>
                   <button
-                    onClick={() => handleDelete(org)}
+                    onClick={() => confirmDelete(org)}
                     style={{
                       padding: '0.5rem',
                       backgroundColor: 'transparent',
@@ -467,7 +563,8 @@ const Organizations = () => {
             width: '100%',
             maxWidth: '600px',
             maxHeight: '90vh',
-            overflow: 'auto'
+            overflow: 'auto',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
           }}>
             <div style={{
               display: 'flex',
@@ -506,6 +603,111 @@ const Organizations = () => {
                 gap: '1rem',
                 marginBottom: '1.5rem'
               }}>
+                {/* Logo Input */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    color: currentTheme.textPrimary,
+                    marginBottom: '0.5rem'
+                  }}>
+                    Logomarca da Empresa
+                  </label>
+
+                  <div
+                    onClick={() => document.getElementById('logo-upload').click()}
+                    style={{
+                      border: `2px dashed ${currentTheme.border}`,
+                      borderRadius: '0.75rem',
+                      padding: '2rem',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      backgroundColor: currentTheme.background,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: '150px',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = currentTheme.primary;
+                      e.currentTarget.style.backgroundColor = currentTheme.cardBackground;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = currentTheme.border;
+                      e.currentTarget.style.backgroundColor = currentTheme.background;
+                    }}
+                  >
+                    <input
+                      id="logo-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        handleFileChange(e);
+                        // Create preview URL locally
+                        if (e.target.files && e.target.files[0]) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            // Store preview in a temp property or state if you preferred, 
+                            // but we can just use the file object in the state we already have
+                            // and render based on that.
+                            // For simplicity, we can force update or let state handle re-render
+                          };
+                          reader.readAsDataURL(e.target.files[0]);
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
+
+                    {/* Preview Logic */}
+                    {(logoFile || (editingOrg && editingOrg.logo)) ? (
+                      <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img
+                          src={logoFile ? URL.createObjectURL(logoFile) : `${apiBaseUrl}/${editingOrg.logo}`}
+                          alt="Preview"
+                          style={{
+                            maxHeight: '120px',
+                            maxWidth: '100%',
+                            objectFit: 'contain',
+                            borderRadius: '4px'
+                          }}
+                        />
+                        <div style={{
+                          position: 'absolute',
+                          inset: 0,
+                          backgroundColor: 'rgba(0,0,0,0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          opacity: 0,
+                          transition: 'opacity 0.2s',
+                          color: 'white',
+                          fontWeight: '500'
+                        }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
+                          onMouseLeave={(e) => e.currentTarget.style.opacity = 0}
+                        >
+                          Alterar Imagem
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <i className="bi bi-cloud-arrow-up" style={{ fontSize: '2rem', color: currentTheme.primary, marginBottom: '0.5rem' }}></i>
+                        <span style={{ fontSize: '0.875rem', color: currentTheme.textSecondary }}>
+                          Clique para selecionar uma imagem
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: currentTheme.textSecondary, opacity: 0.7, marginTop: '0.25rem' }}>
+                          PNG, JPG ou JPEG (Max. 5MB)
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{
                     display: 'block',
@@ -842,17 +1044,7 @@ const Organizations = () => {
                 </button>
                 <button
                   type="submit"
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    backgroundColor: currentTheme.primary,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    fontFamily: 'Poppins, sans-serif'
-                  }}
+                  className="btn-base btn-new"
                 >
                   {editingOrg ? 'Atualizar' : 'Criar'}
                 </button>
@@ -863,16 +1055,112 @@ const Organizations = () => {
       )}
 
       {/* Modal de Instâncias */}
-      {showInstanceModal && selectedOrganization && (
-        <InstanceModal
-          organization={selectedOrganization}
-          onClose={() => {
-            setShowInstanceModal(false);
-            setSelectedOrganization(null);
-          }}
-        />
+      {
+        showInstanceModal && selectedOrganization && (
+          <InstanceModal
+            organization={selectedOrganization}
+            onClose={() => {
+              setShowInstanceModal(false);
+              setSelectedOrganization(null);
+            }}
+          />
+        )
+      }
+
+      {/* Alert Toast */}
+      <AlertToast
+        open={toast.open}
+        variant={toast.variant}
+        title={toast.title}
+        message={toast.message}
+        onClose={() => setToast({ ...toast, open: false })}
+      />
+
+      {/* Confirmation Modal for Delete */}
+      {showDeleteModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            backgroundColor: currentTheme.cardBackground,
+            borderRadius: '1rem',
+            padding: '2rem',
+            width: '100%',
+            maxWidth: '500px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: `1px solid ${currentTheme.border}`,
+            animation: 'slideUp 0.3s ease-out'
+          }}>
+            <h3 style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              color: currentTheme.textPrimary,
+              marginBottom: '1rem'
+            }}>
+              Confirmar Exclusão
+            </h3>
+            <p style={{
+              color: currentTheme.textSecondary,
+              marginBottom: '1.5rem',
+              fontSize: '0.95rem'
+            }}>
+              Tem certeza que deseja excluir a organização <strong>{orgToDelete?.razaoSocial}</strong>? esta ação não poderá ser desfeita.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  backgroundColor: 'transparent',
+                  color: currentTheme.textSecondary,
+                  border: `1px solid ${currentTheme.border}`,
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = currentTheme.background}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={executeDelete}
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 6px -1px rgba(220, 38, 38, 0.3)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#b91c1c'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#dc2626'}
+              >
+                Sim, Excluir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-    </div>
+
+    </div >
   );
 };
 
