@@ -439,7 +439,7 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
                 const value = data.reais;
 
                 if (qrCopyPaste) {
-                    messagesToSend.push({ text: `Segue PIX Cripto da fatura *${invoice.description}* (R$ ${value}):` });
+                    messagesToSend.push({ text: `Segue PIX da fatura *${invoice.description}* (R$ ${value}):` });
                     messagesToSend.push({ text: qrCopyPaste });
 
                     // Generate Short Link via Backend
