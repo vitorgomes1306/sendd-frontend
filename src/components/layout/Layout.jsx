@@ -339,7 +339,7 @@ const Layout = ({ children }) => {
                   style={iconButtonStyle}
                   onMouseEnter={handleMouseEnter}
                   onMouseLeave={handleMouseLeave}
-                  onClick={() => navigate('/admin')}
+                  onClick={() => navigate('/admin/gestao')}
                   title="Administração"
                 >
                   <Settings size={20} />
