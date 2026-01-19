@@ -37,6 +37,8 @@ import Departments from './pages/config/Departments';
 import Attendants from './pages/config/Attendants';
 
 import Admin from './pages/Admin'; // Página de administração
+import Gestao from './pages/admin/Gestao'; // Página de gestão
+import UserDetails from './pages/admin/UserDetails'; // Detalhes do usuário
 
 import LytexPayment from './pages/LytexPayment'; // Página de pagamento Lytex
 import LandingPage from './pages/LandingPage';
@@ -224,6 +226,22 @@ function App() {
                 <ProtectedRoute>
                   <AdminRoute>
                     <Layout><Admin /></Layout>
+                  </AdminRoute>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/admin/gestao" element={
+                <ProtectedRoute>
+                  <AdminRoute>
+                    <Layout><Gestao /></Layout>
+                  </AdminRoute>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/admin/gestao/:id" element={
+                <ProtectedRoute>
+                  <AdminRoute>
+                    <Layout><UserDetails /></Layout>
                   </AdminRoute>
                 </ProtectedRoute>
               } />

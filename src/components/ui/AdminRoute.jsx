@@ -27,9 +27,13 @@ const AdminRoute = ({ children }) => {
   }
 
   // Se não é admin, redireciona para dashboard
-  if (!user.isAdmin) {
+  // RESTRITO: Apenas role 'ADMIN' permitido (solicitação específica). Master e outros são redirecionados.
+  const hasAdminAccess = user.role === 'ADMIN';
+
+  if (!hasAdminAccess) {
     console.log('AdminRoute - Usuário não é admin:', user);
     console.log('AdminRoute - user.isAdmin:', user.isAdmin);
+    console.log('AdminRoute - user.role:', user.role);
     console.log('AdminRoute - Redirecionando para /dash');
     return <Navigate to="/dash" replace />;
   }
