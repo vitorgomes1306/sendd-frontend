@@ -5,8 +5,12 @@ import InstanceModal from '../components/ui/InstanceModal';
 import AlertToast from '../components/ui/AlertToast'; // Import AlertToast
 import { apiService, getApiBaseUrl } from '../services/api';
 import '../styles/buttons.css'
+import { useNavigate } from 'react-router-dom';
 
 const Organizations = () => {
+  // Gerenciar instâncias
+  const navigate = useNavigate();
+  
   const { currentTheme } = useTheme();
   const { user } = useAuth();
   const [organizations, setOrganizations] = useState([]);
@@ -36,6 +40,9 @@ const Organizations = () => {
     estado: '',
     cidade: '',
     logo: '',
+    aiActive: false,
+    apiKey: '',
+    systemPrompt: ''
   });
 
   // Base URL for images
@@ -76,6 +83,8 @@ const Organizations = () => {
       estado: '',
       cidade: '',
       logo: '',
+      aiActive: false,
+      apiKey: ''
     });
     setLogoFile(null);
     setEditingOrg(null);
@@ -102,8 +111,11 @@ const Organizations = () => {
       estado: org.estado || '',
       cidade: org.cidade || '',
       logo: org.logo || '',
+      aiActive: org.aiActive || false,
+      apiKey: org.aiConfig?.apiKey || '',
+      systemPrompt: org.aiConfig?.systemPrompt || ''
     });
-    setLogoFile(null); // Reset file input on edit open (user might not want to change it)
+    setLogoFile(null);
     setEditingOrg(org);
     setShowModal(true);
   };
@@ -420,7 +432,8 @@ const Organizations = () => {
                   marginLeft: '0.5rem'
                 }}>
                   <button
-                    onClick={() => handleInstances(org)}
+                    // Ir para as instâncias
+                    onClick={() => navigate('/canais')}
                     style={{
                       padding: '0.5rem',
                       backgroundColor: 'transparent',
@@ -1018,6 +1031,77 @@ const Organizations = () => {
                     }}
                   />
                 </div>
+              </div>
+
+              {/* Configuração de IA */}
+              <div style={{ marginTop: '1.5rem', borderTop: `1px solid ${currentTheme.border}`, paddingTop: '1rem' }}>
+                <h3 style={{ fontSize: '1.1rem', color: currentTheme.textPrimary, marginBottom: '1rem' }}>Configuração de IA</h3>
+
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: currentTheme.textPrimary }}>
+                    <input
+                      type="checkbox"
+                      name="aiActive"
+                      checked={formData.aiActive}
+                      onChange={(e) => setFormData(prev => ({ ...prev, aiActive: e.target.checked }))}
+                      style={{ marginRight: '0.5rem', width: '18px', height: '18px' }}
+                    />
+                    Ativar Inteligência Artificial (Transcrição e Intenção)
+                  </label>
+                </div>
+
+                {formData.aiActive && (
+                  <>
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', color: currentTheme.textPrimary }}>
+                        API Key (OpenAI)
+                      </label>
+                      <input
+                        type="password"
+                        name="apiKey"
+                        value={formData.apiKey}
+                        onChange={handleInputChange}
+                        placeholder="sk-..."
+                        className="form-control"
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem',
+                          borderRadius: '0.5rem',
+                          border: `1px solid ${currentTheme.border}`,
+                          backgroundColor: currentTheme.inputBackground,
+                          color: currentTheme.textPrimary
+                        }}
+                      />
+                      <small style={{ color: currentTheme.textSecondary }}>
+                        Necessário para transcrição de áudio e detecção de intenção.
+                      </small>
+                    </div>
+
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', color: currentTheme.textPrimary }}>
+                        Instruções da IA (System Prompt)
+                      </label>
+                      <textarea
+                        name="systemPrompt"
+                        value={formData.systemPrompt}
+                        onChange={handleInputChange}
+                        placeholder="Ex: Você é um assistente virtual da Provedor X. Seja educado e use emojis."
+                        rows="4"
+                        style={{
+                          width: '100%',
+                          padding: '0.75rem',
+                          borderRadius: '0.5rem',
+                          border: `1px solid ${currentTheme.border}`,
+                          backgroundColor: currentTheme.inputBackground,
+                          color: currentTheme.textPrimary,
+                          fontFamily: 'Poppins, sans-serif',
+                          resize: 'vertical'
+                        }}
+                      />
+                      <small style={{ color: currentTheme.textSecondary }}> Define a personalidade e regras de resposta da IA. </small>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div style={{

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GitBranch, Plus, Search, Edit2, Trash2, ArrowRight, Smartphone, Clock, MessageSquare, Import, Download } from 'lucide-react';
+import { GitBranch, Plus, Search, Edit2, Trash2, ArrowRight, BotMessageSquare, Smartphone, Clock, MessageSquare, Import, Download, Copy } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
@@ -98,6 +98,20 @@ const Flows = () => {
             setShowModal(false);
         } catch (error) {
             showToast({ title: 'Erro', message: `Falha ao ${modalMode === 'add' ? 'criar' : 'atualizar'} fluxo`, variant: 'error' });
+        }
+    };
+
+    const handleCloneFlow = async (e, flow) => {
+        e.stopPropagation();
+        if (!window.confirm(`Deseja clonar o fluxo "${flow.name}"?`)) return;
+
+        try {
+            const response = await apiService.post(`/private/bot-flows/${flow.id}/clone`);
+            setFlows([...flows, response.data]);
+            showToast({ title: 'Sucesso', message: 'Fluxo clonado com sucesso!', variant: 'success' });
+        } catch (error) {
+            console.error(error);
+            showToast({ title: 'Erro', message: 'Falha ao clonar fluxo', variant: 'error' });
         }
     };
 
@@ -347,20 +361,94 @@ const Flows = () => {
                         {flows.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).map(flow => (
                             <div
                                 key={flow.id}
-                                style={styles.card}
+                                style={{
+                                    ...styles.card,
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    border: flow.active ? `1px solid ${currentTheme.primary}40` : '1px solid #eee'
+                                }}
                                 onClick={() => openBuilder(flow)}
                                 onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'}
                                 onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
                             >
-                                <div style={styles.cardHeader}>
-                                    <span style={styles.badge}>{flow.nodes?.length || 0} nós</span>
+                                {/* Background Icon */}
+                                <BotMessageSquare
+                                    size={120}
+                                    color={currentTheme.primary}
+                                    style={{
+                                        position: 'absolute',
+                                        right: -20,
+                                        bottom: -20,
+                                        opacity: 0.05,
+                                        transform: 'rotate(-15deg)',
+                                        zIndex: 0
+                                    }}
+                                />
+
+                                <div style={{ ...styles.cardHeader, position: 'relative', zIndex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{
+                                            ...styles.badge,
+                                            backgroundColor: flow.active ? '#dcfce7' : '#f3f4f6',
+                                            color: flow.active ? '#166534' : '#6b7280'
+                                        }}>
+                                            {flow.active ? 'Ativo' : 'Inativo'}
+                                        </span>
+                                        <span style={styles.badge}>{flow.nodes?.length || 0} nós</span>
+                                    </div>
                                     <div style={{ display: 'flex', gap: '8px' }}>
+                                        {/* Toggle Active Button */}
+                                        <button
+                                            title={flow.active ? "Desativar" : "Ativar"}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const newStatus = !flow.active;
+                                                const updatedFlows = flows.map(f => f.id === flow.id ? { ...f, active: newStatus } : f);
+                                                setFlows(updatedFlows);
+
+                                                apiService.put(`/private/bot-flows/${flow.id}`, { ...flow, active: newStatus, organizationId: flow.organizationId })
+                                                    .then(() => showToast({ title: 'Atualizado', message: `Fluxo ${newStatus ? 'ativado' : 'desativado'}!`, variant: 'success' }))
+                                                    .catch(() => {
+                                                        setFlows(flows);
+                                                        showToast({ title: 'Erro', message: 'Falha ao atualizar status', variant: 'error' });
+                                                    });
+                                            }}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                        >
+                                            <div style={{
+                                                width: '32px',
+                                                height: '18px',
+                                                backgroundColor: flow.active ? currentTheme.primary : '#ccc',
+                                                borderRadius: '10px',
+                                                position: 'relative',
+                                                transition: '0.3s'
+                                            }}>
+                                                <div style={{
+                                                    width: '14px',
+                                                    height: '14px',
+                                                    backgroundColor: 'white',
+                                                    borderRadius: '50%',
+                                                    position: 'absolute',
+                                                    top: '2px',
+                                                    left: flow.active ? '16px' : '2px',
+                                                    transition: '0.3s'
+                                                }} />
+                                            </div>
+                                        </button>
+
                                         <button
                                             title="Exportar Fluxo"
                                             onClick={(e) => handleExport(e, flow)}
                                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
                                         >
                                             <Download size={16} color="#0369a1" />
+                                        </button>
+                                        <button
+                                            title="Clonar Fluxo"
+                                            onClick={(e) => handleCloneFlow(e, flow)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                        >
+                                            <Copy size={16} color="#d97706" /> {/* Amber/Orange color */}
                                         </button>
                                         <button
                                             onClick={(e) => openEditModal(e, flow)}
@@ -376,25 +464,30 @@ const Flows = () => {
                                         </button>
                                     </div>
                                 </div>
-                                <h3 style={styles.cardTitle}>{flow.name}</h3>
 
-                                <div style={{ marginTop: '12px', fontSize: '13px', color: '#666' }}>
+                                <h3 style={{ ...styles.cardTitle, position: 'relative', zIndex: 1 }}>{flow.name}</h3>
+
+                                <div style={{ marginTop: '12px', fontSize: '13px', color: '#666', position: 'relative', zIndex: 1 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                                         <Smartphone size={14} />
                                         {flow.instances?.length > 0
-                                            ? `${flow.instances.length} canal(is) configurado(s)`
+                                            ? (
+                                                <span title={flow.instances.map(i => i.name).join(', ')}>
+                                                    {flow.instances.length === 1 ? flow.instances[0].name : `${flow.instances.length} canais: ${flow.instances.map(i => i.name).slice(0, 2).join(', ')}${flow.instances.length > 2 ? '...' : ''}`}
+                                                </span>
+                                            )
                                             : 'Nenhum canal associado'}
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <Clock size={14} />
                                         {flow.botInactivityLimit
-                                            ? `Timeout: ${flow.botInactivityLimit} min`
+                                            ? `Tempo de inatividade: ${flow.botInactivityLimit} min`
                                             : 'Sem limite de inatividade'}
                                     </div>
                                 </div>
 
-                                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '4px', color: currentTheme.primary, fontWeight: '600' }}>
-                                    Abrir Builder <ArrowRight size={16} />
+                                <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '4px', color: currentTheme.primary, fontWeight: '600', position: 'relative', zIndex: 1 }}>
+                                    Abrir Construtor <ArrowRight size={16} />
                                 </div>
                             </div>
                         ))}

@@ -1,46 +1,190 @@
-import React, { useMemo, useState } from 'react';
-import { GitBranch, MessageSquare, UserCheck, LogOut, Database, Code, ArrowRight, Search } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import {
+    ReactFlow,
+    Controls,
+    Background,
+    useNodesState,
+    useEdgesState,
+    addEdge,
+    Handle,
+    Position,
+    MarkerType
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { GitBranch, MessageSquare, UserCheck, LogOut, Database, Code, Settings } from 'lucide-react';
 
-const FlowVisualizer = ({ flow, onNodeClick, theme }) => {
-    const [searchTerm, setSearchTerm] = useState('');
+// --- Custom Node Components ---
 
-    // 1. Calculate Layout
-    const layout = useMemo(() => {
-        if (!flow?.nodes) return { nodes: [], links: [] };
+const getNodeColor = (type) => {
+    switch (type) {
+        case 'start': return '#0ea5e9';
+        case 'api': return '#8b5cf6';
+        case 'menu': return '#f59e0b';
+        case 'finish': return '#ef4444';
+        case 'transfer': return '#d97706';
+        case 'input': return '#059669';
+        default: return '#64748b';
+    }
+};
 
-        const nodes = [...flow.nodes];
-        const links = [];
-        const nodeMap = new Map();
+const getNodeIcon = (type) => {
+    switch (type) {
+        case 'start': return <GitBranch size={16} />;
+        case 'api': return <Database size={16} />;
+        case 'menu': return <Code size={16} />;
+        case 'finish': return <LogOut size={16} />;
+        case 'transfer': return <UserCheck size={16} />;
+        case 'input': return <Settings size={16} />;
+        default: return <MessageSquare size={16} />;
+    }
+};
 
-        // Initialize positions
-        nodes.forEach(n => nodeMap.set(n.id, { ...n, x: 0, y: 0, level: 0 }));
+const CustomNode = ({ data, selected }) => {
+    const { label, type, content, isMenu } = data;
+    const color = getNodeColor(type);
 
-        // Identify Levels (BFS)
-        // Start nodes are those with type 'start' or no incoming connections (simplified)
-        const startNode = nodes.find(n => n.type === 'start') || nodes[0];
+    return (
+        <div style={{
+            padding: '12px',
+            borderRadius: '8px',
+            backgroundColor: 'white',
+            border: `1px solid ${selected ? color : '#e2e8f0'}`,
+            borderLeft: `5px solid ${color}`,
+            boxShadow: selected ? `0 0 0 4px ${color}33` : '0 1px 3px rgba(0,0,0,0.1)',
+            minWidth: '200px',
+            maxWidth: '250px',
+            transition: 'all 0.2s'
+        }}>
+            {/* Input Handle (Target) */}
+            {type !== 'start' && (
+                <Handle type="target" position={Position.Top} style={{ background: '#94a3b8' }} />
+            )}
 
-        if (startNode) {
-            const queue = [{ id: startNode.id, level: 0 }];
-            const visited = new Set();
-            visited.add(startNode.id);
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: color, fontWeight: 'bold', fontSize: '12px' }}>
+                {getNodeIcon(type)}
+                {type.toUpperCase()}
+            </div>
+            <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px', color: '#1e293b' }}>
+                {label}
+            </div>
+            <div style={{ color: '#64748b', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {content || (type === 'api' ? 'Integração API' : '...')}
+            </div>
 
-            while (queue.length > 0) {
-                const { id, level } = queue.shift();
-                const node = nodeMap.get(id);
-                if (node) {
-                    node.level = level;
+            {/* Output Handle (Source) for non-menu nodes or general flow */}
+            {!isMenu && type !== 'finish' && (
+                <Handle type="source" position={Position.Bottom} id="main" style={{ background: color }} />
+            )}
 
-                    // Find children
-                    const childrenIds = [];
-                    if (node.nextNodeId) childrenIds.push(node.nextNodeId);
-                    if (node.options) {
-                        node.options.forEach(opt => {
-                            if (opt.nextNodeId) childrenIds.push(Number(opt.nextNodeId));
+            {isMenu && (
+                <div style={{ marginTop: '8px', fontSize: '10px', color: '#94a3b8' }}>
+                    (Conexões visíveis nas arestas)
+                    <Handle type="source" position={Position.Bottom} id="menu-out" style={{ background: color }} />
+                </div>
+            )}
+        </div>
+    );
+};
+
+const nodeTypes = {
+    custom: CustomNode,
+};
+
+// --- Main Component ---
+
+const FlowVisualizer = ({ flow, onNodeClick, onNodeMove, onConnectionCreate }) => {
+    const [nodes, setNodes, onNodesChange] = useNodesState([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+    // Convert Backend Flow to React Flow Format
+    useEffect(() => {
+        if (!flow?.nodes) return;
+
+        const rfNodes = flow.nodes.map(n => {
+            // Resolve Position: Try root fields (if schema has them) -> config.position -> Default 0,0
+            const x = n.positionX || n.config?.position?.x || 0;
+            const y = n.positionY || n.config?.position?.y || 0;
+
+            return {
+                id: String(n.id),
+                type: 'custom',
+                position: { x, y },
+                data: {
+                    label: n.name || `Nó #${n.id}`,
+                    type: n.type,
+                    content: n.content,
+                    isMenu: n.type === 'menu'
+                },
+            };
+        });
+
+        // If all 0,0, apply simple layout
+        const allZero = rfNodes.every(n => n.position.x === 0 && n.position.y === 0);
+        if (allZero && rfNodes.length > 0) {
+            applyAutoLayout(rfNodes, flow.nodes);
+        }
+
+        const rfEdges = [];
+        flow.nodes.forEach(n => {
+            if (n.nextNodeId) {
+                rfEdges.push({
+                    id: `e${n.id}-${n.nextNodeId}`,
+                    source: String(n.id),
+                    target: String(n.nextNodeId),
+                    type: 'smoothstep',
+                    markerEnd: { type: MarkerType.ArrowClosed },
+                    animated: true
+                });
+            }
+            if (n.options) {
+                n.options.forEach(opt => {
+                    if (opt.nextNodeId) {
+                        rfEdges.push({
+                            id: `e${n.id}-${opt.nextNodeId}-opt${opt.id}`,
+                            source: String(n.id),
+                            target: String(opt.nextNodeId),
+                            label: opt.value, // Label on the line
+                            type: 'smoothstep',
+                            markerEnd: { type: MarkerType.ArrowClosed },
+                            style: { strokeDasharray: 5 }
                         });
                     }
+                });
+            }
+        });
 
-                    childrenIds.forEach(childId => {
-                        links.push({ source: id, target: childId });
+        setNodes(rfNodes);
+        setEdges(rfEdges);
+    }, [flow, setNodes, setEdges]);
+
+    // Simple Auto Layout
+    const applyAutoLayout = (rfNodes, rawNodes) => {
+        const nodeMap = new Map();
+        rfNodes.forEach(n => nodeMap.set(n.id, { ...n, level: 0 }));
+
+        const rawMap = new Map();
+        rawNodes.forEach(rn => rawMap.set(String(rn.id), rn));
+
+        // BFS for Levels
+        const startNode = rawNodes.find(n => n.type === 'start') || rawNodes[0];
+        if (startNode) {
+            const queue = [{ id: String(startNode.id), level: 0 }];
+            const visited = new Set([String(startNode.id)]);
+
+            while (queue.length) {
+                const { id, level } = queue.shift();
+                const rfNode = nodeMap.get(id);
+                if (rfNode) rfNode.level = level;
+
+                const raw = rawMap.get(id);
+                if (raw) {
+                    const children = [];
+                    if (raw.nextNodeId) children.push(String(raw.nextNodeId));
+                    if (raw.options) raw.options.forEach(o => {
+                        if (o.nextNodeId) children.push(String(o.nextNodeId));
+                    });
+
+                    children.forEach(childId => {
                         if (!visited.has(childId)) {
                             visited.add(childId);
                             queue.push({ id: childId, level: level + 1 });
@@ -50,193 +194,62 @@ const FlowVisualizer = ({ flow, onNodeClick, theme }) => {
             }
         }
 
-        // Assign X positions based on level groups
+        // Position
         const levels = {};
-        nodeMap.forEach(n => {
+        Array.from(nodeMap.values()).forEach(n => {
             if (!levels[n.level]) levels[n.level] = [];
             levels[n.level].push(n);
         });
 
-        const NODE_WIDTH = 180;
-        const NODE_HEIGHT = 80;
+        const NODE_WIDTH = 250;
+        const NODE_HEIGHT = 100;
         const GAP_X = 50;
         const GAP_Y = 100;
 
-        let maxY = 0;
-
-        Object.keys(levels).sort((a, b) => a - b).forEach(level => {
-            const levelNodes = levels[level];
-            const levelHeight = levelNodes.length * (NODE_HEIGHT + GAP_X);
-            const startY = (window.innerHeight / 2) - (levelHeight / 2); // Center vertically? No, simpler to just stack
-
+        Object.keys(levels).forEach(lvl => {
+            const levelNodes = levels[lvl];
             levelNodes.forEach((n, idx) => {
-                n.x = Number(level) * (NODE_WIDTH + GAP_Y) + 50;
-                n.y = idx * (NODE_HEIGHT + GAP_X) + 50;
-
-                // Simple collision avoidance for same level
-                // Better: keep track of Y per level
+                n.position = {
+                    x: Number(lvl) * (NODE_WIDTH + GAP_Y) + 50,
+                    y: idx * (NODE_HEIGHT + GAP_X) + 50
+                }
             });
         });
-
-        return {
-            nodes: Array.from(nodeMap.values()),
-            links
-        };
-
-    }, [flow]);
-
-    // Simple Render
-    const styles = {
-        container: {
-            width: '100%',
-            height: '100%',
-            backgroundColor: '#f8fafc',
-            borderRadius: '12px',
-            border: '1px solid #eee',
-            position: 'relative',
-            overflow: 'auto',
-            backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)',
-            backgroundSize: '20px 20px'
-        },
-        node: {
-            position: 'absolute',
-            width: '180px',
-            borderRadius: '8px',
-            padding: '12px',
-            backgroundColor: 'white',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            cursor: 'pointer',
-            transition: '0.2s',
-            fontSize: '12px',
-            zIndex: 10
-        }
     };
 
-    const getNodeColor = (type) => {
-        switch (type) {
-            case 'start': return '#0ea5e9';
-            case 'api': return '#8b5cf6';
-            case 'menu': return '#f59e0b';
-            case 'finish': return '#ef4444';
-            default: return '#64748b';
-        }
-    };
 
-    const getNodeIcon = (type) => {
-        switch (type) {
-            case 'start': return <GitBranch size={16} />;
-            case 'api': return <Database size={16} />;
-            case 'menu': return <Code size={16} />;
-            case 'finish': return <LogOut size={16} />;
-            default: return <MessageSquare size={16} />;
+    const onConnect = useCallback((params) => {
+        // Callback to parent to handle logic (e.g., updating backend node 'nextNodeId')
+        if (onConnectionCreate) {
+            onConnectionCreate(params.source, params.target);
+        }
+        setEdges((eds) => addEdge(params, eds));
+    }, [onConnectionCreate, setEdges]);
+
+    const handleNodeDragStop = (event, node) => {
+        if (onNodeMove) {
+            onNodeMove(node.id, node.position);
         }
     };
 
     return (
-        <div style={styles.container}>
-            {/* Search Bar */}
-            <div style={{
-                position: 'absolute',
-                top: '20px',
-                right: '20px',
-                zIndex: 100,
-                backgroundColor: 'white',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                border: '1px solid #e2e8f0'
-            }}>
-                <Search size={16} color="#64748b" />
-                <input
-                    type="text"
-                    placeholder="Buscar nó..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{
-                        border: 'none',
-                        outline: 'none',
-                        fontSize: '13px',
-                        width: '150px',
-                        color: '#334155'
-                    }}
-                />
-            </div>
-
-            <svg style={{ position: 'absolute', top: 0, left: 0, width: '2000px', height: '2000px', pointerEvents: 'none' }}>
-                <defs>
-                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
-                        <polygon points="0 0, 10 3.5, 0 7" fill="#cbd5e1" />
-                    </marker>
-                </defs>
-                {layout.links.map((link, i) => {
-                    const source = layout.nodes.find(n => n.id === link.source);
-                    const target = layout.nodes.find(n => n.id === link.target);
-                    if (!source || !target) return null;
-
-                    return (
-                        <path
-                            key={i}
-                            d={`M ${source.x + 180} ${source.y + 40} C ${source.x + 230} ${source.y + 40}, ${target.x - 50} ${target.y + 40}, ${target.x} ${target.y + 40}`}
-                            stroke="#cbd5e1"
-                            strokeWidth="2"
-                            fill="none"
-                            markerEnd="url(#arrowhead)"
-                        />
-                    );
-                })}
-            </svg>
-
-            {layout.nodes.map(node => {
-                const matches = searchTerm && (
-                    (node.name && node.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                    (node.content && node.content.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                    String(node.id).includes(searchTerm)
-                );
-
-                return (
-                    <div
-                        key={node.id}
-                        style={{
-                            ...styles.node,
-                            left: node.x,
-                            top: node.y,
-                            borderLeft: `4px solid ${getNodeColor(node.type)}`,
-                            border: matches ? '2px solid #0084ff' : styles.node.border,
-                            boxShadow: matches ? '0 0 0 4px rgba(0,132,255,0.2)' : styles.node.boxShadow,
-                            transform: matches ? 'scale(1.05)' : 'scale(1)',
-                            zIndex: matches ? 20 : 10
-                        }}
-                        onClick={() => onNodeClick(node)}
-                        onMouseEnter={e => {
-                            if (!matches) {
-                                e.currentTarget.style.transform = 'scale(1.02)';
-                                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
-                            }
-                        }}
-                        onMouseLeave={e => {
-                            if (!matches) {
-                                e.currentTarget.style.transform = 'scale(1)';
-                                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                            }
-                        }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', color: getNodeColor(node.type), fontWeight: 'bold' }}>
-                            {getNodeIcon(node.type)}
-                            {node.type.toUpperCase()}
-                        </div>
-                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                            {node.name || `Nó #${node.id}`}
-                        </div>
-                        <div style={{ color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {node.content || (node.type === 'api' ? 'Integração API' : 'Sem conteúdo')}
-                        </div>
-                    </div>
-                );
-            })}
+        <div style={{ width: '100%', height: '100%', background: '#f8fafc' }}>
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onNodeClick={(_, node) => {
+                    onNodeClick(node.id);
+                }}
+                onNodeDragStop={handleNodeDragStop}
+                nodeTypes={nodeTypes}
+                fitView
+            >
+                <Background color="#cbd5e1" gap={16} />
+                <Controls />
+            </ReactFlow>
         </div>
     );
 };

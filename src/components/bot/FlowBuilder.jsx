@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Save, Trash2, ArrowRightCircle, MessageSquare, UserCheck, LogOut, GitBranch, Edit2, Database, Code, Settings, Search } from 'lucide-react';
+import { ChevronLeft, Plus, Save, Trash2, ArrowRightCircle, MessageSquare, UserCheck, LogOut, GitBranch, Edit2, Database, Code, Settings, Search, Copy } from 'lucide-react';
 import { apiService } from '../../services/api';
 import { useTheme } from '../../contexts/ThemeContext';
 import AlertToast from '../ui/AlertToast';
@@ -98,17 +98,96 @@ const FlowBuilder = ({ flowId, onBack }) => {
         }
     };
 
+    const handleCloneNode = async (node) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Clonar Nó',
+            message: `Deseja duplicar o nó "${node.name || node.id}"? As conexões serão mantidas.`,
+            onConfirm: async () => {
+                try {
+                    await apiService.post(`/private/bot-flows/nodes/${node.id}/clone`);
+                    showToast('Sucesso', 'Nó clonado com sucesso!');
+                    loadFlowDetails();
+                } catch (error) {
+                    showToast('Erro', 'Falha ao clonar nó', 'danger');
+                }
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+            }
+        });
+    };
+
     const handleAddNode = async () => {
         try {
             await apiService.post('/private/bot-flows/nodes', {
                 flowId,
                 type: 'message',
-                content: 'Nova mensagem...'
+                content: 'Nova mensagem...',
+                config: { position: { x: 100, y: 100 } }
             });
             loadFlowDetails();
             showToast('Sucesso', 'Nó adicionado!');
         } catch (error) {
             showToast('Erro', 'Falha ao adicionar nó', 'danger');
+        }
+    };
+
+    const handleNodeMove = async (nodeId, position) => {
+        // Optimistic Update (optional, but React Flow state handles local view)
+        // Find Node and Update Config
+        const node = flow.nodes.find(n => String(n.id) === String(nodeId));
+        if (!node) return;
+
+        const updatedNode = {
+            ...node,
+            config: {
+                ...(node.config || {}),
+                position
+            }
+        };
+
+        // Silent Save (No Toast to avoid spam)
+        try {
+            await apiService.put(`/private/bot-flows/nodes/${nodeId}`, updatedNode);
+            // Don't reload flow full details to avoid jump, just let it be.
+            // But we should update local 'flow' state to keep it in sync for when we click other things.
+            setFlow(prev => ({
+                ...prev,
+                nodes: prev.nodes.map(n => String(n.id) === String(nodeId) ? updatedNode : n)
+            }));
+        } catch (error) {
+            console.error('Erro ao salvar posição:', error);
+        }
+    };
+
+    const handleConnectionCreate = async (sourceId, targetId) => {
+        const sourceNode = flow.nodes.find(n => String(n.id) === String(sourceId));
+        if (!sourceNode) return;
+
+        // If Menu: Add new Option? Or Link existing?
+        // React Flow UI makes this ambiguous if we don't have option handles.
+        // For V1: If Menu, we add a new option "Nova Opção" pointing to Target.
+
+        let updatedNode = { ...sourceNode };
+
+        if (sourceNode.type === 'menu') {
+            const newOption = {
+                value: (sourceNode.options?.length + 1).toString(),
+                label: `Opção ${sourceNode.options?.length + 1}`,
+                nextNodeId: Number(targetId)
+            };
+            updatedNode.options = [...(sourceNode.options || []), newOption];
+            showToast('Info', 'Nova opção de menu criada e conectada.');
+        } else {
+            // Standard Node: Update nextNodeId
+            updatedNode.nextNodeId = Number(targetId);
+            showToast('Info', 'Conexão criada.');
+        }
+
+        try {
+            await apiService.put(`/private/bot-flows/nodes/${sourceId}`, updatedNode);
+            loadFlowDetails(); // Reload to refresh edges correctly in Visualizer
+        } catch (error) {
+            showToast('Erro', 'Falha ao criar conexão', 'danger');
         }
     };
 
@@ -288,28 +367,52 @@ const FlowBuilder = ({ flowId, onBack }) => {
                                         <div style={{ ...styles.nodeType, ...getTypeStyle(node.type), margin: 0 }}>
                                             {getNodeIcon(node.type)} {node.type}
                                         </div>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteNode(node.id);
-                                            }}
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                color: '#ef4444',
-                                                cursor: 'pointer',
-                                                padding: '4px',
-                                                borderRadius: '4px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center'
-                                            }}
-                                            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                                            title="Excluir Nó"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleCloneNode(node);
+                                                }}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: '#d97706',
+                                                    cursor: 'pointer',
+                                                    padding: '4px',
+                                                    borderRadius: '4px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fef3c7'}
+                                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                title="Clonar Nó"
+                                            >
+                                                <Copy size={16} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteNode(node.id);
+                                                }}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: '#ef4444',
+                                                    cursor: 'pointer',
+                                                    padding: '4px',
+                                                    borderRadius: '4px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                title="Excluir Nó"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </div>
                                     <h4 style={{ margin: '0 0 4px 0', fontSize: '13px' }}>
                                         {node.name ? node.name : `Nó #${node.id}`}
@@ -341,8 +444,17 @@ const FlowBuilder = ({ flowId, onBack }) => {
                             ))}
                     </div>
                 ) : (
-                    /* Visual Builder PlaceHolder */
-                    <FlowVisualizer flow={flow} onNodeClick={setEditingNode} theme={currentTheme} />
+                    /* Visual Builder */
+                    <FlowVisualizer
+                        flow={flow}
+                        onNodeClick={(nodeId) => {
+                            const node = flow.nodes.find(n => String(n.id) === String(nodeId));
+                            if (node) setEditingNode(node);
+                        }}
+                        onNodeMove={handleNodeMove}
+                        onConnectionCreate={handleConnectionCreate}
+                        theme={currentTheme}
+                    />
                 )}
 
                 <div style={{ height: '100%' }}>
@@ -391,7 +503,7 @@ const FlowBuilder = ({ flowId, onBack }) => {
                                         value={editingNode.content}
                                         onChange={e => setEditingNode({ ...editingNode, content: e.target.value })}
                                     />
-                                    <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Dica: use {'{{variavel}}'} para dados dinâmicos.</p>
+                                    <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Dica: use {'{{variavel}}'} para dados dinâmicos. Exemplo: {'{{nome_cliente}}'} para o nome do cliente.</p>
                                 </div>
                             )}
 
@@ -489,18 +601,34 @@ const FlowBuilder = ({ flowId, onBack }) => {
                                     </div>
 
                                     {editingNode.config?.action === 'invoice' && (
-                                        <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
-                                            <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#166534' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={editingNode.config?.preferIspFlash || false}
-                                                    onChange={e => handleConfigChange('preferIspFlash', e.target.checked)}
-                                                />
-                                                Priorizar Link ISP Flash
-                                            </label>
-                                            <p style={{ fontSize: '10px', color: '#15803d', margin: '4px 0 0 22px' }}>
-                                                Se houver uma integração ISP Flash ativa, o bot tentará gerar e enviar o link por ela.
-                                            </p>
+                                        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <div style={{ padding: '8px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                                                <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#166534' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={editingNode.config?.preferIspFlash || false}
+                                                        onChange={e => handleConfigChange('preferIspFlash', e.target.checked)}
+                                                    />
+                                                    Priorizar Link ISP Flash
+                                                </label>
+                                                <p style={{ fontSize: '10px', color: '#15803d', margin: '4px 0 0 22px' }}>
+                                                    Se houver uma integração ISP Flash ativa, o boleto será gerado por ela.
+                                                </p>
+                                            </div>
+
+                                            <div style={{ padding: '8px', backgroundColor: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                                                <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#1e40af' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={editingNode.config?.silent || false}
+                                                        onChange={e => handleConfigChange('silent', e.target.checked)}
+                                                    />
+                                                    Modo Silencioso (Apenas Variável)
+                                                </label>
+                                                <p style={{ fontSize: '10px', color: '#1d4ed8', margin: '4px 0 0 22px' }}>
+                                                    Não envia mensagem automática. Apenas salva os dados em <code>{'{{invoice_message}}'}</code> para uso posterior.
+                                                </p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
