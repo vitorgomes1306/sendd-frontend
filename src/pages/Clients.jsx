@@ -490,13 +490,7 @@ const Clients = () => {
 
           <button
             className="btn-base btn-new-green"
-            onClick={() =>
-              showToast({
-                title: 'Função não habilitada',
-                message: 'A importação de contatos será liberada em breve.',
-                variant: 'warning'
-              })
-            }
+            onClick={() => navigate('/leads')}
           >
             <Import size={20} />
             Importar contatos

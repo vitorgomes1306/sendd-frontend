@@ -214,6 +214,12 @@ export const apiService = {
   }),
   deleteNotification: (id) => api.delete(`/private/notifications/${id}`),
   updateNotificationStatus: (id, data) => api.patch(`/private/notifications/${id}/status`, data),
+
+  // Leads
+  importLeads: (formData) => api.post('/private/leads/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getLeads: (params) => api.get('/private/leads', { params }),
 };
 
 export default api;
