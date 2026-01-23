@@ -42,7 +42,7 @@ const NotificacoesManual = () => {
   // Estado para hover do botão laranja
   const [isHover, setIsHover] = useState(false);
 
-  const { currentTheme } = useTheme();
+  const { currentTheme, isDark } = useTheme();
   const { user } = useAuth();
   const fileInputRef = useRef(null);
 
@@ -205,6 +205,72 @@ const NotificacoesManual = () => {
 
   // Estado para controlar o modal de clientes
   const [showClientModal, setShowClientModal] = useState(false);
+
+  // Estado para modal de leads
+  const [showLeadModal, setShowLeadModal] = useState(false);
+  const [leadsForSelection, setLeadsForSelection] = useState([]);
+  const [leadFilters, setLeadFilters] = useState({ startDate: '', endDate: '' });
+  const [selectedLeadsInModal, setSelectedLeadsInModal] = useState([]);
+
+  const fetchLeadsForSelection = async () => {
+    try {
+      const params = {
+        limit: 1000,
+        startDate: leadFilters.startDate,
+        endDate: leadFilters.endDate
+      };
+      const response = await apiService.getLeads(params);
+      setLeadsForSelection(response.data.data || []);
+    } catch (error) {
+      console.error('Erro ao buscar leads:', error);
+      showAlert('error', 'Erro', 'Erro ao buscar leads');
+    }
+  };
+
+  useEffect(() => {
+    if (showLeadModal) {
+      fetchLeadsForSelection();
+    }
+  }, [showLeadModal, leadFilters]);
+
+  const handleAddSelectedLeads = () => {
+    const selected = leadsForSelection.filter(l => selectedLeadsInModal.includes(l.id));
+    let addedCount = 0;
+
+    selected.forEach(lead => {
+      const num = lead.phone || lead.cellphone;
+      if (num) {
+        const formatted = formatSinglePhoneNumber(num);
+        if (formatted) {
+          addPhoneNumbers(formatted);
+          addedCount++;
+        }
+      }
+    });
+
+    if (addedCount > 0) {
+      showToast({ title: 'Sucesso', message: `${addedCount} leads adicionados!`, variant: 'success' });
+    } else {
+      showToast({ title: 'Aviso', message: 'Nenhum número válido encontrado nos leads selecionados.', variant: 'warning' });
+    }
+
+    setShowLeadModal(false);
+    setSelectedLeadsInModal([]);
+  };
+
+  const toggleLeadSelection = (id) => {
+    setSelectedLeadsInModal(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllLeads = (checked) => {
+    if (checked) {
+      setSelectedLeadsInModal(leadsForSelection.map(l => l.id));
+    } else {
+      setSelectedLeadsInModal([]);
+    }
+  };
 
   // Estado para menu de comandos (Slash Menu)
   const [slashMenu, setSlashMenu] = useState({
@@ -946,15 +1012,27 @@ const NotificacoesManual = () => {
 
         {/* Seleção de Clientes */}
         <div className="form-group">
-          <label className="form-label">Selecionar Clientes</label>
-          <button
-            type="button"
-            onClick={() => setShowClientModal(true)}
-            className="form-input"
-          >
-            <Users size={18} />
-            Clique para selecionar clientes da base
-          </button>
+          <label className="form-label">Selecionar Destinatários da Base</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <button
+              type="button"
+              onClick={() => setShowClientModal(true)}
+              className="form-input"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <Users size={18} />
+              Selecionar Clientes
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowLeadModal(true)}
+              className="form-input"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <Users size={18} />
+              Selecionar Leads
+            </button>
+          </div>
         </div>
 
         {/* Destinatários */}
@@ -1391,6 +1469,134 @@ const NotificacoesManual = () => {
               {clients.length === 0 && (
                 <div style={styles.emptyState}>Nenhum cliente encontrado</div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Leads */}
+      {showLeadModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowLeadModal(false)}>
+          <div style={{ ...styles.modal, maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Selecionar Leads</h3>
+              <button onClick={() => setShowLeadModal(false)} style={styles.closeButton}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div
+  style={{
+    padding: '16px 24px',
+    borderBottom: `1px solid ${currentTheme.border}`,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  }}
+>
+  <p
+    id="searchLead"
+    style={{ fontSize: '14px', color: currentTheme.textSecondary }}
+  >
+    Pesquisa pela data de criação do Lead
+  </p>
+
+  <div style={{ display: 'flex', gap: '16px', alignItems: 'end' }}>
+    <div style={styles.formGroup}>
+      <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>
+        Data Início
+      </label>
+      <input
+        type="date"
+        value={leadFilters.startDate}
+        onChange={(e) =>
+          setLeadFilters((prev) => ({ ...prev, startDate: e.target.value }))
+        }
+        style={{ ...styles.input, padding: '8px' }}
+      />
+    </div>
+
+    <div style={styles.formGroup}>
+      <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>
+        Data Fim
+      </label>
+      <input
+        type="date"
+        value={leadFilters.endDate}
+        onChange={(e) =>
+          setLeadFilters((prev) => ({ ...prev, endDate: e.target.value }))
+        }
+        style={{ ...styles.input, padding: '8px' }}
+      />
+    </div>
+  </div>
+</div>
+
+
+            <div style={{ ...styles.modalBody, maxHeight: '400px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', padding: '0 8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: currentTheme.textPrimary }}>
+                  <input
+                    type="checkbox"
+                    checked={leadsForSelection.length > 0 && selectedLeadsInModal.length === leadsForSelection.length}
+                    onChange={(e) => toggleSelectAllLeads(e.target.checked)}
+                    style={{ accentColor: currentTheme.primary }}
+                  />
+                  Selecionar Todos
+                </label>
+                <span style={{ fontSize: '14px', color: currentTheme.textSecondary }}>
+                  {selectedLeadsInModal.length} selecionados
+                </span>
+              </div>
+
+              {leadsForSelection.map(lead => (
+                <div
+                  key={lead.id}
+                  style={{
+                    padding: '12px',
+                    borderBottom: `1px solid ${currentTheme.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    cursor: 'pointer',
+                    backgroundColor: selectedLeadsInModal.includes(lead.id) ? (isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff') : 'transparent'
+                  }}
+                  onClick={() => toggleLeadSelection(lead.id)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedLeadsInModal.includes(lead.id)}
+                    onChange={() => { }}
+                    style={{ accentColor: currentTheme.primary }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: '500', color: currentTheme.textPrimary }}>{lead.name} {lead.surname}</div>
+                    <div style={{ fontSize: '0.875rem', color: currentTheme.textSecondary }}>{lead.phone || lead.email}</div>
+                    <div style={{ fontSize: '0.75rem', color: currentTheme.textMuted }}>Criado em: {new Date(lead.createdAt).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              ))}
+              {leadsForSelection.length === 0 && (
+                <div style={styles.emptyState}>Nenhum lead encontrado neste período</div>
+              )}
+            </div>
+
+            <div style={{ padding: '16px 24px', borderTop: `1px solid ${currentTheme.border}`, display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setShowLeadModal(false)}
+                style={{ ...styles.mediaActionBtn, width: 'auto', padding: '8px 16px', justifyContent: 'center' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleAddSelectedLeads}
+                className="btn-base btn-new"
+                disabled={selectedLeadsInModal.length === 0}
+              >
+                Adicionar Selecionados ({selectedLeadsInModal.length})
+              </button>
             </div>
           </div>
         </div>
