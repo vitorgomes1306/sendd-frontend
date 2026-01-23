@@ -36,6 +36,10 @@ import Integracoes from './pages/Integracoes';
 import Departments from './pages/config/Departments';
 import Attendants from './pages/config/Attendants';
 import Leads from './pages/Leads';
+import SalesFunnel from './pages/SalesFunnel';
+// ... (imports)
+
+// ... (routes)
 
 import Admin from './pages/Admin'; // Página de administração
 import Gestao from './pages/admin/Gestao'; // Página de gestão
@@ -219,6 +223,12 @@ function App() {
               <Route path="/leads" element={
                 <ProtectedRoute>
                   <Layout><Leads /></Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/funnel" element={
+                <ProtectedRoute>
+                  <Layout><SalesFunnel /></Layout>
                 </ProtectedRoute>
               } />
 

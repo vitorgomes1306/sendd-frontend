@@ -236,22 +236,42 @@ const NotificacoesManual = () => {
   const handleAddSelectedLeads = () => {
     const selected = leadsForSelection.filter(l => selectedLeadsInModal.includes(l.id));
     let addedCount = 0;
+    const newPhoneNumbers = [];
 
     selected.forEach(lead => {
-      const num = lead.phone || lead.cellphone;
+      const num = lead.phone || lead.cellphone || lead.number; // fallback
       if (num) {
         const formatted = formatSinglePhoneNumber(num);
         if (formatted) {
-          addPhoneNumbers(formatted);
-          addedCount++;
+          // Check against existing numbers
+          // Note: phoneNumbers state might not be updated immediately if we just push, 
+          // but here we are in a handler, so we can access `phoneNumbers` from state closure or ref if needed.
+          // But `phoneNumbers` is a dependency of `addPhoneNumbers` usually.
+          // Let's check duplicates against current `phoneNumbers` state.
+          const exists = phoneNumbers.some(p => p.number === formatted) || newPhoneNumbers.some(p => p.number === formatted);
+
+          if (!exists) {
+            newPhoneNumbers.push({
+              id: Date.now() + Math.random(),
+              number: formatted,
+              leadId: lead.id
+            });
+            addedCount++;
+          }
         }
       }
     });
 
-    if (addedCount > 0) {
+    if (newPhoneNumbers.length > 0) {
+      setPhoneNumbers(prev => {
+        const updated = [...prev, ...newPhoneNumbers];
+        // update recipients string for form compatibility
+        setFormData(f => ({ ...f, recipients: updated.map(p => p.number).join(',') }));
+        return updated;
+      });
       showToast({ title: 'Sucesso', message: `${addedCount} leads adicionados!`, variant: 'success' });
     } else {
-      showToast({ title: 'Aviso', message: 'Nenhum número válido encontrado nos leads selecionados.', variant: 'warning' });
+      showToast({ title: 'Aviso', message: 'Nenhum número novo ou válido encontrado.', variant: 'warning' });
     }
 
     setShowLeadModal(false);
@@ -728,6 +748,18 @@ const NotificacoesManual = () => {
             const successObj = { number: recipient };
             currentSuccesses.push(successObj);
             setSuccessNumbers(prev => [...prev, successObj]);
+
+            // Add to Funnel if it's a Lead
+            // Find the phone object that matches the recipient number
+            // Note: phoneNumbers state (available in closure) contains the metadata
+            const recipientObj = phoneNumbers.find(p => p.number === recipient);
+            if (recipientObj && recipientObj.leadId) {
+              try {
+                await apiService.addToFunnel({ leadId: recipientObj.leadId, stage: 'TOP' });
+              } catch (funnelError) {
+                console.error('Erro ao adicionar ao funil ignorado:', funnelError);
+              }
+            }
           }
 
         } catch (err) {
@@ -1486,51 +1518,51 @@ const NotificacoesManual = () => {
             </div>
 
             <div
-  style={{
-    padding: '16px 24px',
-    borderBottom: `1px solid ${currentTheme.border}`,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  }}
->
-  <p
-    id="searchLead"
-    style={{ fontSize: '14px', color: currentTheme.textSecondary }}
-  >
-    Pesquisa pela data de criação do Lead
-  </p>
+              style={{
+                padding: '16px 24px',
+                borderBottom: `1px solid ${currentTheme.border}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <p
+                id="searchLead"
+                style={{ fontSize: '14px', color: currentTheme.textSecondary }}
+              >
+                Pesquisa pela data de criação do Lead
+              </p>
 
-  <div style={{ display: 'flex', gap: '16px', alignItems: 'end' }}>
-    <div style={styles.formGroup}>
-      <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>
-        Data Início
-      </label>
-      <input
-        type="date"
-        value={leadFilters.startDate}
-        onChange={(e) =>
-          setLeadFilters((prev) => ({ ...prev, startDate: e.target.value }))
-        }
-        style={{ ...styles.input, padding: '8px' }}
-      />
-    </div>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'end' }}>
+                <div style={styles.formGroup}>
+                  <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>
+                    Data Início
+                  </label>
+                  <input
+                    type="date"
+                    value={leadFilters.startDate}
+                    onChange={(e) =>
+                      setLeadFilters((prev) => ({ ...prev, startDate: e.target.value }))
+                    }
+                    style={{ ...styles.input, padding: '8px' }}
+                  />
+                </div>
 
-    <div style={styles.formGroup}>
-      <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>
-        Data Fim
-      </label>
-      <input
-        type="date"
-        value={leadFilters.endDate}
-        onChange={(e) =>
-          setLeadFilters((prev) => ({ ...prev, endDate: e.target.value }))
-        }
-        style={{ ...styles.input, padding: '8px' }}
-      />
-    </div>
-  </div>
-</div>
+                <div style={styles.formGroup}>
+                  <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>
+                    Data Fim
+                  </label>
+                  <input
+                    type="date"
+                    value={leadFilters.endDate}
+                    onChange={(e) =>
+                      setLeadFilters((prev) => ({ ...prev, endDate: e.target.value }))
+                    }
+                    style={{ ...styles.input, padding: '8px' }}
+                  />
+                </div>
+              </div>
+            </div>
 
 
             <div style={{ ...styles.modalBody, maxHeight: '400px', overflowY: 'auto' }}>

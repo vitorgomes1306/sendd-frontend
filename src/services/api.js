@@ -224,6 +224,11 @@ export const apiService = {
   updateLead: (id, data) => api.put(`/private/leads/${id}`, data),
   deleteLead: (id) => api.delete(`/private/leads/${id}`),
   deleteLeads: (ids) => api.delete('/private/leads/batch', { data: { ids } }),
+
+  // Funnel
+  addToFunnel: (data) => api.post('/private/funnel', data),
+  getFunnel: () => api.get('/private/funnel'),
+  updateFunnelStage: (id, stage) => api.put(`/private/funnel/${id}`, { stage }),
 };
 
 export default api;

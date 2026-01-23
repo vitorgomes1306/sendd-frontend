@@ -58,16 +58,17 @@ const Sidebar = ({ isHidden, isMobile, onMobileClose }) => {
         { path: '/notificacoes/historico', name: 'Histórico', icon: 'bi-clock-history' }
       ]
     },
+    { path: '/leads', name: 'Leads', icon: 'bi-people-fill' },
+    { path: '/funnel', name: 'Funil de Vendas', icon: 'bi-funnel' },
     { path: '/relatorios', name: 'Relatórios', icon: 'bi-graph-up' },
     { path: '/utilidades', name: 'Utilidades', icon: 'bi-wrench-adjustable-circle' },
   ];
 
   const filteredItems = menuItems.filter(item => {
     const role = user?.role;
-    if (role === 'MASTER' || role === 'ADMIN') return true;
+    if (role === 'MASTER' || role === 'ADMIN' || role === 'MANAGER') return true;
     if (role === 'ATTENDANT') return item.path === '/chat';
-    if (role === 'MEMBER') return ['/chat', '/configuracao', '/dash'].includes(item.path);
-    if (role === 'MANAGER') return item.path !== '/relatorios';
+    if (role === 'MEMBER') return ['/chat', '/configuracao', '/dash', '/leads', '/funnel'].includes(item.path);
     return false;
   });
 

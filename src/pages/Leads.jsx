@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import ImportarLeadsPlanilha from '../components/ImportarLeadsPlanilha';
-import { Search, Calendar, Users, Filter, X, Edit, Trash2, UserPlus, MessageSquare, AlertCircle, CheckCircle } from 'lucide-react';
+import { Search, Calendar, Users, Filter, X, Edit, Trash2, UserPlus, MessageSquare, AlertCircle, CheckCircle, Funnel, ArrowLeftRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import AlertToast from '../components/ui/AlertToast';
 import '../styles/buttons.css';
@@ -141,8 +142,62 @@ const Leads = ({ embed }) => {
         });
     };
 
+    const [showTransferModal, setShowTransferModal] = useState(false);
+    const [transferTargetLead, setTransferTargetLead] = useState(null);
+    const [users, setUsers] = useState([]);
+    const [selectedUser, setSelectedUser] = useState('');
+
+    const { user } = useAuth(); // Assuming useAuth provides user info for permission check
+
+    const fetchUsers = async () => {
+        try {
+            const response = await apiService.getUsers();
+            setUsers(response.data || []);
+        } catch (error) {
+            console.error('Erro ao buscar usuários:', error);
+        }
+    };
+
+    const handleTransferClick = (lead) => {
+        setTransferTargetLead(lead);
+        setSelectedUser(lead.userId || ''); // Pre-select current owner if possible, or empty
+        if (users.length === 0) fetchUsers();
+        setShowTransferModal(true);
+    };
+
+    const confirmTransfer = async () => {
+        if (!selectedUser) {
+            showAlert('warning', 'Atenção', 'Selecione um usuário para transferir.');
+            return;
+        }
+
+        try {
+            await apiService.updateLead(transferTargetLead.id, { userId: Number(selectedUser) });
+            showAlert('success', 'Sucesso', 'Lead transferido com sucesso');
+            setShowTransferModal(false);
+            fetchLeads();
+        } catch (error) {
+            console.error('Erro ao transferir lead:', error);
+            showAlert('error', 'Erro', 'Erro ao transferir lead');
+        }
+    };
+
     const handleMigrate = () => {
         showAlert('info', 'Em breve', 'Funcionalidade de migrar para cliente será implementada em breve.');
+    };
+
+    const handleSendToFunnel = async (lead) => {
+        try {
+            await apiService.addToFunnel({ leadId: lead.id });
+            showAlert('success', 'Sucesso', 'Lead enviado para o funil!');
+        } catch (error) {
+            console.error('Erro ao enviar para funil:', error);
+            if (error.response?.status === 409) {
+                showAlert('warning', 'Atenção', 'Lead já está no funil.');
+            } else {
+                showAlert('error', 'Erro', 'Falha ao enviar lead para o funil.');
+            }
+        }
     };
 
     const handleMessage = () => {
@@ -502,6 +557,24 @@ const Leads = ({ embed }) => {
                                                     <Trash2 size={16} />
                                                 </button>
                                                 <button
+                                                    onClick={() => handleSendToFunnel(lead)}
+                                                    style={{ ...styles.actionButton, color: '#f59e0b', backgroundColor: isDark ? '#78350f' : '#fef3c7' }}
+                                                    className={isDark ? "hover:bg-yellow-900" : "hover:bg-yellow-100"}
+                                                    title="Enviar para Funil"
+                                                >
+                                                    <Funnel size={16} />
+                                                </button>
+                                                {(user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'MASTER') && (
+                                                    <button
+                                                        onClick={() => handleTransferClick(lead)}
+                                                        style={{ ...styles.actionButton, color: '#0ea5e9', backgroundColor: isDark ? '#0c4a6e' : '#e0f2fe' }}
+                                                        className={isDark ? "hover:bg-sky-900" : "hover:bg-sky-100"}
+                                                        title="Transferir Lead"
+                                                    >
+                                                        <ArrowLeftRight size={16} />
+                                                    </button>
+                                                )}
+                                                <button
                                                     onClick={handleMigrate}
                                                     style={{ ...styles.actionButton, color: '#16a34a', backgroundColor: isDark ? '#14532d' : '#f0fdf4' }}
                                                     className={isDark ? "hover:bg-green-900" : "hover:bg-green-100"}
@@ -582,6 +655,23 @@ const Leads = ({ embed }) => {
                                         required
                                     />
                                 </div>
+
+                                {/* Show Owner if Admin/Manager */}
+                                {(user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'MASTER') && selectedLead && (
+                                    <div style={styles.formGroup}>
+                                        <label style={styles.label}>Responsável (Dono)</label>
+                                        <input
+                                            type="text"
+                                            style={{ ...styles.input, backgroundColor: isDark ? '#333' : '#f3f4f6', cursor: 'not-allowed' }}
+                                            value={selectedLead.user ? selectedLead.user.name : 'Sem dono'}
+                                            readOnly
+                                        />
+                                        <small style={{ color: currentTheme.textSecondary, fontSize: '11px' }}>
+                                            Para alterar, use o botão de transferência na lista.
+                                        </small>
+                                    </div>
+                                )}
+
                                 <div style={styles.formGroup}>
                                     <label style={styles.label}>Sobrenome</label>
                                     <input
@@ -689,6 +779,64 @@ const Leads = ({ embed }) => {
                                 }}
                             >
                                 Confirmar Exclusão
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Transferir Lead */}
+            {showTransferModal && (
+                <div style={styles.modalOverlay} onClick={() => setShowTransferModal(false)}>
+                    <div style={{ ...styles.modalContainer, maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+                        <div style={styles.modalHeader}>
+                            <h3 style={styles.modalTitle}>Transferir Lead</h3>
+                            <button onClick={() => setShowTransferModal(false)} className="btn-close-modal">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div style={{ padding: '24px' }}>
+                            <p style={{ marginBottom: '16px', color: currentTheme.textSecondary }}>
+                                Selecione o novo responsável para o lead <b>{transferTargetLead?.name}</b>:
+                            </p>
+                            <select
+                                style={{ ...styles.input, width: '100%' }}
+                                value={selectedUser}
+                                onChange={(e) => setSelectedUser(e.target.value)}
+                            >
+                                <option value="">Selecione um usuário...</option>
+                                {users.map(u => (
+                                    <option key={u.id} value={u.id}>{u.name} ({u.role || 'Membro'})</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div style={styles.modalFooter}>
+                            <button
+                                onClick={() => setShowTransferModal(false)}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    border: `1px solid ${currentTheme.border}`,
+                                    backgroundColor: isDark ? currentTheme.cardBackground : '#fff',
+                                    color: currentTheme.textPrimary,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmTransfer}
+                                className="btn-base"
+                                style={{
+                                    backgroundColor: '#0ea5e9',
+                                    color: '#fff',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Transferir
                             </button>
                         </div>
                     </div>

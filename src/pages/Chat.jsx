@@ -1139,7 +1139,7 @@ const Chat = () => {
                 <h2>Configuração do Chat</h2>
               </div>
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/dash')}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: currentTheme.textSecondary }}
                 title="Fechar e Voltar"
               >
