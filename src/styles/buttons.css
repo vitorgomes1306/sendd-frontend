@@ -123,3 +123,15 @@
   opacity: 1;
   transform: scale(1);
 }
+
+.btn-close-modal {
+  background-color: #dc2626;
+  color: #fff;
+  border-radius: 20%;
+  border: none;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

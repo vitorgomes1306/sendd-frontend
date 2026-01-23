@@ -6,6 +6,7 @@ import { apiService } from '../services/api';
 import AlertToast from '../components/ui/AlertToast';
 import { useToast } from '../contexts/ToastContext';
 
+import Leads from './Leads';
 import '../styles/buttons.css';
 
 import { lookupCep } from '../utils/cep';
@@ -16,6 +17,7 @@ const Clients = () => {
   // Função para exibir Alertas toast
   const { showToast } = useToast();
 
+  const [activeTab, setActiveTab] = useState('clientes'); // 'clientes' or 'leads'
   const [hover, setHover] = useState(false);
 
   const navigate = useNavigate();
@@ -469,9 +471,9 @@ const Clients = () => {
         <div>
           <h1 style={styles.title}>
             <Users size={32} style={styles.titleIcon} />
-            Clientes
+            {activeTab === 'clientes' ? 'Clientes' : 'Leads'}
           </h1>
-          <p style={styles.subtitle}>Gerencie seus clientes</p>
+          <p style={styles.subtitle}>Gerencie seus {activeTab === 'clientes' ? 'clientes' : 'leads'}</p>
         </div>
 
         <div style={styles.headerActions}>
@@ -490,15 +492,27 @@ const Clients = () => {
 
           <button
             className="btn-base btn-new-green"
-            onClick={() => navigate('/leads')}
+            onClick={() => setActiveTab('leads')}
+            style={{ opacity: activeTab === 'leads' ? 1 : 0.7 }}
           >
             <Import size={20} />
-            Importar contatos
+            Leads
+          </button>
+          <button
+            className="btn-base btn-new"
+            onClick={() => setActiveTab('clientes')}
+            style={{
+              backgroundColor: activeTab === 'clientes' ? undefined : '#ccc',
+              cursor: 'pointer'
+            }}
+          >
+            <Users size={20} />
+            Clientes
           </button>
           <button
             className="btn-base btn-new"
             onClick={() => openModal('create')}
-
+            style={{ display: activeTab === 'clientes' ? 'flex' : 'none' }}
           >
             <Plus size={20} />
             Novo Cliente
@@ -522,142 +536,151 @@ const Clients = () => {
         onClose={() => setSuccess('')}
       />
 
-      {/* Estatísticas */}
-      <div style={styles.statsContainer}>
-        <div style={{ ...styles.statCard, borderLeft: `4px solid ${currentTheme.primary || '#3b82f6'}` }}>
-          <div style={styles.statsIcon}>
-            <Users size={24} />
-          </div>
-          <div>
-            <p style={styles.statLabel}>Total de Clientes</p>
-            <p style={styles.statNumber}>{totalClients}</p>
-          </div>
-        </div>
-
-        <div style={{ ...styles.statCard, borderLeft: `4px solid #10b981` }}>
-          <div style={{ ...styles.statsIcon, backgroundColor: '#10b98120', color: '#10b981' }}>
-            <Building size={24} />
-          </div>
-          <div>
-            <p style={styles.statLabel}>Clientes Ativos</p>
-            <p style={styles.statNumber}>{activeClients}</p>
-          </div>
-        </div>
-
-        <div style={{ ...styles.statCard, borderLeft: `4px solid #f59e0b` }}>
-          <div style={{ ...styles.statsIcon, backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
-            <User size={24} />
-          </div>
-          <div>
-            <p style={styles.statLabel}>Clientes Inativos</p>
-            <p style={styles.statNumber}>{inactiveClients}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabela */}
-      <div style={styles.tableContainer}>
-        <div style={styles.tableHeader}>
-          <h2 style={styles.tableTitle}>Lista de Clientes</h2>
-        </div>
-
-        <div>
-          {loading ? (
-            <div style={styles.loading}>
-              <div style={styles.spinner}></div>
-              <p>Carregando clientes...</p>
+      {/* Conteúdo das Abas */}
+      {activeTab === 'clientes' ? (
+        <>
+          {/* Estatísticas */}
+          <div style={styles.statsContainer}>
+            <div style={{ ...styles.statCard, borderLeft: `4px solid ${currentTheme.primary || '#3b82f6'}` }}>
+              <div style={styles.statsIcon}>
+                <Users size={24} />
+              </div>
+              <div>
+                <p style={styles.statLabel}>Total de Clientes</p>
+                <p style={styles.statNumber}>{totalClients}</p>
+              </div>
             </div>
-          ) : filteredClients.length === 0 ? (
-            <div style={styles.emptyState}>
-              <Users size={48} style={styles.emptyIcon} />
-              <p>Nenhum cliente encontrado</p>
+
+            <div style={{ ...styles.statCard, borderLeft: `4px solid #10b981` }}>
+              <div style={{ ...styles.statsIcon, backgroundColor: '#10b98120', color: '#10b981' }}>
+                <Building size={24} />
+              </div>
+              <div>
+                <p style={styles.statLabel}>Clientes Ativos</p>
+                <p style={styles.statNumber}>{activeClients}</p>
+              </div>
             </div>
-          ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Nome</th>
-                  <th style={styles.th}>Tipo</th>
-                  <th style={styles.th}>CPF/CNPJ</th>
-                  <th style={styles.th}>Email</th>
-                  <th style={styles.th}>Celular</th>
-                  <th style={styles.th}>Cidade</th>
-                  <th style={styles.th}>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredClients.map((client) => (
-                  <tr key={client.id} style={styles.tableRow}>
-                    <td style={styles.td}>{client.name}</td>
-                    <td style={styles.td}>
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        backgroundColor: client.type === 'PJ' ? '#10b98120' : '#f59e0b20',
-                        color: client.type === 'PJ' ? '#10b981' : '#f59e0b'
-                      }}>
-                        {client.type}
-                      </span>
-                    </td>
-                    <td style={styles.td}>{formatCpfCnpj(client.cpfCnpj)}</td>
-                    <td style={styles.td}>{client.email}</td>
-                    <td style={styles.td}>{formatCellphone(client.cellphone)}</td>
-                    <td style={styles.td}>{client.city}</td>
-                    <td style={styles.td}>
-                      <div style={styles.actionButtons}>
-                        <button
-                          onClick={() => navigate(`/clientes/${client.id}`)}
-                          style={styles.actionButton}
-                          title="Visualizar Detalhes"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          onClick={() => openModal('edit', client)}
-                          style={{ ...styles.actionButton, ...styles.editButton }}
-                          title="Editar"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(client)}
-                          style={{ ...styles.actionButton, ...styles.deleteButton }}
-                          title="Excluir"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+            <div style={{ ...styles.statCard, borderLeft: `4px solid #f59e0b` }}>
+              <div style={{ ...styles.statsIcon, backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
+                <User size={24} />
+              </div>
+              <div>
+                <p style={styles.statLabel}>Clientes Inativos</p>
+                <p style={styles.statNumber}>{inactiveClients}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabela */}
+          <div style={styles.tableContainer}>
+            <div style={styles.tableHeader}>
+              <h2 style={styles.tableTitle}>Lista de Clientes</h2>
+            </div>
+
+            <div>
+              {loading ? (
+                <div style={styles.loading}>
+                  <div style={styles.spinner}></div>
+                  <p>Carregando clientes...</p>
+                </div>
+              ) : filteredClients.length === 0 ? (
+                <div style={styles.emptyState}>
+                  <Users size={48} style={styles.emptyIcon} />
+                  <p>Nenhum cliente encontrado</p>
+                </div>
+              ) : (
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Nome</th>
+                      <th style={styles.th}>Tipo</th>
+                      <th style={styles.th}>CPF/CNPJ</th>
+                      <th style={styles.th}>Email</th>
+                      <th style={styles.th}>Celular</th>
+                      <th style={styles.th}>Cidade</th>
+                      <th style={styles.th}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredClients.map((client) => (
+                      <tr key={client.id} style={styles.tableRow}>
+                        <td style={styles.td}>{client.name}</td>
+                        <td style={styles.td}>
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            backgroundColor: client.type === 'PJ' ? '#10b98120' : '#f59e0b20',
+                            color: client.type === 'PJ' ? '#10b981' : '#f59e0b'
+                          }}>
+                            {client.type}
+                          </span>
+                        </td>
+                        <td style={styles.td}>{formatCpfCnpj(client.cpfCnpj)}</td>
+                        <td style={styles.td}>{client.email}</td>
+                        <td style={styles.td}>{formatCellphone(client.cellphone)}</td>
+                        <td style={styles.td}>{client.city}</td>
+                        <td style={styles.td}>
+                          <div style={styles.actionButtons}>
+                            <button
+                              onClick={() => navigate(`/clientes/${client.id}`)}
+                              style={styles.actionButton}
+                              title="Visualizar Detalhes"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => openModal('edit', client)}
+                              style={{ ...styles.actionButton, ...styles.editButton }}
+                              title="Editar"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => openDeleteModal(client)}
+                              style={{ ...styles.actionButton, ...styles.deleteButton }}
+                              title="Excluir"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div style={styles.pagination}>
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                style={styles.paginationButton}
+              >
+                Anterior
+              </button>
+              <span style={styles.paginationInfo}>
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                style={styles.paginationButton}
+              >
+                Próxima
+              </button>
+            </div>
           )}
-        </div>
-      </div>
-
-      {/* Paginação */}
-      {totalPages > 1 && (
-        <div style={styles.pagination}>
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-            style={styles.paginationButton}
-          >
-            Anterior
-          </button>
-          <span style={styles.paginationInfo}>
-            Página {currentPage} de {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-            style={styles.paginationButton}
-          >
-            Próxima
-          </button>
+        </>
+      ) : (
+        <div className="mt-6">
+          <Leads embed={true} />
         </div>
       )}
 

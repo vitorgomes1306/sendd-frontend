@@ -220,6 +220,9 @@ export const apiService = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   getLeads: (params) => api.get('/private/leads', { params }),
+  createLead: (data) => api.post('/private/leads', data),
+  updateLead: (id, data) => api.put(`/private/leads/${id}`, data),
+  deleteLead: (id) => api.delete(`/private/leads/${id}`),
 };
 
 export default api;
