@@ -223,6 +223,7 @@ export const apiService = {
   createLead: (data) => api.post('/private/leads', data),
   updateLead: (id, data) => api.put(`/private/leads/${id}`, data),
   deleteLead: (id) => api.delete(`/private/leads/${id}`),
+  deleteLeads: (ids) => api.delete('/private/leads/batch', { data: { ids } }),
 };
 
 export default api;

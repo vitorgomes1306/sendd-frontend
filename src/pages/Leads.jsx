@@ -170,6 +170,49 @@ const Leads = ({ embed }) => {
         }
     };
 
+    // Bulk Actions
+    const [selectedLeads, setSelectedLeads] = useState([]);
+
+    const toggleSelectAll = (e) => {
+        if (e.target.checked) {
+            const allIds = leads.map(l => l.id);
+            setSelectedLeads(allIds);
+        } else {
+            setSelectedLeads([]);
+        }
+    };
+
+    const toggleSelectOne = (id) => {
+        if (selectedLeads.includes(id)) {
+            setSelectedLeads(selectedLeads.filter(leadId => leadId !== id));
+        } else {
+            setSelectedLeads([...selectedLeads, id]);
+        }
+    };
+
+    const confirmBulkDelete = async () => {
+        try {
+            await apiService.deleteLeads(selectedLeads);
+            showAlert('success', 'Sucesso', 'Leads excluídos com sucesso');
+            setSelectedLeads([]);
+            fetchLeads();
+        } catch (error) {
+            console.error('Erro ao excluir leads:', error);
+            showAlert('error', 'Erro', 'Erro ao excluir leads');
+        } finally {
+            closeConfirmModal();
+        }
+    };
+
+    const handleBulkDelete = () => {
+        setConfirmModal({
+            open: true,
+            title: 'Excluir Leads Selecionados',
+            message: `Tem certeza que deseja excluir ${selectedLeads.length} leads selecionados? Esta ação não pode ser desfeita.`,
+            onConfirm: confirmBulkDelete
+        });
+    };
+
     const styles = {
         container: {
             padding: embed ? '0' : '24px',
@@ -361,8 +404,18 @@ const Leads = ({ embed }) => {
                 </button>
             </div>
 
-            {/* Botão Novo Lead */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+            {/* Botão Novo Lead e Bulk Delete */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px', gap: '8px' }}>
+                {selectedLeads.length > 0 && (
+                    <button
+                        onClick={handleBulkDelete}
+                        className="btn-base"
+                        style={{ backgroundColor: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                        <Trash2 size={18} />
+                        Excluir Selecionados ({selectedLeads.length})
+                    </button>
+                )}
                 <button
                     onClick={() => {
                         setSelectedLead(null);
@@ -383,6 +436,14 @@ const Leads = ({ embed }) => {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr>
+                                <th style={{ ...styles.th, width: '40px' }}>
+                                    <input
+                                        type="checkbox"
+                                        onChange={toggleSelectAll}
+                                        checked={leads.length > 0 && selectedLeads.length === leads.length}
+                                        style={{ accentColor: currentTheme.primary }}
+                                    />
+                                </th>
                                 <th style={styles.th}>Nome</th>
                                 <th style={styles.th}>Sobrenome</th>
                                 <th style={styles.th}>Email</th>
@@ -394,19 +455,27 @@ const Leads = ({ embed }) => {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center" style={{ color: currentTheme.textSecondary }}>
+                                    <td colSpan="7" className="px-6 py-8 text-center" style={{ color: currentTheme.textSecondary }}>
                                         Carregando...
                                     </td>
                                 </tr>
                             ) : leads.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center" style={{ color: currentTheme.textSecondary }}>
+                                    <td colSpan="7" className="px-6 py-8 text-center" style={{ color: currentTheme.textSecondary }}>
                                         Nenhum lead encontrado.
                                     </td>
                                 </tr>
                             ) : (
                                 leads.map((lead) => (
                                     <tr key={lead.id} className={`${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-50'} transition-colors`}>
+                                        <td style={styles.td}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedLeads.includes(lead.id)}
+                                                onChange={() => toggleSelectOne(lead.id)}
+                                                style={{ accentColor: currentTheme.primary }}
+                                            />
+                                        </td>
                                         <td style={styles.td}>{lead.name}</td>
                                         <td style={styles.td}>{lead.surname || '-'}</td>
                                         <td style={styles.td}>{lead.email || '-'}</td>
