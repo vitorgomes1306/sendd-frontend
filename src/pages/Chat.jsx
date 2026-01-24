@@ -130,6 +130,7 @@ const Chat = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [closingMessage, setClosingMessage] = useState('');
+  const [sendFinishedMessage, setSendFinishedMessage] = useState(true); // Default true
   const [signMessage, setSignMessage] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -954,8 +955,9 @@ const Chat = () => {
     if (!selectedChat || isFinishing) return;
     setIsFinishing(true);
     try {
-      const response = await apiService.put(`/private/chats/${selectedChat.id}/finish`, {
-        closingMessage: closingMessage.trim()
+      await apiService.put(`/private/chats/${selectedChat.id}/finish`, {
+        closingMessage: sendFinishedMessage ? closingMessage : null,
+        sendFinishedMessage
       });
       setSelectedChat(null);
       fetchChats();
@@ -1992,25 +1994,42 @@ const Chat = () => {
           </p>
 
           <div style={{ marginBottom: '24px', textAlign: 'left' }}>
-            <label style={{ fontSize: '13px', fontWeight: '600', color: currentTheme.textSecondary, marginBottom: '6px', display: 'block' }}>
-              Mensagem de Encerramento (Opcional)
-            </label>
-            <textarea
-              value={closingMessage}
-              onChange={(e) => setClosingMessage(e.target.value)}
-              placeholder="Ex: Obrigado pelo contato, tenha um bom dia!"
-              style={{
-                width: '100%',
-                height: '80px',
-                padding: '8px',
-                borderRadius: '6px',
-                border: `1px solid ${currentTheme.border}`,
-                backgroundColor: currentTheme.background,
-                color: currentTheme.textPrimary,
-                fontSize: '14px',
-                resize: 'none'
-              }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+              <input
+                type="checkbox"
+                id="sendFinishMsg"
+                checked={sendFinishedMessage}
+                onChange={(e) => setSendFinishedMessage(e.target.checked)}
+                style={{ width: '16px', height: '16px', marginRight: '8px', cursor: 'pointer' }}
+              />
+              <label htmlFor="sendFinishMsg" style={{ fontSize: '14px', color: currentTheme.textPrimary, cursor: 'pointer', fontWeight: '500' }}>
+                Enviar mensagem de encerramento ao cliente?
+              </label>
+            </div>
+
+            {sendFinishedMessage && (
+              <>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: currentTheme.textSecondary, marginBottom: '6px', display: 'block' }}>
+                  Mensagem (Opcional)
+                </label>
+                <textarea
+                  value={closingMessage}
+                  onChange={(e) => setClosingMessage(e.target.value)}
+                  placeholder="Deixe em branco para usar a mensagem padrão configurada."
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: `1px solid ${currentTheme.border}`,
+                    backgroundColor: currentTheme.inputBg || currentTheme.background,
+                    color: currentTheme.textPrimary,
+                    minHeight: '80px',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
             <Button

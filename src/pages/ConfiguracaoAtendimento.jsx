@@ -12,6 +12,7 @@ const ConfiguracaoAtendimento = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [attendantWelcomeMessage, setAttendantWelcomeMessage] = useState('');
+    const [attendantFinishMessage, setAttendantFinishMessage] = useState('');
     const [organizationId, setOrganizationId] = useState(null);
 
     useEffect(() => {
@@ -26,6 +27,7 @@ const ConfiguracaoAtendimento = () => {
                 const org = res.data[0];
                 setOrganizationId(org.id);
                 setAttendantWelcomeMessage(org.attendantWelcomeMessage || '');
+                setAttendantFinishMessage(org.attendantFinishMessage || '');
             }
         } catch (error) {
             console.error('Erro ao carregar configurações:', error);
@@ -40,7 +42,8 @@ const ConfiguracaoAtendimento = () => {
         setSaving(true);
         try {
             await apiService.put(`/private/organizations/${organizationId}`, {
-                attendantWelcomeMessage
+                attendantWelcomeMessage,
+                attendantFinishMessage
             });
             showToast({ title: 'Salvo', message: 'Mensagem de atendimento atualizada.', variant: 'success' });
         } catch (error) {
@@ -96,6 +99,19 @@ const ConfiguracaoAtendimento = () => {
                         </ul>
                     </div>
                 </div>
+            </div>
+
+            <div style={styles.card}>
+                <h3 style={{ marginBottom: '16px', fontSize: '18px', color: '#444' }}>Mensagem de Encerramento</h3>
+                <p style={{ fontSize: '14px', color: '#888', marginBottom: '12px' }}>
+                    Mensagem padrão que será sugerida ao finalizar um atendimento.
+                </p>
+                <textarea
+                    style={styles.textarea}
+                    value={attendantFinishMessage}
+                    onChange={(e) => setAttendantFinishMessage(e.target.value)}
+                    placeholder="Ex: Atendimento finalizado. Obrigado!"
+                />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
