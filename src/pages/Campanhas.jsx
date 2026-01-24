@@ -3,16 +3,16 @@ import { useTheme } from '../contexts/ThemeContext';
 import { apiService, getApiBaseUrl } from '../services/api';
 import AlertToast from '../components/ui/AlertToast';
 import './Campanhas.css'; // Importando estilos específicos (incluindo modals)
-import { 
-  MessageSquare, 
-  Megaphone, 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  X, 
-  Calendar, 
-  FileText, 
+import {
+  MessageSquare,
+  Megaphone,
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  X,
+  Calendar,
+  FileText,
   Image as ImageIcon,
   Video,
   Music,
@@ -46,7 +46,7 @@ const Campanhas = () => {
     id: null,
     title: ''
   });
-  
+
   // Selected Media Object (for preview in form)
   const [selectedMedia, setSelectedMedia] = useState(null);
 
@@ -338,7 +338,7 @@ const Campanhas = () => {
   const handleContentChange = (e) => {
     const value = e.target.value;
     const cursorPosition = e.target.selectionStart;
-    
+
     setCampaignForm(prev => ({ ...prev, content: value }));
 
     const textBeforeCursor = value.substring(0, cursorPosition);
@@ -366,7 +366,7 @@ const Campanhas = () => {
   const handleContentKeyDown = (e) => {
     if (!slashMenu.isOpen) return;
 
-    const filteredTemplates = templates.filter(t => 
+    const filteredTemplates = templates.filter(t =>
       t.title.toLowerCase().includes(slashMenu.filter.toLowerCase())
     );
 
@@ -397,12 +397,12 @@ const Campanhas = () => {
     const text = campaignForm.content;
     const textBeforeCursor = text.substring(0, cursorPosition);
     const slashIndex = textBeforeCursor.lastIndexOf('/');
-    
+
     const newText = text.substring(0, slashIndex) + template.content + text.substring(cursorPosition);
-    
+
     setCampaignForm(prev => ({ ...prev, content: newText }));
     setSlashMenu(prev => ({ ...prev, isOpen: false }));
-    
+
     // Retornar o foco para o textarea após a atualização do estado
     setTimeout(() => {
       if (textareaRef.current) {
@@ -421,17 +421,17 @@ const Campanhas = () => {
         <button
           onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
           disabled={pagination.page === 1}
-          style={{...styles.paginationButton, opacity: pagination.page === 1 ? 0.5 : 1}}
+          style={{ ...styles.paginationButton, opacity: pagination.page === 1 ? 0.5 : 1 }}
         >
           Anterior
         </button>
-        <span style={{color: currentTheme.textPrimary}}>
+        <span style={{ color: currentTheme.textPrimary }}>
           Página {pagination.page} de {pagination.pages}
         </span>
         <button
           onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
           disabled={pagination.page === pagination.pages}
-          style={{...styles.paginationButton, opacity: pagination.page === pagination.pages ? 0.5 : 1}}
+          style={{ ...styles.paginationButton, opacity: pagination.page === pagination.pages ? 0.5 : 1 }}
         >
           Próxima
         </button>
@@ -441,12 +441,12 @@ const Campanhas = () => {
 
   return (
     <div style={styles.container}>
-      <AlertToast 
-        open={alertState.open} 
-        variant={alertState.variant} 
-        title={alertState.title} 
-        message={alertState.message} 
-        onClose={() => setAlertState(prev => ({ ...prev, open: false }))} 
+      <AlertToast
+        open={alertState.open}
+        variant={alertState.variant}
+        title={alertState.title}
+        message={alertState.message}
+        onClose={() => setAlertState(prev => ({ ...prev, open: false }))}
       />
 
       {/* Header */}
@@ -456,8 +456,8 @@ const Campanhas = () => {
           {activeTab === 'templates' ? 'Mensagens Prontas' : 'Campanhas'}
         </h1>
         <p style={styles.subtitle}>
-          {activeTab === 'templates' 
-            ? 'Gerencie modelos de mensagens para uso rápido.' 
+          {activeTab === 'templates'
+            ? 'Gerencie modelos de mensagens para uso rápido.'
             : 'Crie e gerencie suas campanhas de marketing.'}
         </p>
       </div>
@@ -466,13 +466,13 @@ const Campanhas = () => {
       <div style={styles.tabsContainer}>
         <button
           onClick={() => setActiveTab('templates')}
-          style={{...styles.tabButton, ...(activeTab === 'templates' ? styles.activeTab : styles.inactiveTab)}}
+          style={{ ...styles.tabButton, ...(activeTab === 'templates' ? styles.activeTab : styles.inactiveTab) }}
         >
           <MessageSquare size={18} /> Mensagens Prontas
         </button>
         <button
           onClick={() => setActiveTab('campaigns')}
-          style={{...styles.tabButton, ...(activeTab === 'campaigns' ? styles.activeTab : styles.inactiveTab)}}
+          style={{ ...styles.tabButton, ...(activeTab === 'campaigns' ? styles.activeTab : styles.inactiveTab) }}
         >
           <Megaphone size={18} /> Campanhas
         </button>
@@ -491,7 +491,7 @@ const Campanhas = () => {
               style={styles.searchInput}
             />
           </div>
-          <button 
+          <button
             onClick={() => activeTab === 'templates' ? openTemplateModal() : openCampaignModal()}
             style={styles.createButton}
           >
@@ -524,7 +524,7 @@ const Campanhas = () => {
                           <button onClick={() => openTemplateModal(item)} style={styles.iconButton}>
                             <Edit2 size={16} />
                           </button>
-                          <button onClick={() => handleDeleteTemplate(item)} style={{...styles.iconButton, color: '#ef4444'}}>
+                          <button onClick={() => handleDeleteTemplate(item)} style={{ ...styles.iconButton, color: '#ef4444' }}>
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -533,7 +533,7 @@ const Campanhas = () => {
                   ))}
                   {templates.length === 0 && (
                     <tr>
-                      <td colSpan="3" style={{...styles.td, textAlign: 'center', padding: '32px'}}>
+                      <td colSpan="3" style={{ ...styles.td, textAlign: 'center', padding: '32px' }}>
                         Nenhuma mensagem encontrada
                       </td>
                     </tr>
@@ -561,12 +561,12 @@ const Campanhas = () => {
                   {campaigns.map(item => (
                     <tr key={item.id} style={styles.tr}>
                       <td style={styles.td}>
-                        <div style={{fontWeight: '600'}}>{item.name}</div>
-                        <div style={{fontSize: '12px', color: currentTheme.textSecondary}}>{item.description}</div>
+                        <div style={{ fontWeight: '600' }}>{item.name}</div>
+                        <div style={{ fontSize: '12px', color: currentTheme.textSecondary }}>{item.description}</div>
                       </td>
                       <td style={styles.td}>
-                        {item.startDate ? new Date(item.startDate).toLocaleDateString() : '-'} 
-                        {' até '} 
+                        {item.startDate ? new Date(item.startDate).toLocaleDateString() : '-'}
+                        {' até '}
                         {item.endDate ? new Date(item.endDate).toLocaleDateString() : '-'}
                       </td>
                       <td style={styles.td}>
@@ -580,7 +580,7 @@ const Campanhas = () => {
                       </td>
                       <td style={styles.td}>
                         {item.media ? (
-                          <div style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <ImageIcon size={14} /> {item.media.filename}
                           </div>
                         ) : '-'}
@@ -590,7 +590,7 @@ const Campanhas = () => {
                           <button onClick={() => openCampaignModal(item)} style={styles.iconButton}>
                             <Edit2 size={16} />
                           </button>
-                          <button onClick={() => handleDeleteCampaign(item)} style={{...styles.iconButton, color: '#ef4444'}}>
+                          <button onClick={() => handleDeleteCampaign(item)} style={{ ...styles.iconButton, color: '#ef4444' }}>
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -599,7 +599,7 @@ const Campanhas = () => {
                   ))}
                   {campaigns.length === 0 && (
                     <tr>
-                      <td colSpan="5" style={{...styles.td, textAlign: 'center', padding: '32px'}}>
+                      <td colSpan="5" style={{ ...styles.td, textAlign: 'center', padding: '32px' }}>
                         Nenhuma campanha encontrada
                       </td>
                     </tr>
@@ -614,29 +614,35 @@ const Campanhas = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmation.isOpen && (
-        <div className="modal-overlay" onClick={() => setDeleteConfirmation({ isOpen: false, type: null, id: null, title: '' })}>
-          <div className="modal-content" style={{maxWidth: '450px'}} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Confirmar Exclusão</h2>
-              <button className="close-button" onClick={() => setDeleteConfirmation({ isOpen: false, type: null, id: null, title: '' })}>
+        <div style={styles.modalOverlay} onClick={() => setDeleteConfirmation({ isOpen: false, type: null, id: null, title: '' })}>
+          <div style={{ ...styles.modal, maxWidth: '450px' }} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>Confirmar Exclusão</h2>
+              <button style={styles.closeButton} onClick={() => setDeleteConfirmation({ isOpen: false, type: null, id: null, title: '' })}>
                 <X size={20} />
               </button>
             </div>
-            <div className="modal-body">
+            <div style={styles.modalBody}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#dc2626' }}>
                   <AlertCircle size={32} />
-                  <p style={{ margin: 0 }}>
+                  <p style={{ margin: 0, color: currentTheme.textPrimary }}>
                     Tem certeza que deseja excluir <strong>{deleteConfirmation.title}</strong>? Esta ação não pode ser desfeita.
                   </p>
                 </div>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setDeleteConfirmation({ isOpen: false, type: null, id: null, title: '' })}>
+            <div style={styles.modalFooter}>
+              <button
+                style={{ ...styles.btn, backgroundColor: 'transparent', border: `1px solid ${currentTheme.border}`, color: currentTheme.textPrimary }}
+                onClick={() => setDeleteConfirmation({ isOpen: false, type: null, id: null, title: '' })}
+              >
                 Cancelar
               </button>
-              <button className="btn btn-danger" onClick={confirmDelete}>
+              <button
+                style={{ ...styles.btn, backgroundColor: '#dc2626', color: 'white', border: 'none' }}
+                onClick={confirmDelete}
+              >
                 Confirmar Exclusão
               </button>
             </div>
@@ -646,40 +652,49 @@ const Campanhas = () => {
 
       {/* Template Modal */}
       {showTemplateModal && (
-        <div className="modal-overlay" onClick={() => setShowTemplateModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingItem ? 'Editar Mensagem' : 'Nova Mensagem'}</h2>
-              <button className="close-button" onClick={() => setShowTemplateModal(false)}>
+        <div style={styles.modalOverlay} onClick={() => setShowTemplateModal(false)}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>{editingItem ? 'Editar Mensagem' : 'Nova Mensagem'}</h2>
+              <button style={styles.closeButton} onClick={() => setShowTemplateModal(false)}>
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSaveTemplate}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Título</label>
+            <form onSubmit={handleSaveTemplate} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={styles.modalBody}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Título</label>
                   <input
                     type="text"
                     value={templateForm.title}
                     onChange={e => setTemplateForm(prev => ({ ...prev, title: e.target.value }))}
                     required
+                    style={styles.input}
                   />
                 </div>
-                <div className="form-group">
-                  <label>Conteúdo</label>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Conteúdo</label>
                   <textarea
                     value={templateForm.content}
                     onChange={e => setTemplateForm(prev => ({ ...prev, content: e.target.value }))}
                     rows={6}
                     required
+                    style={styles.input}
                   />
                 </div>
               </div>
-              <div className="modal-footer">
-                <button className="btn btn-outline" type="button" onClick={() => setShowTemplateModal(false)}>
+              <div style={styles.modalFooter}>
+                <button
+                  style={{ ...styles.btn, backgroundColor: 'transparent', border: `1px solid ${currentTheme.border}`, color: currentTheme.textPrimary }}
+                  type="button"
+                  onClick={() => setShowTemplateModal(false)}
+                >
                   Cancelar
                 </button>
-                <button className="btn btn-primary" type="submit">
+                <button
+                  style={{ ...styles.btn, backgroundColor: currentTheme.primary, color: 'white', border: 'none' }}
+                  type="submit"
+                >
                   Salvar
                 </button>
               </div>
@@ -690,108 +705,153 @@ const Campanhas = () => {
 
       {/* Campaign Modal */}
       {showCampaignModal && (
-        <div className="modal-overlay" onClick={() => setShowCampaignModal(false)}>
-          <div className="modal-content" style={{maxWidth: '700px'}} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingItem ? 'Editar Campanha' : 'Nova Campanha'}</h2>
-              <button className="close-button" onClick={() => setShowCampaignModal(false)}>
+        <div style={styles.modalOverlay} onClick={() => setShowCampaignModal(false)}>
+          <div style={{ ...styles.modal, maxWidth: '700px' }} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>{editingItem ? 'Editar Campanha' : 'Nova Campanha'}</h2>
+              <button style={styles.closeButton} onClick={() => setShowCampaignModal(false)}>
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSaveCampaign}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Nome da Campanha</label>
+            <form onSubmit={handleSaveCampaign} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+              <div style={styles.modalBody}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Nome da Campanha</label>
                   <input
                     type="text"
                     value={campaignForm.name}
                     onChange={e => setCampaignForm(prev => ({ ...prev, name: e.target.value }))}
                     required
+                    style={styles.input}
                   />
                 </div>
-                <div className="form-group">
-                  <label>Descrição (Opcional)</label>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Descrição (Opcional)</label>
                   <input
                     type="text"
                     value={campaignForm.description}
                     onChange={e => setCampaignForm(prev => ({ ...prev, description: e.target.value }))}
+                    style={styles.input}
                   />
                 </div>
-                <div className="form-group-row">
-                  <div className="form-group">
-                    <label>Data Início</label>
+                <div style={{ display: 'flex', gap: '16px', flexDirection: window.innerWidth < 768 ? 'column' : 'row' }}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Data Início</label>
                     <input
                       type="date"
                       value={campaignForm.startDate}
                       onChange={e => setCampaignForm(prev => ({ ...prev, startDate: e.target.value }))}
+                      style={styles.input}
                     />
                   </div>
-                  <div className="form-group">
-                    <label>Data Fim</label>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Data Fim</label>
                     <input
                       type="date"
                       value={campaignForm.endDate}
                       onChange={e => setCampaignForm(prev => ({ ...prev, endDate: e.target.value }))}
+                      style={styles.input}
                     />
                   </div>
                 </div>
-                <div className="form-group">
-                  <label>Mídia (Opcional)</label>
-                  
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Mídia (Opcional)</label>
+
                   {selectedMedia ? (
-                    <div className="selected-media-preview">
-                      <div className="media-info">
-                        <div className="preview-thumbnail">
+                    <div className="selected-media-preview" style={styles.mediaPreview}>
+                      <div className="media-info" style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
+                        <div className="preview-thumbnail" style={styles.thumbnail}>
                           {selectedMedia.type === 'image' ? (
-                            <img src={getFileUrl(selectedMedia.path)} alt="Preview" style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                            <img src={getFileUrl(selectedMedia.path)} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             getFileIcon(selectedMedia.type)
                           )}
                         </div>
-                        <span className="media-name">
+                        <span className="media-name" style={{ fontSize: '14px', color: currentTheme.textPrimary }}>
                           {selectedMedia.name || selectedMedia.filename}
                         </span>
                       </div>
-                      <button type="button" onClick={removeMedia} className="btn-icon">
+                      <button type="button" onClick={removeMedia} style={styles.iconButton}>
                         <X size={16} />
                       </button>
                     </div>
                   ) : (
-                     <button 
-                        type="button" 
-                        onClick={openGallery}
-                        className="attach-button"
-                      >
-                        <ImageIcon size={18} />
-                        Selecionar da Galeria
-                      </button>
+                    <button
+                      type="button"
+                      onClick={openGallery}
+                      style={styles.attachButton}
+                    >
+                      <ImageIcon size={18} />
+                      Selecionar da Galeria
+                    </button>
                   )}
                 </div>
-                <div className="form-group">
-                  <label>Texto da Mensagem</label>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Texto da Mensagem</label>
                   <textarea
+                    ref={textareaRef}
                     value={campaignForm.content}
-                    onChange={e => setCampaignForm(prev => ({ ...prev, content: e.target.value }))}
+                    onChange={handleContentChange}
+                    onKeyDown={handleContentKeyDown}
                     rows={4}
                     required
+                    style={styles.input}
                   />
+                  {slashMenu.isOpen && (
+                    <div style={{
+                      ...styles.slashMenu,
+                      top: 'auto',
+                      bottom: '100%',
+                      left: '0'
+                    }}>
+                      {templates.filter(t => t.title.toLowerCase().includes(slashMenu.filter.toLowerCase())).length === 0 ? (
+                        <div style={{ padding: '8px', color: '#999', fontSize: '12px' }}>Nenhuma mensagem encontrada</div>
+                      ) : (
+                        templates
+                          .filter(t => t.title.toLowerCase().includes(slashMenu.filter.toLowerCase()))
+                          .map((template, index) => (
+                            <div
+                              key={template.id}
+                              style={{
+                                ...styles.slashMenuItem,
+                                backgroundColor: index === slashMenu.activeIndex ? '#f3f4f6' : 'transparent'
+                              }}
+                              onClick={() => selectSlashTemplate(template)}
+                            >
+                              <div style={{ fontWeight: '600', fontSize: '13px' }}>{template.title}</div>
+                              <div style={{ fontSize: '12px', color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {template.content}
+                              </div>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="form-group">
-                  <label>Status</label>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Status</label>
                   <select
                     value={campaignForm.status}
                     onChange={e => setCampaignForm(prev => ({ ...prev, status: e.target.value }))}
+                    style={styles.input}
                   >
                     <option value="active">Ativo</option>
                     <option value="inactive">Inativo</option>
                   </select>
                 </div>
               </div>
-              <div className="modal-footer">
-                <button className="btn btn-outline" type="button" onClick={() => setShowCampaignModal(false)}>
+              <div style={styles.modalFooter}>
+                <button
+                  style={{ ...styles.btn, backgroundColor: 'transparent', border: `1px solid ${currentTheme.border}`, color: currentTheme.textPrimary }}
+                  type="button"
+                  onClick={() => setShowCampaignModal(false)}
+                >
                   Cancelar
                 </button>
-                <button className="btn btn-primary" type="submit">
+                <button
+                  style={{ ...styles.btn, backgroundColor: currentTheme.primary, color: 'white', border: 'none' }}
+                  type="submit"
+                >
                   Salvar
                 </button>
               </div>
@@ -803,7 +863,7 @@ const Campanhas = () => {
       {/* Gallery Modal - Note the extra class for z-index */}
       {showGallery && (
         <div className="modal-overlay modal-overlay-upper" onClick={() => setShowGallery(false)}>
-          <div className="modal-content" style={{maxWidth: '800px'}} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Galeria de Mídia</h2>
               <button className="close-button" onClick={() => setShowGallery(false)}>
@@ -826,7 +886,7 @@ const Campanhas = () => {
                 ))}
                 {galleryMedias.length === 0 && (
                   <div style={{ gridColumn: '1 / -1', padding: '32px', textAlign: 'center', color: '#666' }}>
-                      Nenhuma mídia encontrada.
+                    Nenhuma mídia encontrada.
                   </div>
                 )}
               </div>
@@ -1008,6 +1068,141 @@ const getStyles = (theme) => ({
     fontSize: '12px',
     fontWeight: '600',
     textTransform: 'uppercase'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
+  },
+  modal: {
+    backgroundColor: theme.cardBackground,
+    borderRadius: '12px',
+    width: '90%',
+    maxWidth: '500px',
+    maxHeight: '90vh',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.2)'
+  },
+  modalHeader: {
+    padding: '20px',
+    borderBottom: `1px solid ${theme.border}`,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: '600',
+    color: theme.textPrimary
+  },
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: theme.textSecondary,
+    padding: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  modalBody: {
+    padding: '20px',
+    overflowY: 'auto',
+    flex: 1
+  },
+  modalFooter: {
+    padding: '20px',
+    borderTop: `1px solid ${theme.border}`,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px'
+  },
+  formGroup: {
+    marginBottom: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    flex: 1
+  },
+  label: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: theme.textPrimary
+  },
+  input: {
+    padding: '10px 12px',
+    borderRadius: '8px',
+    border: `1px solid ${theme.border}`,
+    backgroundColor: theme.background,
+    color: theme.textPrimary,
+    fontSize: '14px',
+    outline: 'none'
+  },
+  btn: {
+    padding: '10px 20px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  attachButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '12px',
+    border: `1px dashed ${theme.border}`,
+    borderRadius: '8px',
+    backgroundColor: theme.background,
+    color: theme.textSecondary,
+    cursor: 'pointer',
+    fontSize: '14px',
+    width: '100%'
+  },
+  mediaPreview: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '8px',
+    border: `1px solid ${theme.border}`,
+    borderRadius: '8px',
+    backgroundColor: theme.background
+  },
+  thumbnail: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '4px',
+    objectFit: 'cover',
+    backgroundColor: theme.backgroundSecondary || '#eee',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  slashMenu: {
+    position: 'absolute',
+    width: '100%',
+    maxHeight: '200px',
+    overflowY: 'auto',
+    backgroundColor: theme.cardBackground,
+    border: `1px solid ${theme.border}`,
+    borderRadius: '8px',
+    boxShadow: theme.shadow,
+    zIndex: 100
+  },
+  slashMenuItem: {
+    padding: '8px 12px',
+    cursor: 'pointer',
+    borderBottom: `1px solid ${theme.border}`
   }
 });
 

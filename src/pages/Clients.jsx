@@ -6,7 +6,6 @@ import { apiService } from '../services/api';
 import AlertToast from '../components/ui/AlertToast';
 import { useToast } from '../contexts/ToastContext';
 
-import Leads from './Leads';
 import '../styles/buttons.css';
 
 import { lookupCep } from '../utils/cep';
@@ -490,25 +489,8 @@ const Clients = () => {
             </div>
           </div>
 
-          <button
-            className="btn-base btn-new-green"
-            onClick={() => setActiveTab('leads')}
-            style={{ opacity: activeTab === 'leads' ? 1 : 0.7 }}
-          >
-            <Import size={20} />
-            Leads
-          </button>
-          <button
-            className="btn-base btn-new"
-            onClick={() => setActiveTab('clientes')}
-            style={{
-              backgroundColor: activeTab === 'clientes' ? undefined : '#ccc',
-              cursor: 'pointer'
-            }}
-          >
-            <Users size={20} />
-            Clientes
-          </button>
+          
+          
           <button
             className="btn-base btn-new"
             onClick={() => openModal('create')}

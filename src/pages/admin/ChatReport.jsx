@@ -5,7 +5,7 @@ import { apiService } from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import {
     Search, Calendar, Filter, User, CheckCircle,
-    MessageSquare, Clock, ArrowLeft, ChevronLeft, ChevronRight, X, Clock8, BotMessageSquare, MessageSquareMore, BadgeCheck
+    MessageSquare, Clock, ArrowLeft, ChevronLeft, MessageCircleReply, ChevronRight, X, Clock8, BotMessageSquare, MessageSquareMore, BadgeCheck
 } from 'lucide-react';
 
 const ChatReport = () => {
@@ -337,29 +337,29 @@ const ChatReport = () => {
                                     onChange={(e) => handleFilterChange('search', e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
                                 />
+                                <button
+                                    onClick={handleApplyFilters}
+                                    style={{
+                                        padding: '10px',
+                                        backgroundColor: '#3b82f6',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        marginTop: '4px'
+                                    }}
+                                >
+                                    <Filter size={16} />
+                                </button>
                             </div>
+                           
                         </div>
 
-                        {/* Filter Button */}
-                        <button
-                            onClick={handleApplyFilters}
-                            style={{
-                                padding: '10px',
-                                backgroundColor: '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                marginTop: '4px'
-                            }}
-                        >
-                            <Filter size={16} />
-                            <span>Filtrar Resultados</span>
-                        </button>
+                        
                     </div>
                 </div>
 
@@ -496,6 +496,9 @@ const ChatReport = () => {
                                         Status: {selectedChat.status === 'attendant' ? (selectedChat.attendantId ? 'Em Atendimento' : 'Na Fila') :
                                             selectedChat.status === 'bot' ? 'Bot' : 'Encerrado'}
                                     </p>
+                                    <p style={{ fontSize: '12px', color: '#6b7280' }}>
+                                        Atendente: {selectedChat.attendant?.name}
+                                    </p>
                                 </div>
                             </div>
 
@@ -517,7 +520,7 @@ const ChatReport = () => {
                                         color: '#374151'
                                     }}
                                 >
-                                    <ArrowLeft size={14} /> Transferir
+                                    <MessageCircleReply size={14} /> Transferir
                                 </button>
                                 <button
                                     onClick={() => handleOpenFinish(selectedChat)}

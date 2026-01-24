@@ -1157,7 +1157,8 @@ const Chat = () => {
                 <h2>Configuração do Chat</h2>
               </div>
               <button
-                onClick={() => navigate('/dash')}
+                // fechar o modal
+                onClick={() => setShowConfigModal(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: currentTheme.textSecondary }}
                 title="Fechar e Voltar"
               >
