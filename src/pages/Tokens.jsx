@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Plus, Search, Trash2, Copy, Check, AlertCircle } from 'lucide-react';
+import { Key, Plus, Search, Trash2, Copy, Check, AlertCircle, Edit } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
@@ -31,6 +31,7 @@ const Tokens = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -94,24 +95,46 @@ const Tokens = () => {
     }
   };
 
-  const handleCreateToken = async (e) => {
+  const handleSaveToken = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
 
     try {
-      await apiService.post('/private/external-tokens', formData);
-      setSuccess('Token criado com sucesso!');
-      setShowModal(false);
+      if (isEditing && selectedToken) {
+        await apiService.put(`/private/external-tokens/${selectedToken.id}`, formData);
+        setSuccess('Token atualizado com sucesso!');
+      } else {
+        await apiService.post('/private/external-tokens', formData);
+        setSuccess('Token criado com sucesso!');
+      }
+
+      handleCloseModal();
       loadTokens(formData.organizationId);
-      // Reset form
-      setFormData(prev => ({ ...prev, name: '', instanceIds: [] }));
     } catch (error) {
-      console.error('Erro ao criar token:', error);
-      setError('Erro ao criar token.');
+      console.error('Erro ao salvar token:', error);
+      setError('Erro ao salvar token.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEditToken = (token) => {
+    setSelectedToken(token);
+    setFormData({
+      name: token.name,
+      organizationId: token.organizationId,
+      instanceIds: token.instances ? token.instances.map(i => i.id) : []
+    });
+    setIsEditing(true);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setIsEditing(false);
+    setSelectedToken(null);
+    setFormData(prev => ({ ...prev, name: '', instanceIds: [] }));
   };
 
   const handleDeleteToken = async () => {
@@ -173,7 +196,11 @@ const Tokens = () => {
           </div>
           <button
             id="btn-new-token"
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setIsEditing(false);
+              setFormData(prev => ({ ...prev, name: '', instanceIds: [] }));
+              setShowModal(true);
+            }}
             className='btn-base btn-new'
             style={{ height: '44px' }} // Matching form-input height
           >
@@ -226,8 +253,16 @@ const Tokens = () => {
                   <td style={styles.td}>{new Date(token.createdAt).toLocaleDateString()}</td>
                   <td style={styles.td}>
                     <button
+                      onClick={() => handleEditToken(token)}
+                      style={{ ...styles.iconButton, color: currentTheme.primary }}
+                      title="Editar"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button
                       onClick={() => { setSelectedToken(token); setShowDeleteModal(true); }}
                       style={{ ...styles.iconButton, color: '#ef4444' }}
+                      title="Excluir"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -241,13 +276,13 @@ const Tokens = () => {
 
       {/* Modal Criar Token */}
       {showModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
+        <div style={styles.modalOverlay} onClick={handleCloseModal}>
           <div style={styles.modal} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Novo Token</h2>
-              <button onClick={() => setShowModal(false)} style={styles.closeButton}>×</button>
+              <h2 style={styles.modalTitle}>{isEditing ? 'Editar Token' : 'Novo Token'}</h2>
+              <button onClick={handleCloseModal} style={styles.closeButton}>×</button>
             </div>
-            <form onSubmit={handleCreateToken} className="form-container" style={{ padding: '20px' }}>
+            <form onSubmit={handleSaveToken} className="form-container" style={{ padding: '20px' }}>
               <div className="form-group">
                 <label className="form-label">Nome do Token</label>
                 <input
@@ -280,12 +315,12 @@ const Tokens = () => {
               </div>
 
               <div className="form-actions">
-                <button type="button" 
-                onClick={() => setShowModal(false)} 
-                className="btn-base" style={{ backgroundColor: 'transparent', border: `1px solid ${currentTheme.border}`, color: currentTheme.textSecondary }}>Cancelar</button>
-                <button type="submit" disabled={isSubmitting} 
-                className="btn-base btn-new">
-                  {isSubmitting ? 'Criando...' : 'Criar Token'}
+                <button type="button"
+                  onClick={handleCloseModal}
+                  className="btn-base" style={{ backgroundColor: 'transparent', border: `1px solid ${currentTheme.border}`, color: currentTheme.textSecondary }}>Cancelar</button>
+                <button type="submit" disabled={isSubmitting}
+                  className="btn-base btn-new">
+                  {isSubmitting ? 'Salvando...' : (isEditing ? 'Salvar Alterações' : 'Criar Token')}
                 </button>
               </div>
             </form>

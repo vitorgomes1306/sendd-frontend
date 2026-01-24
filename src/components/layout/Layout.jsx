@@ -145,7 +145,7 @@ const Layout = ({ children }) => {
         <header style={{
           backgroundColor: currentTheme.cardBackground,
           boxShadow: currentTheme.shadow,
-          padding: '1rem 2rem',
+          padding: isMobile ? '1rem' : '1rem 2rem',
           borderBottom: `1px solid ${currentTheme.border}`,
           zIndex: 50 // Ensure header stays on top if needed
         }}>
@@ -209,10 +209,10 @@ const Layout = ({ children }) => {
                 {/* User Dropdown Menu */}
                 {showUserMenu && (
                   <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: '0.5rem',
+                    position: isMobile ? 'fixed' : 'absolute',
+                    top: isMobile ? '75px' : '100%',
+                    right: isMobile ? '10px' : 0,
+                    marginTop: isMobile ? 0 : '0.5rem',
                     backgroundColor: currentTheme.cardBackground,
                     border: `1px solid ${currentTheme.border}`,
                     borderRadius: '0.5rem',
@@ -257,7 +257,7 @@ const Layout = ({ children }) => {
                         color: currentTheme.textPrimary,
                       }}
                       // Chamar função de alerta
-                      
+
                       onClick={() => {
                         alert('Função não disponivel');
                       }}
