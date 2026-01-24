@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import ImportarLeadsPlanilha from '../components/ImportarLeadsPlanilha';
-import { Search, Calendar, Users, Filter, X, Edit, Trash2, UserPlus, MessageSquare, AlertCircle, CheckCircle, Funnel, ArrowLeftRight } from 'lucide-react';
+import { Search, Calendar, Users, Filter, X, Edit, Trash2, UserPlus, MessageSquare, AlertCircle, CheckCircle, Funnel, ArrowLeftRight, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import AlertToast from '../components/ui/AlertToast';
@@ -146,6 +146,7 @@ const Leads = ({ embed }) => {
     const [transferTargetLead, setTransferTargetLead] = useState(null);
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState('');
+    const [showImportModal, setShowImportModal] = useState(false);
 
     const { user } = useAuth(); // Assuming useAuth provides user info for permission check
 
@@ -400,7 +401,7 @@ const Leads = ({ embed }) => {
                 onClose={() => setAlert({ ...alert, open: false })}
             />
 
-            <ImportarLeadsPlanilha onImportSuccess={fetchLeads} />
+            {/* ImportarLeadsPlanilha removed - Moved to Modal */}
 
             {/* Filtros */}
             <div style={styles.filtersCard}>
@@ -462,6 +463,20 @@ const Leads = ({ embed }) => {
 
             {/* Botão Novo Lead e Bulk Delete */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px', gap: '8px' }}>
+                <button
+                    onClick={() => setShowImportModal(true)}
+                    className="btn-base"
+                    style={{
+                        backgroundColor: '#16a34a',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginRight: 'auto' // Push to left or keep right? User implementation asked for "header actions". Let's keep it consistent.
+                    }}
+                >
+                    <FileSpreadsheet size={18} />
+                    Importar Excel
+                </button>
                 {selectedLeads.length > 0 && (
                     <button
                         onClick={handleBulkDelete}
@@ -838,6 +853,45 @@ const Leads = ({ embed }) => {
                                 }}
                             >
                                 Transferir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Importar Leads */}
+            {showImportModal && (
+                <div style={styles.modalOverlay} onClick={() => setShowImportModal(false)}>
+                    <div style={{ ...styles.modalContainer, maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+                        <div style={styles.modalHeader}>
+                            <h3 style={styles.modalTitle}>Importar Leads via Excel</h3>
+                            <button onClick={() => setShowImportModal(false)} className="btn-close-modal">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div style={styles.modalContent}>
+                            <ImportarLeadsPlanilha
+                                isModal={true}
+                                onImportSuccess={() => {
+                                    fetchLeads();
+                                    // Optionally close modal or let user close
+                                    // setShowImportModal(false);
+                                }}
+                            />
+                        </div>
+                        <div style={styles.modalFooter}>
+                            <button
+                                onClick={() => setShowImportModal(false)}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    border: `1px solid ${currentTheme.border}`,
+                                    backgroundColor: isDark ? currentTheme.cardBackground : '#fff',
+                                    color: currentTheme.textPrimary,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Fechar
                             </button>
                         </div>
                     </div>

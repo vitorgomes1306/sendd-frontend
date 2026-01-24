@@ -4,7 +4,7 @@ import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, X } from 'lucide-rea
 import { useTheme } from '../contexts/ThemeContext';
 import '../styles/buttons.css';
 
-const ImportarLeadsPlanilha = ({ onImportSuccess }) => {
+const ImportarLeadsPlanilha = ({ onImportSuccess, isModal = false }) => {
     const { currentTheme, isDark } = useTheme();
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -70,7 +70,14 @@ const ImportarLeadsPlanilha = ({ onImportSuccess }) => {
             borderRadius: '12px',
             boxShadow: currentTheme.shadow,
             marginBottom: '24px',
-            border: `1px solid ${currentTheme.borderLight}`
+            border: `1px solid ${currentTheme.borderLight}`,
+            ...(isModal ? {
+                boxShadow: 'none',
+                border: 'none',
+                marginBottom: 0,
+                padding: 0,
+                backgroundColor: 'transparent'
+            } : {})
         },
         title: {
             fontSize: '18px',
@@ -79,7 +86,8 @@ const ImportarLeadsPlanilha = ({ onImportSuccess }) => {
             marginBottom: '8px',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '8px',
+            ...(isModal ? { display: 'none' } : {}) // Hide title in modal as modal header has it
         },
         description: {
             fontSize: '14px',

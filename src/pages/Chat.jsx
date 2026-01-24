@@ -41,7 +41,8 @@ import {
   StopCircle,
   CircleCheckBig,
   Info,
-  ArrowLeft
+  ArrowLeft,
+  CheckCheck
 } from 'lucide-react';
 import './Chat.css';
 import Modal from '../components/ui/Modal';
@@ -424,9 +425,19 @@ const Chat = () => {
         fetchChats();
       });
 
+      socket.on('message_status_updated', (data) => {
+        //   console.log('[Socket] Status da mensagem atualizado:', data);
+        if (selectedChatRef.current && data.chatId === selectedChatRef.current.id) {
+          setMessages(prev => prev.map(m =>
+            m.id === data.messageId ? { ...m, status: data.status } : m
+          ));
+        }
+      });
+
       return () => {
         socket.off('new_message');
         socket.off('chat_status_updated');
+        socket.off('message_status_updated');
         socket.disconnect();
       };
     }
@@ -529,6 +540,11 @@ const Chat = () => {
         } else if (typeof cfg.departments === 'string' && cfg.departments.trim()) {
           params.departmentIds = cfg.departments;
         }
+      }
+
+      // Add instance filter
+      if (cfg.instanceId) {
+        params.instanceId = cfg.instanceId;
       }
 
       const response = await apiService.get('/private/chats', { params });
@@ -660,7 +676,8 @@ const Chat = () => {
     try {
       const response = await apiService.post('/private/chats/start', {
         clientId,
-        number: manualNumber
+        number: manualNumber,
+        instanceId: config.instanceId // Send explicit instance
       });
 
       const newChat = response.data;
@@ -1726,8 +1743,19 @@ const Chat = () => {
                           <div>{msg.text}</div>
                         )}
 
-                        <div className="message-time">
+                        <div className="message-time" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {msg.sender === 'me' && (
+                            <span title={msg.status}>
+                              {msg.status === 'read' ? (
+                                <CheckCheck size={16} color="#0084ff" />
+                              ) : msg.status === 'delivered' ? (
+                                <CheckCheck size={16} color={isDark ? '#8696a0' : '#667781'} />
+                              ) : (
+                                <Check size={16} color={isDark ? '#8696a0' : '#667781'} />
+                              )}
+                            </span>
+                          )}
                         </div>
                       </>
                     )}
