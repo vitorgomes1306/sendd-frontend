@@ -40,7 +40,8 @@ import {
   Check,
   StopCircle,
   CircleCheckBig,
-  Info
+  Info,
+  ArrowLeft
 } from 'lucide-react';
 import './Chat.css';
 import Modal from '../components/ui/Modal';
@@ -112,9 +113,9 @@ const Chat = () => {
     return saved ? JSON.parse(saved) : { instanceId: '', organizationId: '', departments: '', sound: 'default' };
   });
 
-  // Search State
   const [showSearch, setShowSearch] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
 
   // Chat State
   const [activeTab, setActiveTab] = useState('history'); // history, bot, queue, my_chats
@@ -139,6 +140,15 @@ const Chat = () => {
   const [transferObservation, setTransferObservation] = useState('');
   const [isTransferring, setIsTransferring] = useState(false);
   const [showClientInfo, setShowClientInfo] = useState(false);
+
+  // Mobile Support
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Context Menu State
   const [activeMenuChatId, setActiveMenuChatId] = useState(null);
@@ -496,7 +506,8 @@ const Chat = () => {
   };
 
   const fetchChats = async () => {
-    if (loading) return; // Prevent double fetch
+    // Blocking if loading might cause missed updates if events are rapid
+    // if (loading) return; 
     setLoading(true);
     try {
       // Use ref to avoid stale closure if called from socket
@@ -861,32 +872,39 @@ const Chat = () => {
   };
 
   const getFilteredChats = () => {
-    // DEBUG: Filter Logic
-    // console.log('Filtering chats. Tab:', activeTab, 'User:', user);
+    let filtered = [];
 
     if (activeTab === 'bot') {
-      return chats.filter(c => c.status === 'bot');
-    }
-    if (activeTab === 'queue') {
+      filtered = chats.filter(c => c.status === 'bot');
+    } else if (activeTab === 'queue') {
       // Fila: Status 'attendant' mas sem atendente definido
-      return chats.filter(c => c.status === 'attendant' && !c.attendantId);
-    }
-    if (activeTab === 'my_chats') {
+      filtered = chats.filter(c => c.status === 'attendant' && !c.attendantId);
+    } else if (activeTab === 'my_chats') {
       // Meus Chats: Status 'attendant' e meu ID (estrito)
       if (!user?.id) {
         console.warn('User ID missing for my_chats filter', user);
-        return [];
+        filtered = [];
+      } else {
+        filtered = chats.filter(c => {
+          const match = c.status === 'attendant' && Number(c.attendantId) === Number(user.id);
+          return match;
+        });
       }
-      return chats.filter(c => {
-        const match = c.status === 'attendant' && Number(c.attendantId) === Number(user.id);
-        // if (c.status === 'attendant') console.log(`Checking chat ${c.id}: attendantId=${c.attendantId} vs userId=${user.id} => ${match}`);
-        return match;
-      });
+    } else if (activeTab === 'history') {
+      filtered = chats.filter(c => c.status === 'finished');
     }
-    if (activeTab === 'history') {
-      return chats.filter(c => c.status === 'finished');
+
+    // Apply Sidebar Search
+    if (sidebarSearchTerm.trim()) {
+      const term = sidebarSearchTerm.toLowerCase();
+      filtered = filtered.filter(c =>
+        (c.name && c.name.toLowerCase().includes(term)) ||
+        (c.externalId && c.externalId.includes(term)) ||
+        (c.lastMessage && c.lastMessage.toLowerCase().includes(term))
+      );
     }
-    return [];
+
+    return filtered;
   };
 
   const [isTakingOver, setIsTakingOver] = useState(false);
@@ -1252,7 +1270,10 @@ const Chat = () => {
       )}
 
       {/* Left Sidebar */}
-      <div className="chat-sidebar">
+      <div className="chat-sidebar" style={{
+        display: (isMobile && selectedChat) ? 'none' : 'flex',
+        width: isMobile ? '100%' : undefined
+      }}>
 
 
         <div style={{ padding: '0 10px', display: 'flex', gap: '8px', alignItems: 'center', height: '64px', borderBottom: `1px solid ${currentTheme.border}` }}>
@@ -1268,6 +1289,8 @@ const Chat = () => {
             <input
               type="text"
               placeholder="Buscar contatos..."
+              value={sidebarSearchTerm}
+              onChange={(e) => setSidebarSearchTerm(e.target.value)}
               style={{
                 width: '100%',
                 padding: '8px 8px 8px 32px',
@@ -1491,36 +1514,63 @@ const Chat = () => {
         </div>
       </div>
 
-      <div className="chat-main" style={{ display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
+      <div className="chat-main" style={{
+        display: (isMobile && !selectedChat) ? 'none' : 'flex',
+        flexDirection: 'row',
+        overflow: 'hidden',
+        width: isMobile ? '100%' : undefined
+      }}>
         {selectedChat ? (
           <>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100%' }}>
+
+            <div style={{
+              flex: 1,
+              display: (isMobile && showClientInfo) ? 'none' : 'flex',
+              flexDirection: 'column',
+              minWidth: 0,
+              height: '100%'
+            }}>
               <div className="chat-header">
-                <div className="chat-header-info">
-                  <div className="contact-avatar" style={{ width: '40px', height: '40px' }}>
-                    <User size={18} />
-                  </div>
-                  <div>
-                    <div
-                      style={{ fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      onClick={() => setShowClientInfo(!showClientInfo)}
-                      title="Ver informações do cliente"
-                    >
-                      {selectedChat.name || selectedChat.externalId.split('@')[0]}
-                      <Info size={14} color={currentTheme.textSecondary} />
+                {isMobile && (
+                  <button
+                    onClick={() => setSelectedChat(null)}
+                    style={{
+                      marginRight: '8px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: currentTheme.textPrimary,
+                      padding: '4px'
+                    }}
+                  >
+                    <ArrowLeft size={24} />
+                  </button>
+                )}
+                <div className="chat-header-info-container">
+                  <div className="chat-header-info">
+                    <div className="contact-avatar" style={{ width: '40px', height: '40px', flexShrink: 0 }}>
+                      <User size={18} />
                     </div>
-                    {/* <div style={{ fontSize: '12px', color: currentTheme.textSecondary }}>
-                      {selectedChat.instance?.name || 'Instância Ativa'} • Status: {selectedChat.status}
-                      {selectedChat.status === 'attendant' && selectedChat.attendant?.name && ` • Atendente: ${selectedChat.attendant.name}`}
-                      {selectedChat.protocol && ` • Protocolo: ${selectedChat.protocol}`}
-                    </div> */}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div
+                        style={{ fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        onClick={() => setShowClientInfo(!showClientInfo)}
+                        title="Ver informações do cliente"
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {selectedChat.name || selectedChat.externalId.split('@')[0]}
+                        </span>
+                        <Info size={14} color={currentTheme.textSecondary} style={{ flexShrink: 0 }} />
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+
+                <div className="chat-action-btn-group">
                   {(selectedChat.status === 'bot' || selectedChat.status === 'attendant') && (
                     <>
                       <button
-                        className="action-button"
+                        className="action-button chat-action-btn"
                         onClick={() => setShowFinishModal(true)}
                         disabled={selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)}
                         title="Finalizar Atendimento"
@@ -1529,11 +1579,15 @@ const Chat = () => {
                           opacity: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 0.5 : 1
                         }}
                       >
-                        <CircleCheck size={20} color="#ff4d4f" />
+                        {/* Use responsive size logic or CSS transform if strictly needed. For now keeping isMobile check for icon size or defaulting to 20px and using CSS to scale if needed. 
+                            To be fully CSS based, we'd need SVGs to inherit size or use media query to scale SVG.
+                            Let's rely on standard size 20 but button padding change handles layout. 
+                        */}
+                        <CircleCheck size={isMobile ? 18 : 20} color="#ff4d4f" />
                       </button>
 
                       <button
-                        className="action-button"
+                        className="action-button chat-action-btn"
                         onClick={handleOpenTransfer}
                         disabled={selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)}
                         title="Transferir Atendimento"
@@ -1542,15 +1596,15 @@ const Chat = () => {
                           opacity: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 0.5 : 1
                         }}
                       >
-                        <CircleUserRound size={20} color="#0084ff" />
+                        <CircleUserRound size={isMobile ? 18 : 20} color="#0084ff" />
                       </button>
 
                       <button
-                        className="action-button"
+                        className="action-button chat-action-btn"
                         onClick={handleCloseChatView}
                         title="Fechar Conversa (Voltar ao Início)"
                       >
-                        <CircleX size={20} color="#f59e0b" />
+                        <CircleX size={isMobile ? 18 : 20} color="#f59e0b" />
                       </button>
                     </>
                   )}
@@ -1558,25 +1612,25 @@ const Chat = () => {
                     <button
                       onClick={handleTakeover}
                       disabled={isTakingOver}
+                      className="chat-takeover-btn"
                       style={{
-                        padding: '6px 12px',
                         backgroundColor: isTakingOver ? '#ccc' : (selectedChat.status === 'attendant' ? '#f97316' : '#4bce97'),
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
                         cursor: isTakingOver ? 'not-allowed' : 'pointer',
-                        fontSize: '13px',
                         fontWeight: '600'
                       }}
                     >
-                      {isTakingOver ? 'Processando...' : (selectedChat.status === 'attendant' ? 'Iniciar Atendimento' : 'Assumir Atendimento')}
+                      {/* Text content can remain reactive or hide via CSS if we pushed it further. keeping reactive is fine for text content as long as container sizing is robust via CSS */}
+                      {isTakingOver ? '...' : (selectedChat.status === 'attendant' ? (isMobile ? 'Iniciar' : 'Iniciar Atendimento') : (isMobile ? 'Assumir' : 'Assumir Atendimento'))}
                     </button>
                   )}
                   <button
-                    className="action-button"
+                    className="action-button chat-action-btn"
                     onClick={() => setShowSearch(!showSearch)}
                   >
-                    <Search size={20} style={{ color: showSearch ? '#ff4d4f' : '#0084ff' }} />
+                    <Search size={isMobile ? 18 : 20} style={{ color: showSearch ? '#ff4d4f' : '#0084ff' }} />
                   </button>
                 </div>
               </div>

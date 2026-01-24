@@ -145,6 +145,7 @@ export const apiService = {
   syncClientForChat: (chatId) => api.post(`/private/chats/${chatId}/sync-client`),
   sendMessageManual: (chatId, data) => api.post(`/private/chats/${chatId}/send-message`, data),
   performUnlock: (chatId, contractId) => api.post(`/private/chats/${chatId}/unlock`, { contractId }),
+  getChatStats: (params) => api.get('/private/chats/stats', { params }),
 
   // Ticket / Chamados
   getTicketSubjects: (chatId) => api.get(`/private/chats/${chatId}/ticket-subjects`),
@@ -186,7 +187,7 @@ export const apiService = {
   },
 
   // Admin - Users
-  getUsers: () => api.get(getConfig().API_ENDPOINTS.USERS),
+  getUsers: (params) => api.get(getConfig().API_ENDPOINTS.USERS, { params }),
   getUser: (id) => api.get(`${getConfig().API_ENDPOINTS.USERS}/${id}`),
   syncIntegration: (id) => api.post(`/private/integrations/${id}/sync`),
   updateUser: (id, data) => api.put(`${getConfig().API_ENDPOINTS.UPDATE_USER}/${id}`, data),

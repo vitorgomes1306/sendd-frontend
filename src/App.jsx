@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ui/ProtectedRoute';
 import AdminRoute from './components/ui/AdminRoute';
+import ManagerRoute from './components/ui/ManagerRoute';
 import Dash from './pages/Dash';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -44,6 +45,7 @@ import SalesFunnel from './pages/SalesFunnel';
 import Admin from './pages/Admin'; // Página de administração
 import Gestao from './pages/admin/Gestao'; // Página de gestão
 import UserDetails from './pages/admin/UserDetails'; // Detalhes do usuário
+import ChatReport from './pages/admin/ChatReport'; // Relatório de Chats
 
 import LytexPayment from './pages/LytexPayment'; // Página de pagamento Lytex
 import LandingPage from './pages/LandingPage';
@@ -260,6 +262,14 @@ function App() {
                   <AdminRoute>
                     <Layout><UserDetails /></Layout>
                   </AdminRoute>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/admin/chat-reports" element={
+                <ProtectedRoute>
+                  <ManagerRoute>
+                    <Layout><ChatReport /></Layout>
+                  </ManagerRoute>
                 </ProtectedRoute>
               } />
 

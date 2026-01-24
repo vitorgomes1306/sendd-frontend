@@ -151,7 +151,8 @@ const Leads = ({ embed }) => {
 
     const fetchUsers = async () => {
         try {
-            const response = await apiService.getUsers();
+            // Filter users by current organization
+            const response = await apiService.getUsers({ organizationId: user.organizationId });
             setUsers(response.data || []);
         } catch (error) {
             console.error('Erro ao buscar usuários:', error);

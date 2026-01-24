@@ -631,9 +631,27 @@ const ChatClientInfo = ({ chat, currentTheme, onClose }) => {
         <div style={styles.container}>
             {/* Header */}
             <div style={styles.section}>
-                <h3 style={styles.title}>{clientInfo.name}</h3>
-                <p style={styles.subtitle}>{formatCpfCnpj(clientInfo.cpfCnpj)}</p>
-                <p style={styles.subtitle}>{formatPhone(clientInfo.cellphone)}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                        <h3 style={styles.title}>{clientInfo.name}</h3>
+                        <p style={styles.subtitle}>{formatCpfCnpj(clientInfo.cpfCnpj)}</p>
+                        <p style={styles.subtitle}>{formatPhone(clientInfo.cellphone)}</p>
+                    </div>
+                    {onClose && (
+                        <button
+                            onClick={onClose}
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: currentTheme.textSecondary || '#666',
+                                cursor: 'pointer',
+                                padding: '4px'
+                            }}
+                        >
+                            <X size={24} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             <hr style={styles.divider} />

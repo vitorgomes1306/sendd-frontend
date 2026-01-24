@@ -60,7 +60,15 @@ const Sidebar = ({ isHidden, isMobile, onMobileClose }) => {
     },
     { path: '/leads', name: 'Leads', icon: 'bi-people-fill' },
     { path: '/funnel', name: 'Funil de Vendas', icon: 'bi-funnel' },
-    { path: '/relatorios', name: 'Relatórios', icon: 'bi-graph-up' },
+    {
+      path: '/relatorios',
+      name: 'Relatórios',
+      icon: 'bi-graph-up',
+      submenu: [
+        { path: '/relatorios', name: 'Geral', icon: 'bi-pie-chart' },
+        { path: '/admin/chat-reports', name: 'Conversas', icon: 'bi-chat-square-text' }
+      ]
+    },
     { path: '/utilidades', name: 'Utilidades', icon: 'bi-wrench-adjustable-circle' },
   ];
 
