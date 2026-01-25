@@ -25,3 +25,6 @@ dist-ssr
 
 backend
 .env
+
+# DesigSistem
+desigSistem.md

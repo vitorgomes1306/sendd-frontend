@@ -301,7 +301,7 @@ const Flows = () => {
                         <GitBranch size={32} color={currentTheme.primary} />
                         Fluxos de Atendimento
                     </h1>
-                    <p style={{ color: '#666' }}>Gerencie os menus e caminhos do seu Bot</p>
+                    <p style={{ color: '#666' }}>Gerencie os menus e caminhos do seu Fluxo de Atendimento</p>
                 </div>
 
                 <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 20px' }}>

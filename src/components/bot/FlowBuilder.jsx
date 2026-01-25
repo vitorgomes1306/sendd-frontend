@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Save, Trash2, ArrowRightCircle, MessageSquare, UserCheck, LogOut, GitBranch, Edit2, Database, Code, Settings, Search, Copy } from 'lucide-react';
+import { ChevronLeft, Plus, Save, Trash2, ArrowRightCircle, MessageSquare, UserCheck, LogOut, GitBranch, Edit2, Database, Code, Settings, Search, Copy, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { apiService } from '../../services/api';
 import { useTheme } from '../../contexts/ThemeContext';
 import AlertToast from '../ui/AlertToast';
@@ -17,6 +17,7 @@ const FlowBuilder = ({ flowId, onBack }) => {
     const [editingNode, setEditingNode] = useState(null);
     const [toast, setToast] = useState({ open: false, title: '', message: '', variant: 'success' });
     const [activeTab, setActiveTab] = useState('list'); // 'list' | 'visual'
+    const [isEditorOpen, setIsEditorOpen] = useState(true);
     const [confirmModal, setConfirmModal] = useState({
         isOpen: false,
         title: '',
@@ -197,7 +198,16 @@ const FlowBuilder = ({ flowId, onBack }) => {
         container: { display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', padding: '24px' },
         header: { display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' },
         backBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' },
-        content: { display: 'grid', gridTemplateColumns: '1fr 400px', gap: '24px', flex: 1, minHeight: 0 },
+        content: {
+            display: 'grid',
+            gridTemplateColumns: activeTab === 'list'
+                ? (isEditorOpen ? '1fr 400px' : '1fr 0px')
+                : (isEditorOpen ? '1fr 400px' : '1fr 0px'), // Same logic for now, or just '1fr' if sidebar is hidden
+            gap: isEditorOpen ? '24px' : '0',
+            flex: 1,
+            minHeight: 0,
+            transition: 'all 0.3s ease'
+        },
         nodeList: { overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '12px' },
         nodeCard: {
             backgroundColor: 'white',
@@ -361,7 +371,10 @@ const FlowBuilder = ({ flowId, onBack }) => {
                                         boxShadow: editingNode?.id === node.id ? `0 0 0 2px ${currentTheme.primary}40` : 'none',
                                         borderColor: editingNode?.id === node.id ? currentTheme.primary : '#eee'
                                     }}
-                                    onClick={() => setEditingNode({ ...node })}
+                                    onClick={() => {
+                                        setEditingNode({ ...node });
+                                        if (!isEditorOpen) setIsEditorOpen(true);
+                                    }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                                         <div style={{ ...styles.nodeType, ...getTypeStyle(node.type), margin: 0 }}>
@@ -449,7 +462,10 @@ const FlowBuilder = ({ flowId, onBack }) => {
                         flow={flow}
                         onNodeClick={(nodeId) => {
                             const node = flow.nodes.find(n => String(n.id) === String(nodeId));
-                            if (node) setEditingNode(node);
+                            if (node) {
+                                setEditingNode(node);
+                                if (!isEditorOpen) setIsEditorOpen(true);
+                            }
                         }}
                         onNodeMove={handleNodeMove}
                         onConnectionCreate={handleConnectionCreate}
@@ -457,287 +473,327 @@ const FlowBuilder = ({ flowId, onBack }) => {
                     />
                 )}
 
-                <div style={{ height: '100%' }}>
-                    {editingNode ? (
-                        <div style={styles.editor}>
+
+                <div style={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
+
+                    {/* Toggle Button Positioned Absolutely or within the column */}
+                    {!isEditorOpen && (
+                        <button
+                            onClick={() => setIsEditorOpen(true)}
+                            title="Expandir Editor"
+                            style={{
+                                position: 'absolute',
+                                top: '20px',
+                                right: '10px',
+                                background: 'white',
+                                border: '1px solid #ccc',
+                                borderRadius: '8px 0 0 8px',
+                                padding: '8px',
+                                cursor: 'pointer',
+                                zIndex: 10,
+                                boxShadow: '-2px 0 5px rgba(0,0,0,0.1)'
+                            }}
+                        >
+                            <PanelRightOpen size={20} color="#666" />
+                        </button>
+                    )}
+
+                    <div style={{
+                        ...styles.editor,
+                        display: isEditorOpen ? 'flex' : 'none',
+                        width: isEditorOpen ? '100%' : '0px',
+                        padding: isEditorOpen ? '24px' : '0'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Settings size={20} color={currentTheme.primary} />
-                                Configurar: {editingNode.name || `Nó #${editingNode.id}`}
+                                Configurar: {editingNode ? (editingNode.name || `Nó #${editingNode.id}`) : 'Editor'}
                             </h3>
+                            <button
+                                onClick={() => setIsEditorOpen(false)}
+                                title="Ocultar Painel"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999' }}
+                            >
+                                <PanelRightClose size={20} />
+                            </button>
+                        </div>
 
-                            <div>
-                                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Nome de Identificação</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="Ex: Menu Principal, Solicitar CPF..."
-                                    value={editingNode.name || ''}
-                                    onChange={e => setEditingNode({ ...editingNode, name: e.target.value })}
-                                />
-                                <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Apenas para sua organização interna.</p>
-                            </div>
+                        {editingNode ? (
+                            <>
 
-                            <div>
-                                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Tipo da Ação</label>
-                                <select
-                                    className="form-input"
-                                    value={editingNode.type}
-                                    onChange={e => setEditingNode({ ...editingNode, type: e.target.value })}
-                                >
-                                    <option value="start">Início (Boas Vindas)</option>
-                                    <option value="message">Mensagem Simples</option>
-                                    <option value="menu">Menu (Opções Numéricas)</option>
-                                    <option value="input">Capturar Resposta (Salvar dado)</option>
-                                    <option value="api">Requisição API (Integração)</option>
-                                    <option value="transfer">Transferir para Humano</option>
-                                    <option value="finish">Encerrar Chat</option>
-                                </select>
-                            </div>
-
-                            {editingNode.type !== 'api' && (
                                 <div>
-                                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Texto da Mensagem</label>
-                                    <textarea
-                                        className="form-input"
-                                        style={{ minHeight: '80px', resize: 'vertical' }}
-                                        placeholder="Olá! Como vai?"
-                                        value={editingNode.content}
-                                        onChange={e => setEditingNode({ ...editingNode, content: e.target.value })}
-                                    />
-                                    <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Dica: use {'{{variavel}}'} para dados dinâmicos. Exemplo: {'{{nome_cliente}}'} para o nome do cliente.</p>
-                                </div>
-                            )}
-
-                            {editingNode.type === 'input' && (
-                                <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '8px' }}>
-                                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#065f46' }}>Salvar resposta em:</label>
+                                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Nome de Identificação</label>
                                     <input
-                                        placeholder="Ex: cpf"
-                                        style={styles.input}
-                                        value={editingNode.config?.variable || ''}
-                                        onChange={e => handleConfigChange('variable', e.target.value)}
+                                        className="form-input"
+                                        placeholder="Ex: Menu Principal, Solicitar CPF..."
+                                        value={editingNode.name || ''}
+                                        onChange={e => setEditingNode({ ...editingNode, name: e.target.value })}
                                     />
-                                    <p style={{ fontSize: '11px', color: '#059669', marginTop: '4px' }}>O texto digitado pelo cliente será salvo nesta variável.</p>
+                                    <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Apenas para sua organização interna.</p>
                                 </div>
-                            )}
 
-                            {editingNode.type === 'api' && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <div>
+                                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Tipo da Ação</label>
+                                    <select
+                                        className="form-input"
+                                        value={editingNode.type}
+                                        onChange={e => setEditingNode({ ...editingNode, type: e.target.value })}
+                                    >
+                                        <option value="start">Início (Boas Vindas)</option>
+                                        <option value="message">Mensagem Simples</option>
+                                        <option value="menu">Menu (Opções Numéricas)</option>
+                                        <option value="input">Capturar Resposta (Salvar dado)</option>
+                                        <option value="api">Requisição API (Integração)</option>
+                                        <option value="transfer">Transferir para Humano</option>
+                                        <option value="finish">Encerrar Chat</option>
+                                    </select>
+                                </div>
+
+                                {editingNode.type !== 'api' && (
                                     <div>
-                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Integração Salva (Opcional)</label>
+                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Texto da Mensagem</label>
+                                        <textarea
+                                            className="form-input"
+                                            style={{ minHeight: '80px', resize: 'vertical' }}
+                                            placeholder="Olá! Como vai?"
+                                            value={editingNode.content}
+                                            onChange={e => setEditingNode({ ...editingNode, content: e.target.value })}
+                                        />
+                                        <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>Dica: use {'{{variavel}}'} para dados dinâmicos. Exemplo: {'{{nome_cliente}}'} para o nome do cliente.</p>
+                                    </div>
+                                )}
+
+                                {editingNode.type === 'input' && (
+                                    <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '8px' }}>
+                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#065f46' }}>Salvar resposta em:</label>
+                                        <input
+                                            placeholder="Ex: cpf"
+                                            style={styles.input}
+                                            value={editingNode.config?.variable || ''}
+                                            onChange={e => handleConfigChange('variable', e.target.value)}
+                                        />
+                                        <p style={{ fontSize: '11px', color: '#059669', marginTop: '4px' }}>O texto digitado pelo cliente será salvo nesta variável.</p>
+                                    </div>
+                                )}
+
+                                {editingNode.type === 'api' && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Integração Salva (Opcional)</label>
+                                            <select
+                                                className="form-input"
+                                                value={editingNode.integrationId || ''}
+                                                onChange={e => setEditingNode({ ...editingNode, integrationId: e.target.value ? Number(e.target.value) : null })}
+                                            >
+                                                <option value="">Configuração Manual (Genérica)</option>
+                                                {integrations.map(integ => (
+                                                    <option key={integ.id} value={integ.id}>{integ.name} ({integ.type})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {!editingNode.integrationId && (
+                                            <>
+                                                <div>
+                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>URL</label>
+                                                    <input
+                                                        placeholder="https://sua-api.com/user/{{cpf}}"
+                                                        style={styles.input}
+                                                        value={editingNode.config?.url || ''}
+                                                        onChange={e => handleConfigChange('url', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                    <div>
+                                                        <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Método</label>
+                                                        <select
+                                                            className="form-input"
+                                                            value={editingNode.config?.method || 'GET'}
+                                                            onChange={e => handleConfigChange('method', e.target.value)}
+                                                        >
+                                                            <option value="GET">GET</option>
+                                                            <option value="POST">POST</option>
+                                                            <option value="PUT">PUT</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Tipo da Ação (SGP)</label>
+                                            <select
+                                                className="form-input"
+                                                value={editingNode.config?.action || 'sync'}
+                                                onChange={e => handleConfigChange('action', e.target.value)}
+                                            >
+                                                <option value="sync">Identificação (Sincronizar)</option>
+                                                <option value="invoice">2ª Via de Fatura</option>
+                                                <option value="unlock">Desbloqueio de Confiança</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+                                                Mapeamento da Resposta
+                                                <button type="button" onClick={addMappingRow} style={{ color: currentTheme.primary, background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer' }}>+ Adicionar</button>
+                                            </label>
+                                            <p style={{ fontSize: '10px', color: '#999', margin: '-4px 0 8px 0' }}>Integrações fixas (como SGP) já mapeiam dados automaticamente.</p>
+                                            {editingNode.config?.mapping?.map((m, idx) => (
+                                                <div key={idx} style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                                                    <input placeholder="Campo API (ex: data.nome)" style={{ ...styles.input, flex: 1, fontSize: '12px' }} value={m.from} onChange={e => {
+                                                        const newMap = [...editingNode.config.mapping];
+                                                        newMap[idx].from = e.target.value;
+                                                        handleConfigChange('mapping', newMap);
+                                                    }} />
+                                                    <input placeholder="Variavel (ex: nome)" style={{ ...styles.input, flex: 1, fontSize: '12px' }} value={m.to} onChange={e => {
+                                                        const newMap = [...editingNode.config.mapping];
+                                                        newMap[idx].to = e.target.value;
+                                                        handleConfigChange('mapping', newMap);
+                                                    }} />
+                                                    <button onClick={() => removeMappingRow(idx)} style={{ background: 'none', border: 'none', color: '#ef4444' }}><Trash2 size={12} /></button>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {editingNode.config?.action === 'invoice' && (
+                                            <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                <div style={{ padding: '8px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                                                    <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#166534' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={editingNode.config?.preferIspFlash || false}
+                                                            onChange={e => handleConfigChange('preferIspFlash', e.target.checked)}
+                                                        />
+                                                        Priorizar Link ISP Flash
+                                                    </label>
+                                                    <p style={{ fontSize: '10px', color: '#15803d', margin: '4px 0 0 22px' }}>
+                                                        Se houver uma integração ISP Flash ativa, o boleto será gerado por ela.
+                                                    </p>
+                                                </div>
+
+                                                <div style={{ padding: '8px', backgroundColor: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
+                                                    <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#1e40af' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={editingNode.config?.silent || false}
+                                                            onChange={e => handleConfigChange('silent', e.target.checked)}
+                                                        />
+                                                        Modo Silencioso (Apenas Variável)
+                                                    </label>
+                                                    <p style={{ fontSize: '10px', color: '#1d4ed8', margin: '4px 0 0 22px' }}>
+                                                        Não envia mensagem automática. Apenas salva os dados em <code>{'{{invoice_message}}'}</code> para uso posterior.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {editingNode.type === 'menu' && (
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                            <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Caminhos do Menu</label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingNode({
+                                                    ...editingNode,
+                                                    options: [...(editingNode.options || []), { value: (editingNode.options?.length + 1).toString(), label: 'Nova Opção', nextNodeId: '' }]
+                                                })}
+                                                style={{ background: 'none', border: 'none', color: currentTheme.primary, cursor: 'pointer', fontSize: '12px' }}
+                                            >
+                                                + Opção
+                                            </button>
+                                        </div>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {editingNode.options?.map((opt, idx) => (
+                                                <div key={idx} style={{ backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
+                                                    <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                                                        <input style={{ ...styles.input, width: '45px' }} value={opt.value} onChange={e => {
+                                                            const no = [...editingNode.options]; no[idx].value = e.target.value; setEditingNode({ ...editingNode, options: no });
+                                                        }} />
+                                                        <input style={{ ...styles.input, flex: 1 }} value={opt.label} onChange={e => {
+                                                            const no = [...editingNode.options]; no[idx].label = e.target.value; setEditingNode({ ...editingNode, options: no });
+                                                        }} />
+                                                        <button onClick={() => {
+                                                            const no = editingNode.options.filter((_, i) => i !== idx); setEditingNode({ ...editingNode, options: no });
+                                                        }} style={{ color: '#ef4444', border: 'none', background: 'none' }}><Trash2 size={14} /></button>
+                                                    </div>
+                                                    <select
+                                                        className="form-input"
+                                                        style={{ margin: 0, height: '30px', fontSize: '11px' }}
+                                                        value={opt.nextNodeId}
+                                                        onChange={e => {
+                                                            const no = [...editingNode.options]; no[idx].nextNodeId = e.target.value; setEditingNode({ ...editingNode, options: no });
+                                                        }}
+                                                    >
+                                                        <option value="">Destino?</option>
+                                                        {flow.nodes.filter(n => n.id !== editingNode.id).map(n => (
+                                                            <option key={n.id} value={n.id}>
+                                                                {n.name ? `${n.name} (#${n.id})` : `Nó #${n.id} - ${n.type}`}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {editingNode.type === 'transfer' && (
+                                    <div>
+                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Departamento de Destino (Opcional)</label>
                                         <select
                                             className="form-input"
-                                            value={editingNode.integrationId || ''}
-                                            onChange={e => setEditingNode({ ...editingNode, integrationId: e.target.value ? Number(e.target.value) : null })}
+                                            value={editingNode.config?.departmentId || ''}
+                                            onChange={e => handleConfigChange('departmentId', e.target.value ? Number(e.target.value) : null)}
                                         >
-                                            <option value="">Configuração Manual (Genérica)</option>
-                                            {integrations.map(integ => (
-                                                <option key={integ.id} value={integ.id}>{integ.name} ({integ.type})</option>
+                                            <option value="">Todos (Fila Geral)</option>
+                                            {departments.map(dept => (
+                                                <option key={dept.id} value={dept.id}>
+                                                    {dept.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                                            Se selecionado, o chat será visível apenas para membros deste departamento.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {(editingNode.type !== 'menu' && editingNode.type !== 'transfer' && editingNode.type !== 'finish') && (
+                                    <div>
+                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Próximo Passo (Após esta ação)</label>
+                                        <select
+                                            className="form-input"
+                                            value={editingNode.nextNodeId || ''}
+                                            onChange={e => setEditingNode({ ...editingNode, nextNodeId: e.target.value ? Number(e.target.value) : null })}
+                                        >
+                                            <option value="">Encerrar fluxo aqui</option>
+                                            {flow.nodes.filter(n => n.id !== editingNode.id).map(n => (
+                                                <option key={n.id} value={n.id}>
+                                                    {n.name ? `${n.name} (#${n.id})` : `Nó #${n.id} - ${n.type}`}
+                                                </option>
                                             ))}
                                         </select>
                                     </div>
+                                )}
 
-                                    {!editingNode.integrationId && (
-                                        <>
-                                            <div>
-                                                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>URL</label>
-                                                <input
-                                                    placeholder="https://sua-api.com/user/{{cpf}}"
-                                                    style={styles.input}
-                                                    value={editingNode.config?.url || ''}
-                                                    onChange={e => handleConfigChange('url', e.target.value)}
-                                                />
-                                            </div>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                                <div>
-                                                    <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Método</label>
-                                                    <select
-                                                        className="form-input"
-                                                        value={editingNode.config?.method || 'GET'}
-                                                        onChange={e => handleConfigChange('method', e.target.value)}
-                                                    >
-                                                        <option value="GET">GET</option>
-                                                        <option value="POST">POST</option>
-                                                        <option value="PUT">PUT</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
-
-                                    <div>
-                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Tipo da Ação (SGP)</label>
-                                        <select
-                                            className="form-input"
-                                            value={editingNode.config?.action || 'sync'}
-                                            onChange={e => handleConfigChange('action', e.target.value)}
-                                        >
-                                            <option value="sync">Identificação (Sincronizar)</option>
-                                            <option value="invoice">2ª Via de Fatura</option>
-                                            <option value="unlock">Desbloqueio de Confiança</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
-                                            Mapeamento da Resposta
-                                            <button type="button" onClick={addMappingRow} style={{ color: currentTheme.primary, background: 'none', border: 'none', fontSize: '11px', cursor: 'pointer' }}>+ Adicionar</button>
-                                        </label>
-                                        <p style={{ fontSize: '10px', color: '#999', margin: '-4px 0 8px 0' }}>Integrações fixas (como SGP) já mapeiam dados automaticamente.</p>
-                                        {editingNode.config?.mapping?.map((m, idx) => (
-                                            <div key={idx} style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                                                <input placeholder="Campo API (ex: data.nome)" style={{ ...styles.input, flex: 1, fontSize: '12px' }} value={m.from} onChange={e => {
-                                                    const newMap = [...editingNode.config.mapping];
-                                                    newMap[idx].from = e.target.value;
-                                                    handleConfigChange('mapping', newMap);
-                                                }} />
-                                                <input placeholder="Variavel (ex: nome)" style={{ ...styles.input, flex: 1, fontSize: '12px' }} value={m.to} onChange={e => {
-                                                    const newMap = [...editingNode.config.mapping];
-                                                    newMap[idx].to = e.target.value;
-                                                    handleConfigChange('mapping', newMap);
-                                                }} />
-                                                <button onClick={() => removeMappingRow(idx)} style={{ background: 'none', border: 'none', color: '#ef4444' }}><Trash2 size={12} /></button>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {editingNode.config?.action === 'invoice' && (
-                                        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            <div style={{ padding: '8px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
-                                                <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#166534' }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={editingNode.config?.preferIspFlash || false}
-                                                        onChange={e => handleConfigChange('preferIspFlash', e.target.checked)}
-                                                    />
-                                                    Priorizar Link ISP Flash
-                                                </label>
-                                                <p style={{ fontSize: '10px', color: '#15803d', margin: '4px 0 0 22px' }}>
-                                                    Se houver uma integração ISP Flash ativa, o boleto será gerado por ela.
-                                                </p>
-                                            </div>
-
-                                            <div style={{ padding: '8px', backgroundColor: '#eff6ff', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
-                                                <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: '#1e40af' }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={editingNode.config?.silent || false}
-                                                        onChange={e => handleConfigChange('silent', e.target.checked)}
-                                                    />
-                                                    Modo Silencioso (Apenas Variável)
-                                                </label>
-                                                <p style={{ fontSize: '10px', color: '#1d4ed8', margin: '4px 0 0 22px' }}>
-                                                    Não envia mensagem automática. Apenas salva os dados em <code>{'{{invoice_message}}'}</code> para uso posterior.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {editingNode.type === 'menu' && (
-                                <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                        <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Caminhos do Menu</label>
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditingNode({
-                                                ...editingNode,
-                                                options: [...(editingNode.options || []), { value: (editingNode.options?.length + 1).toString(), label: 'Nova Opção', nextNodeId: '' }]
-                                            })}
-                                            style={{ background: 'none', border: 'none', color: currentTheme.primary, cursor: 'pointer', fontSize: '12px' }}
-                                        >
-                                            + Opção
-                                        </button>
-                                    </div>
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        {editingNode.options?.map((opt, idx) => (
-                                            <div key={idx} style={{ backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px', border: '1px solid #eee' }}>
-                                                <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
-                                                    <input style={{ ...styles.input, width: '45px' }} value={opt.value} onChange={e => {
-                                                        const no = [...editingNode.options]; no[idx].value = e.target.value; setEditingNode({ ...editingNode, options: no });
-                                                    }} />
-                                                    <input style={{ ...styles.input, flex: 1 }} value={opt.label} onChange={e => {
-                                                        const no = [...editingNode.options]; no[idx].label = e.target.value; setEditingNode({ ...editingNode, options: no });
-                                                    }} />
-                                                    <button onClick={() => {
-                                                        const no = editingNode.options.filter((_, i) => i !== idx); setEditingNode({ ...editingNode, options: no });
-                                                    }} style={{ color: '#ef4444', border: 'none', background: 'none' }}><Trash2 size={14} /></button>
-                                                </div>
-                                                <select
-                                                    className="form-input"
-                                                    style={{ margin: 0, height: '30px', fontSize: '11px' }}
-                                                    value={opt.nextNodeId}
-                                                    onChange={e => {
-                                                        const no = [...editingNode.options]; no[idx].nextNodeId = e.target.value; setEditingNode({ ...editingNode, options: no });
-                                                    }}
-                                                >
-                                                    <option value="">Destino?</option>
-                                                    {flow.nodes.filter(n => n.id !== editingNode.id).map(n => (
-                                                        <option key={n.id} value={n.id}>
-                                                            {n.name ? `${n.name} (#${n.id})` : `Nó #${n.id} - ${n.type}`}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {editingNode.type === 'transfer' && (
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Departamento de Destino (Opcional)</label>
-                                    <select
-                                        className="form-input"
-                                        value={editingNode.config?.departmentId || ''}
-                                        onChange={e => handleConfigChange('departmentId', e.target.value ? Number(e.target.value) : null)}
-                                    >
-                                        <option value="">Todos (Fila Geral)</option>
-                                        {departments.map(dept => (
-                                            <option key={dept.id} value={dept.id}>
-                                                {dept.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <p style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
-                                        Se selecionado, o chat será visível apenas para membros deste departamento.
-                                    </p>
-                                </div>
-                            )}
-
-                            {(editingNode.type !== 'menu' && editingNode.type !== 'transfer' && editingNode.type !== 'finish') && (
-                                <div>
-                                    <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>Próximo Passo (Após esta ação)</label>
-                                    <select
-                                        className="form-input"
-                                        value={editingNode.nextNodeId || ''}
-                                        onChange={e => setEditingNode({ ...editingNode, nextNodeId: e.target.value ? Number(e.target.value) : null })}
-                                    >
-                                        <option value="">Encerrar fluxo aqui</option>
-                                        {flow.nodes.filter(n => n.id !== editingNode.id).map(n => (
-                                            <option key={n.id} value={n.id}>
-                                                {n.name ? `${n.name} (#${n.id})` : `Nó #${n.id} - ${n.type}`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-
-                            <button
+                                <button 
                                 onClick={() => handleUpdateNode(editingNode.id, editingNode)}
-                                className="btn-base btn-new"
-                                style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', height: '44px' }}
-                            >
-                                <Save size={20} /> Salvar Configuração
-                            </button>
-                        </div>
-                    ) : (
-                        <div style={{ textAlign: 'center', padding: '32px', color: '#999', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px dashed #ccc' }}>
-                            <Edit2 size={32} style={{ marginBottom: '12px' }} />
-                            <p style={{ fontSize: '14px' }}>Selecione um nó para configurar.</p>
-                        </div>
-                    )}
+                                style={{ marginTop: '16px', padding: '8px 16px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                                    < Save />
+                                    Salvar
+                                    </button>
+                            </>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: '32px', color: '#999', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px dashed #ccc' }}>
+                                <Edit2 size={32} style={{ marginBottom: '12px' }} />
+                                <p style={{ fontSize: '14px' }}>Selecione um nó para configurar.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

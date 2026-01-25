@@ -7,6 +7,7 @@ import {
     Search, Calendar, Filter, User, CheckCircle,
     MessageSquare, Clock, ArrowLeft, ChevronLeft, MessageCircleReply, ChevronRight, X, Clock8, BotMessageSquare, MessageSquareMore, BadgeCheck
 } from 'lucide-react';
+import Select from '../../components/ui/Select';
 
 const ChatReport = () => {
     const { user } = useAuth();
@@ -22,6 +23,9 @@ const ChatReport = () => {
         attendantId: ''
     });
     const [attendants, setAttendants] = useState([]);
+
+    // Data
+    const [instances, setInstances] = useState([]);
 
     // Data
     const [chats, setChats] = useState([]);
@@ -43,11 +47,33 @@ const ChatReport = () => {
 
     // Initial load
     useEffect(() => {
-
+        fetchInstances();
         fetchAttendants();
         fetchChats(1);
         fetchStats();
     }, []); // eslint-disable-line
+
+    const fetchInstances = async () => {
+        try {
+            const response = await apiService.getInstances();
+            // Backend returns { instances: [...] }
+            if (response.data && Array.isArray(response.data.instances)) {
+                setInstances(response.data.instances);
+            } else if (Array.isArray(response.data)) {
+                // Direct array
+                setInstances(response.data);
+            } else if (response.data && Array.isArray(response.data.data)) {
+                // Standard wrapper
+                setInstances(response.data.data);
+            } else {
+                console.warn('Structure of instances response unexpected:', response.data);
+                setInstances([]);
+            }
+        } catch (error) {
+            console.error('Erro ao buscar instâncias:', error);
+            setInstances([]);
+        }
+    };
 
     const fetchStats = async () => {
         try {
@@ -62,6 +88,7 @@ const ChatReport = () => {
             if (!params.startDate) delete params.startDate;
             if (!params.endDate) delete params.endDate;
             if (!params.attendantId) delete params.attendantId;
+            if (!params.instanceId) delete params.instanceId;
             // Remove status/search from stats params usually, as we want the breakdown BY status.
             delete params.status;
             delete params.search;
@@ -96,9 +123,10 @@ const ChatReport = () => {
             if (!params.startDate) delete params.startDate;
             if (!params.endDate) delete params.endDate;
             if (!params.status) delete params.status;
-            if (!params.status) delete params.status;
+            if (!params.status) delete params.status; // keeping duplicate check from original code to minimize diff noise if intentional, though likely typo. 
             if (!params.search) delete params.search;
             if (!params.attendantId) delete params.attendantId;
+            if (!params.instanceId) delete params.instanceId;
 
             const response = await apiService.get('/private/chats', { params });
             if (response.data.data) {
@@ -191,6 +219,33 @@ const ChatReport = () => {
     const handleChatSelect = (chat) => {
         setSelectedChat(chat);
         fetchMessages(chat.id);
+    };
+
+    const formatPhoneNumber = (phone) => {
+        if (!phone) return 'Sem número';
+        const cleaned = ('' + phone).replace(/\D/g, '');
+        let match;
+        // Check for Brazil code 55 - 13 digits: 55 + DDD (2) + 9(1) + XXXX (4) + XXXX (4)
+        if (cleaned.length === 13 && cleaned.startsWith('55')) {
+            match = cleaned.match(/^55(\d{2})(\d{5})(\d{4})$/);
+            if (match) return `(${match[1]}) ${match[2]}-${match[3]}`;
+        }
+        // 12 digits: 55 + DDD (2) + XXXX (4) + XXXX (4)
+        else if (cleaned.length === 12 && cleaned.startsWith('55')) {
+            match = cleaned.match(/^55(\d{2})(\d{4})(\d{4})$/);
+            if (match) return `(${match[1]}) ${match[2]}-${match[3]}`;
+        }
+        // 11 digits: DDD (2) + 9(1) + XXXX (4) + XXXX (4)
+        else if (cleaned.length === 11) {
+            match = cleaned.match(/^(\d{2})(\d{5})(\d{4})$/);
+            if (match) return `(${match[1]}) ${match[2]}-${match[3]}`;
+        }
+        // 10 digits: DDD (2) + XXXX (4) + XXXX (4)
+        else if (cleaned.length === 10) {
+            match = cleaned.match(/^(\d{2})(\d{4})(\d{4})$/);
+            if (match) return `(${match[1]}) ${match[2]}-${match[3]}`;
+        }
+        return phone;
     };
 
     // Styles
@@ -295,52 +350,75 @@ const ChatReport = () => {
                             </div>
                         </div>
 
+
                         {/* Status */}
-                        <div>
-                            <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px', display: 'block' }}>Status</label>
-                            <select
-                                style={{ ...styles.select, width: '100%' }}
+                        <div style={{ marginBottom: '10px' }}>
+                            <Select
+                                label="Status"
                                 value={filters.status}
                                 onChange={(e) => handleFilterChange('status', e.target.value)}
-                            >
-                                <option value="">Todos Status</option>
-                                <option value="bot">Bot</option>
-                                <option value="attendant">Em Atendimento</option>
-                                <option value="finished">Encerrados</option>
-                            </select>
+                                placeholder="Todos Status"
+                                options={[
+                                    { value: '', label: 'Todos Status' },
+                                    { value: 'bot', label: 'Bot' },
+                                    { value: 'attendant', label: 'Em Atendimento' },
+                                    { value: 'finished', label: 'Encerrados' }
+                                ]}
+                            />
+                        </div>
+
+                        {/* Instance (Channel) */}
+                        <div style={{ marginBottom: '10px' }}>
+                            <Select
+                                label="Canal (Instância)"
+                                value={filters.instanceId || ''}
+                                onChange={(e) => handleFilterChange('instanceId', e.target.value)}
+                                placeholder="Todos Canais"
+                                options={[
+                                    { value: '', label: 'Todos Canais' },
+                                    ...instances.map(instance => ({
+                                        value: instance.id,
+                                        label: `${instance.name} - ${formatPhoneNumber(instance.number)}`
+                                    }))
+                                ]}
+                            />
                         </div>
 
                         {/* Attendant */}
-                        <div>
-                            <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px', display: 'block' }}>Atendente</label>
-                            <select
-                                style={{ ...styles.select, width: '100%' }}
+                        <div style={{ marginBottom: '10px' }}>
+                            <Select
+                                label="Atendente"
                                 value={filters.attendantId}
                                 onChange={(e) => handleFilterChange('attendantId', e.target.value)}
-                            >
-                                <option value="">Todos Atendentes</option>
-                                {attendants.map(att => (
-                                    <option key={att.id} value={att.id}>{att.name}</option>
-                                ))}
-                            </select>
+                                placeholder="Todos Atendentes"
+                                options={[
+                                    { value: '', label: 'Todos Atendentes' },
+                                    ...attendants.map(att => ({
+                                        value: att.id,
+                                        label: att.name
+                                    }))
+                                ]}
+                            />
                         </div>
 
                         {/* Search */}
                         <div style={{ position: 'relative' }}>
                             <label style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px', display: 'block' }}>Busca</label>
-                            <div style={{ position: 'relative' }}>
-                                <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: '#9ca3af' }} />
-                                <input
-                                    style={{ ...styles.input, paddingLeft: '32px', width: '100%' }}
-                                    placeholder="Nome, telefone..."
-                                    value={filters.search}
-                                    onChange={(e) => handleFilterChange('search', e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
-                                />
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                <div style={{ position: 'relative', flex: 1 }}>
+                                    <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                                    <input
+                                        style={{ ...styles.input, paddingLeft: '32px', width: '100%' }}
+                                        placeholder="Nome, telefone..."
+                                        value={filters.search}
+                                        onChange={(e) => handleFilterChange('search', e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                                    />
+                                </div>
                                 <button
                                     onClick={handleApplyFilters}
                                     style={{
-                                        padding: '10px',
+                                        padding: '0 12px',
                                         backgroundColor: '#3b82f6',
                                         color: 'white',
                                         border: 'none',
@@ -348,18 +426,16 @@ const ChatReport = () => {
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '8px',
-                                        marginTop: '4px'
+                                        justifyContent: 'center'
                                     }}
+                                    title="Filtrar"
                                 >
                                     <Filter size={16} />
                                 </button>
                             </div>
-                           
                         </div>
 
-                        
+
                     </div>
                 </div>
 
