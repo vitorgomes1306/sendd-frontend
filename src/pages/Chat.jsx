@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
@@ -133,6 +133,7 @@ const ChatAvatar = ({ chat, config, instances = [] }) => {
 
 const Chat = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentTheme, isDark } = useTheme();
   const { user } = useAuth();
   const [availableDepartments, setAvailableDepartments] = useState([]);
@@ -420,6 +421,19 @@ const Chat = () => {
   useEffect(() => {
     fetchInstances();
   }, []);
+
+  // Auto-start chat from navigation state (e.g. from External Reports)
+  useEffect(() => {
+    if (location.state?.startChat) {
+      const { number } = location.state.startChat;
+      if (number) {
+        console.log('[Chat] Auto-starting chat with:', number);
+        handleStartChat(null, number);
+      }
+      // Clear state to prevent loop/re-run
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state]);
 
   // Socket management
   useEffect(() => {

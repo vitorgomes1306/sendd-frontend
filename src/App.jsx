@@ -46,6 +46,7 @@ import Admin from './pages/Admin'; // Página de administração
 import Gestao from './pages/admin/Gestao'; // Página de gestão
 import UserDetails from './pages/admin/UserDetails'; // Detalhes do usuário
 import ChatReport from './pages/admin/ChatReport'; // Relatório de Chats
+import ClientsNoSales from './pages/ClientsNoSales'; // New Report Page
 
 import LytexPayment from './pages/LytexPayment'; // Página de pagamento Lytex
 import LandingPage from './pages/LandingPage';
@@ -270,6 +271,12 @@ function App() {
                   <ManagerRoute>
                     <Layout><ChatReport /></Layout>
                   </ManagerRoute>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/relatorios/clientes-sem-venda" element={
+                <ProtectedRoute>
+                  <Layout><ClientsNoSales /></Layout>
                 </ProtectedRoute>
               } />
 

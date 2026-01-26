@@ -16,7 +16,10 @@ import {
   ChevronDown,
   UserCircle,
   Building,
-  ClipboardList
+  ClipboardList,
+  Phone,
+  Maximize,
+  Minimize
 } from 'lucide-react';
 
 import { apiService } from '../../services/api';
@@ -52,9 +55,18 @@ const Layout = ({ children }) => {
       }
     };
 
+    let intervalId;
     if (user) {
+      // Initial check
       checkOrgStatus();
+
+      // Schedule check every 5 minutes (300000 ms)
+      intervalId = setInterval(checkOrgStatus, 300000);
     }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [user]);
 
   // Sidebar visibility control
@@ -91,6 +103,31 @@ const Layout = ({ children }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showUserMenu]);
+
+  // Fullscreen Logic
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch((err) => console.error("Error attempting to enable fullscreen:", err));
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen()
+          .then(() => setIsFullscreen(false))
+          .catch((err) => console.error("Error attempting to exit fullscreen:", err));
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const toggleSidebar = () => {
     setShowSidebar(!showSidebar);
@@ -288,8 +325,6 @@ const Layout = ({ children }) => {
                         fontSize: '0.9rem',
                         color: currentTheme.textPrimary,
                       }}
-                      // Chamar função de alerta
-
                       onClick={() => {
                         alert('Função não disponivel');
                       }}
@@ -340,6 +375,25 @@ const Layout = ({ children }) => {
                       <ClipboardList size={18} />
                       Auditoria
                     </div>
+                    <div
+                      style={{
+                        padding: '0.75rem 1rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        fontSize: '0.9rem',
+                        color: '#ef4444',
+                        borderTop: `1px solid ${currentTheme.border}`,
+                        marginTop: '0.5rem'
+                      }}
+                      onClick={handleLogoutClick}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.borderLight}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <LogOut size={18} />
+                      Sair
+                    </div>
                   </div>
                 )}
               </div>
@@ -361,7 +415,7 @@ const Layout = ({ children }) => {
                   borderRadius: '50%',
                   width: '8px',
                   height: '8px',
-                  border: `2px solid ${currentTheme.cardBackground}` // Optional: Add border to blend with bg
+                  border: `2px solid ${currentTheme.cardBackground}`
                 }}></span>
               </button>
 
@@ -378,6 +432,17 @@ const Layout = ({ children }) => {
                 </button>
               )}
 
+              {/* Fullscreen Toggle */}
+              <button
+                style={iconButtonStyle}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+              >
+                {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+              </button>
+
               {/* Theme Toggle */}
               <button
                 style={iconButtonStyle}
@@ -389,21 +454,6 @@ const Layout = ({ children }) => {
                 {isDark ? <Moon size={20} /> : <Sun size={20} />}
               </button>
 
-              {/* Logout Button */}
-              <button className="btn-base btn-new-red"
-                onClick={handleLogoutClick}
-                title="Sair"
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <LogOut size={20} />
-              </button>
             </div>
           </div>
         </header>
@@ -473,7 +523,7 @@ const Layout = ({ children }) => {
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             border: `1px solid ${currentTheme.border}`
           }}>
-            <div style={{ marginBottom: '20px', color: '#ef4444' }}>
+            <div style={{ marginBottom: '20px', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -493,7 +543,23 @@ const Layout = ({ children }) => {
               color: currentTheme.textSecondary,
               marginBottom: '30px'
             }}>
-              Sistema bloqueado. Consulte atendimento.
+              Consulte atendimento <a href="https://wa.me/5585984454472"
+                className='btn-base btn-new-orange'
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  textDecoration: 'none',
+                  color: 'white'
+                }}
+              ><br /><Phone size={20} />(85) 98445-4472</a>
             </p>
             <button
               onClick={() => {
@@ -508,10 +574,15 @@ const Layout = ({ children }) => {
                 border: 'none',
                 fontWeight: '600',
                 cursor: 'pointer',
-                fontSize: '16px'
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                margin: '0 auto'
               }}
             >
-              Sair do Sistema
+              <LogOut size={20} /> Sair
             </button>
           </div>
         </div>

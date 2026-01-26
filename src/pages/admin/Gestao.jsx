@@ -18,7 +18,7 @@ const Gestao = () => {
     const loadUsers = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/private/users');
+            const response = await api.get('/private/users?scope=all_masters');
             setUsers(response.data);
         } catch (error) {
             console.error('Erro ao carregar usuários:', error);

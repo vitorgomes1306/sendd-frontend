@@ -1,13 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Added useEffect
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LogoSendd from '../../assets/img/logo_sendd.png';
+import api from '../../services/api'; // Import API
 import './Sidebar.css';
 
 const Sidebar = ({ isHidden, isMobile, onMobileClose }) => {
   const location = useLocation();
   const { user } = useAuth();
   const [hoveredSubmenu, setHoveredSubmenu] = useState(null);
+  const [showExternalReports, setShowExternalReports] = useState(false);
+
+  useEffect(() => {
+    const checkExternalReports = async () => {
+      try {
+        // Fetch user's organizations
+        const response = await api.get('/private/organizations');
+        const orgs = response.data;
+        // Check if ANY of the user's organizations has the flag enabled
+        const hasEnabled = orgs.some(org => org.useExternalReports);
+        setShowExternalReports(hasEnabled);
+      } catch (error) {
+        console.error('Error fetching organizations for sidebar:', error);
+      }
+    };
+
+    if (user) {
+      checkExternalReports();
+    }
+  }, [user]);
 
   const handleMouseEnter = (e, path) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -26,6 +47,15 @@ const Sidebar = ({ isHidden, isMobile, onMobileClose }) => {
     }
     return false;
   };
+
+  const reportSubmenu = [
+    { path: '/relatorios', name: 'Geral', icon: 'bi-pie-chart' },
+    { path: '/admin/chat-reports', name: 'Conversas', icon: 'bi-chat-square-text' }
+  ];
+
+  if (showExternalReports) {
+    reportSubmenu.push({ path: '/relatorios/clientes-sem-venda', name: 'Clientes sem venda', icon: 'bi-slash-circle' });
+  }
 
   const menuItems = [
     { path: '/chat', name: 'Atendimento', icon: 'bi-chat-dots' },
@@ -64,10 +94,7 @@ const Sidebar = ({ isHidden, isMobile, onMobileClose }) => {
       path: '/relatorios',
       name: 'Relatórios',
       icon: 'bi-graph-up',
-      submenu: [
-        { path: '/relatorios', name: 'Geral', icon: 'bi-pie-chart' },
-        { path: '/admin/chat-reports', name: 'Conversas', icon: 'bi-chat-square-text' }
-      ]
+      submenu: reportSubmenu
     },
     { path: '/utilidades', name: 'Utilidades', icon: 'bi-wrench-adjustable-circle' },
   ];
