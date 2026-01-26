@@ -19,11 +19,43 @@ import {
   ClipboardList
 } from 'lucide-react';
 
+import { apiService } from '../../services/api';
+
 const Layout = ({ children }) => {
   const { currentTheme, toggleTheme, isDark } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [orgBlocked, setOrgBlocked] = useState(false);
+
+  useEffect(() => {
+    const checkOrgStatus = async () => {
+      try {
+        // Fetch organizations to check active status
+        const response = await apiService.get('/private/organizations');
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          // Check if specific user org is active, or fallback
+          const orgId = user?.organizationId;
+          const currentOrg = orgId
+            ? response.data.find(o => o.id === Number(orgId))
+            : response.data[0];
+
+          if (currentOrg && currentOrg.active === false) {
+            setOrgBlocked(true);
+          } else {
+            setOrgBlocked(false);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check organization status:', error);
+      }
+    };
+
+    if (user) {
+      checkOrgStatus();
+    }
+  }, [user]);
 
   // Sidebar visibility control
   const [showSidebar, setShowSidebar] = useState(true);
@@ -415,6 +447,75 @@ const Layout = ({ children }) => {
           </footer>
         )}
       </div>
+
+      {/* Modal de Bloqueio do Sistema */}
+      {orgBlocked && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backdropFilter: 'blur(5px)'
+        }}>
+          <div style={{
+            backgroundColor: currentTheme.cardBackground,
+            padding: '40px',
+            borderRadius: '16px',
+            textAlign: 'center',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: `1px solid ${currentTheme.border}`
+          }}>
+            <div style={{ marginBottom: '20px', color: '#ef4444' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: 'bold',
+              color: currentTheme.textPrimary,
+              marginBottom: '10px'
+            }}>
+              Acesso Suspenso
+            </h2>
+            <p style={{
+              fontSize: '18px',
+              color: currentTheme.textSecondary,
+              marginBottom: '30px'
+            }}>
+              Sistema bloqueado. Consulte atendimento.
+            </p>
+            <button
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }}
+              style={{
+                backgroundColor: '#ef4444',
+                color: 'white',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '16px'
+              }}
+            >
+              Sair do Sistema
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Logout Modal */}
       <LogoutModal

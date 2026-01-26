@@ -55,7 +55,7 @@ const ChatReport = () => {
 
     const fetchInstances = async () => {
         try {
-            const response = await apiService.getInstances();
+            const response = await apiService.getInstances(user.organizationId ? { organizationId: user.organizationId } : {});
             // Backend returns { instances: [...] }
             if (response.data && Array.isArray(response.data.instances)) {
                 setInstances(response.data.instances);

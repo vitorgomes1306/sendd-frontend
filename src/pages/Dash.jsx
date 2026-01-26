@@ -1,776 +1,466 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { apiService } from '../services/api';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, ResponsiveContainer } from 'recharts';
-import { Monitor, MonitorOff, DollarSign, Image, Video, FileText, TrendingUp, TrendingDown, AlertTriangle, Smartphone, Megaphone, Users } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { apiService, getApiBaseUrl } from '../services/api';
+import {
+  Share2, Users, Monitor, MessageSquare,
+  Megaphone, Image, User, Layers,
+  TrendingUp, Filter, BarChart, Activity, Bell, BotMessageSquare
+} from 'lucide-react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 
-function Dash() {
-  const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    devices: 0,
-    panels: 0,
-    medias: 0,
-    campaigns: 0,
-    clients: 0,
-    channels: 0,
-    notifications: 0
-  });
+const Dash = () => {
+  const { user } = useAuth();
+  // nome da organização
+  const { isDark } = useTheme();
+  // nome da organização - fetched from API now
+  const [orgData, setOrgData] = useState(null);
+  const orgName = orgData?.nomeFantasia || orgData?.name || orgData?.razaoSocial || user?.organization?.name || 'Organização';
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Estados para modais
-  const [showDeviceModal, setShowDeviceModal] = useState(false);
-  const [showPanelModal, setShowPanelModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [modalError, setModalError] = useState('');
-
-  // Estados para formulários
-  const [deviceFormData, setDeviceFormData] = useState({
-    deviceKey: ['', '', '', '', '', ''],
-    name: '',
-    format: 'HORIZONTAL',
-    panelId: '',
-    type: 'display',
-    geoLocation: '',
-    sendNotification: false,
-    showClientInfo: false,
-    personalTextDevice: ''
+  const [stats, setStats] = useState({
+    counts: {
+      instances: 0,
+      departments: 0,
+      collaborators: 0
+    },
+    chats: {
+      bot: 0,
+      attendant: 0,
+      finished: 0,
+      queue: 0
+    },
+    marketing: {
+      campaigns: 0,
+      media: 0,
+      clients: 0,
+      leads: 0,
+      disparos: 0
+    },
+    funnel: []
   });
-
-  const [panelFormData, setPanelFormData] = useState({
-    name: '',
-    description: '',
-    type: 'FULL_SCREEN'
-  });
-
-  const [panels, setPanels] = useState([]);
-
-  // Dados fictícios para os gráficos
-  const [deviceStatus, setDeviceStatus] = useState([
-    { name: 'Online', value: 0, color: '#10b981' },
-    { name: 'Offline', value: 0, color: '#ef4444' }
-  ]);
-
-  const [financialData, setFinancialData] = useState([
-    { month: 'Jan', overdue: 2500, paid: 8500 },
-    { month: 'Fev', overdue: 1800, paid: 9200 },
-    { month: 'Mar', overdue: 3200, paid: 7800 },
-    { month: 'Abr', overdue: 2100, paid: 8900 },
-    { month: 'Mai', overdue: 1500, paid: 9500 },
-    { month: 'Jun', overdue: 2800, paid: 8200 }
-  ]);
-
-  const [mediaTypes, setMediaTypes] = useState([
-    { name: 'Imagens', value: 0, color: '#3b82f6' },
-    { name: 'Vídeos', value: 0, color: '#f59e0b' },
-    { name: 'Documentos', value: 0, color: '#8b5cf6' }
-  ]);
-
-  const [recentMedias, setRecentMedias] = useState([]);
 
   useEffect(() => {
-    fetchDashboardStats();
-    fetchPanels();
+    fetchDashboardData();
   }, []);
 
-  // Função para buscar painéis
-  const fetchPanels = async () => {
-    try {
-      const response = await apiService.getPanels();
-      setPanels(response.data || []);
-    } catch (err) {
-      console.error('Erro ao carregar painéis:', err);
-    }
-  };
-
-  // Funções para manipular formulário de dispositivo
-  const handleDeviceKeyChange = (index, value) => {
-    if (value.length <= 1 && /^[A-Za-z0-9]*$/.test(value)) {
-      const newKey = [...deviceFormData.deviceKey];
-      newKey[index] = value.toUpperCase();
-      setDeviceFormData({ ...deviceFormData, deviceKey: newKey });
-      
-      // Auto-focus no próximo input
-      if (value && index < 5) {
-        const nextInput = document.querySelector(`input[data-index="${index + 1}"]`);
-        if (nextInput) nextInput.focus();
-      }
-    }
-  };
-
-  const resetDeviceForm = () => {
-    setDeviceFormData({
-      deviceKey: ['', '', '', '', '', ''],
-      name: '',
-      format: 'HORIZONTAL',
-      panelId: '',
-      type: 'display',
-      geoLocation: '',
-      sendNotification: false,
-      showClientInfo: false,
-      personalTextDevice: ''
-    });
-    setModalError('');
-  };
-
-  const resetPanelForm = () => {
-    setPanelFormData({
-      name: '',
-      description: '',
-      type: 'FULL_SCREEN'
-    });
-    setModalError('');
-  };
-
-  // Função para criar dispositivo
-  const handleCreateDevice = async (e) => {
-    e.preventDefault();
-    
-    if (!deviceFormData.name.trim()) {
-      setModalError('Nome do dispositivo é obrigatório');
-      return;
-    }
-    
-    const deviceKey = deviceFormData.deviceKey.join('');
-    if (deviceKey.length !== 6) {
-      setModalError('Chave do dispositivo deve ter 6 dígitos');
-      return;
-    }
-    
-    if (!deviceFormData.panelId) {
-      setModalError('Selecione um painel');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setModalError('');
-      
-      const deviceData = {
-        deviceKey,
-        name: deviceFormData.name,
-        format: deviceFormData.format,
-        panelId: parseInt(deviceFormData.panelId),
-        type: deviceFormData.type,
-        geoLocation: deviceFormData.geoLocation || null,
-        sendNotification: deviceFormData.sendNotification,
-        showClientInfo: deviceFormData.showClientInfo,
-        personalTextDevice: deviceFormData.personalTextDevice || null
-      };
-
-      await apiService.createDevice(deviceData);
-      setShowDeviceModal(false);
-      resetDeviceForm();
-      fetchDashboardStats(); // Recarregar estatísticas
-    } catch (err) {
-      console.error('Erro ao criar dispositivo:', err);
-      setModalError('Erro ao criar dispositivo. Tente novamente.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Função para criar painel
-  const handleCreatePanel = async (e) => {
-    e.preventDefault();
-    
-    if (!panelFormData.name.trim()) {
-      setModalError('Nome do painel é obrigatório');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setModalError('');
-      
-      const panelData = {
-        name: panelFormData.name.trim(),
-        description: panelFormData.description.trim(),
-        type: panelFormData.type,
-        active: true
-      };
-
-      await apiService.createPanel(panelData);
-      setShowPanelModal(false);
-      resetPanelForm();
-      fetchDashboardStats(); // Recarregar estatísticas
-      fetchPanels(); // Recarregar lista de painéis
-    } catch (err) {
-      console.error('Erro ao criar painel:', err);
-      setModalError('Erro ao criar painel. Tente novamente.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const fetchDashboardStats = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      console.log('Iniciando carregamento das estatísticas do dashboard...');
-      
-      // Função auxiliar para fazer requisições com retry
-      const fetchWithRetry = async (fetchFunction, name, maxRetries = 2) => {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          try {
-            console.log(`Tentativa ${attempt} para ${name}...`);
-            const result = await fetchFunction();
-            console.log(`✓ ${name} carregado com sucesso`);
-            return result;
-          } catch (error) {
-            console.warn(`✗ Tentativa ${attempt} falhou para ${name}:`, error.message);
-            if (attempt === maxRetries) {
-              console.error(`✗ Todas as tentativas falharam para ${name}`);
-              return { data: [] }; // Retorna dados vazios em caso de falha
-            }
-            // Aguarda 1 segundo antes da próxima tentativa
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-      };
+      const orgId = user.organizationId;
+      const params = orgId ? { organizationId: orgId } : {};
 
-      // Executa todas as requisições com retry
-      const [devicesRes, panelsRes, mediasRes, campaignsRes, clientsRes] = await Promise.allSettled([
-        fetchWithRetry(() => apiService.getDevices(), 'Dispositivos'),
-        fetchWithRetry(() => apiService.getPanels(), 'Painéis'),
-        fetchWithRetry(() => apiService.getMedias(), 'Mídias'),
-        fetchWithRetry(() => apiService.getCampaigns(), 'Campanhas'),
-        fetchWithRetry(() => apiService.getClients(), 'Clientes')
+      // Parallel fetch for all stats
+      const [
+        instancesRes,
+        departmentsRes,
+        usersRes,
+        chatStatsRes,
+        campaignsRes,
+        mediaRes,
+        clientsRes,
+        leadsRes,
+        funnelRes,
+        notificationsRes,
+        orgRes
+      ] = await Promise.allSettled([
+        apiService.getInstances(params),
+        apiService.get('/private/departments', { params }), // Assuming list endpoint
+        apiService.getUsers(params),
+        apiService.getChatStats(params),
+        apiService.getCampaigns(params),
+        apiService.getMedias(params),
+        apiService.getClients(params),
+        apiService.getLeads(params),
+        apiService.get('/private/funnel', { params }),
+        apiService.getNotifications({ ...params, limit: 1 }),
+        apiService.get('/private/organizations')
       ]);
 
-      // Processa os resultados
-      const devices = devicesRes.status === 'fulfilled' ? devicesRes.value.data : [];
-      const panels = panelsRes.status === 'fulfilled' ? panelsRes.value.data : [];
-      
-      // Tratamento robusto para Mídias
-      let medias = [];
-      let mediasCount = 0;
-      if (mediasRes.status === 'fulfilled') {
-        const resData = mediasRes.value.data;
-        if (Array.isArray(resData)) {
-          medias = resData;
-          mediasCount = resData.length;
-        } else if (resData?.data && Array.isArray(resData.data)) {
-          medias = resData.data;
-          mediasCount = resData.pagination?.total || resData.total || resData.data.length;
+      const newStats = { ...stats };
+
+      // 0. Organization Data
+      if (orgRes.status === 'fulfilled') {
+        const orgs = Array.isArray(orgRes.value.data) ? orgRes.value.data : [];
+        if (orgs.length > 0) {
+          const found = orgId ? orgs.find(o => o.id === Number(orgId)) : null;
+          setOrgData(found || orgs[0]);
         }
       }
 
-      // Tratamento robusto para Campanhas
-      let campaigns = [];
-      let campaignsCount = 0;
+      // 1. Counts
+      // Instances
+      if (instancesRes.status === 'fulfilled') {
+        const data = instancesRes.value.data;
+        const list = Array.isArray(data.instances) ? data.instances : (Array.isArray(data) ? data : []);
+        newStats.counts.instances = list.length;
+      }
+
+      // Departments
+      if (departmentsRes.status === 'fulfilled') {
+        const data = departmentsRes.value.data;
+        newStats.counts.departments = Array.isArray(data) ? data.length : 0;
+      }
+
+      // Collaborators (Users)
+      if (usersRes.status === 'fulfilled') {
+        const data = usersRes.value.data;
+        // getUsers often returns array directly
+        newStats.counts.collaborators = Array.isArray(data) ? data.length : 0;
+      }
+
+      // 2. Chat Stats
+      if (chatStatsRes.status === 'fulfilled') {
+        // Backend usually returns { bot: N, open: N, finished: N, queue: N }
+        // 'open' usually maps to 'attendant' (Em atendimento)
+        const data = chatStatsRes.value.data || {};
+        newStats.chats = {
+          bot: data.bot || 0,
+          attendant: data.open || 0,
+          finished: data.finished || 0,
+          queue: data.queue || 0
+        };
+      }
+
+      // 3. Marketing & Sales
+      // Campaigns
       if (campaignsRes.status === 'fulfilled') {
-        const resData = campaignsRes.value.data;
-        if (Array.isArray(resData)) {
-          campaigns = resData;
-          campaignsCount = resData.length;
-        } else if (resData?.data && Array.isArray(resData.data)) {
-          campaigns = resData.data;
-          campaignsCount = resData.pagination?.total || resData.total || resData.data.length;
+        const data = campaignsRes.value.data;
+        const list = data.data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+        newStats.marketing.campaigns = list.length; // Or use pagination total
+      }
+
+      // Medias
+      if (mediaRes.status === 'fulfilled') {
+        const data = mediaRes.value.data;
+        const list = data.data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+        newStats.marketing.media = list.length;
+      }
+
+      // Clients
+      if (clientsRes.status === 'fulfilled') {
+        const data = clientsRes.value.data;
+        const list = data.data && Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+        newStats.marketing.clients = data.pagination?.total || list.length;
+      }
+
+      // Leads
+      if (leadsRes.status === 'fulfilled') {
+        const data = leadsRes.value.data;
+        newStats.marketing.leads = data.pagination?.total || (Array.isArray(data.data) ? data.data.length : 0);
+      }
+
+      // Notifications (Disparos)
+      if (notificationsRes.status === 'fulfilled') {
+        const data = notificationsRes.value.data;
+        // Check if data is array or has pagination
+        newStats.marketing.disparos = data.pagination?.total || (Array.isArray(data.data) ? data.data.length : (Array.isArray(data) ? data.length : 0));
+      }
+
+
+      // 4. Sales Funnel
+      if (funnelRes.status === 'fulfilled') {
+        const data = funnelRes.value.data; // Array of funnel items
+        // Process funnel data to group by stage
+        if (Array.isArray(data)) {
+          const stageCounts = data.reduce((acc, item) => {
+            const stage = item.stage || 'UNKNOWN';
+            acc[stage] = (acc[stage] || 0) + 1;
+            return acc;
+          }, {});
+
+          newStats.funnel = Object.keys(stageCounts).map(stage => ({
+            name: stage,
+            value: stageCounts[stage]
+          }));
         }
       }
-
-      const clients = clientsRes.status === 'fulfilled' ? (clientsRes.value.data?.data || []) : [];
-
-      // Log dos resultados
-      console.log('Resultados finais:', {
-        devices: devices.length,
-        panels: panels.length,
-        medias: mediasCount,
-        campaigns: campaignsCount,
-        clients: clients.length
-      });
-
-      // Buscar total de Canais (somatório de instâncias por organização)
-      let channelsTotal = 0;
-      try {
-        const orgResponse = await apiService.get('/private/organizations');
-        const orgs = Array.isArray(orgResponse.data)
-          ? orgResponse.data
-          : (orgResponse.data?.data ?? []);
-        for (const org of orgs) {
-          try {
-            const instanceResponse = await apiService.get(`/private/organizations/${org.id}/instances`);
-            const orgInstances = instanceResponse.data.instances || [];
-            channelsTotal += orgInstances.length;
-          } catch (error) {
-            console.warn(`Falha ao carregar instâncias da organização ${org.id}:`, error?.message || error);
-          }
-        }
-      } catch (error) {
-        console.warn('Falha ao carregar organizações para contar canais:', error?.message || error);
-      }
-
-      // Buscar total de Notificações via paginação
-      let notificationsTotal = 0;
-      try {
-        const notifRes = await apiService.getNotifications({ page: 1, limit: 1 });
-        notificationsTotal = notifRes?.data?.pagination?.total
-          ?? (Array.isArray(notifRes?.data?.data) ? notifRes.data.data.length : 0);
-      } catch (error) {
-        console.warn('Falha ao carregar total de notificações:', error?.message || error);
-      }
-
-      const newStats = {
-        devices: devices.length,
-        panels: panels.length,
-        medias: mediasCount,
-        campaigns: campaignsCount,
-        clients: clients.length,
-        channels: channelsTotal,
-        notifications: notificationsTotal
-      };
 
       setStats(newStats);
 
-      // Calcular dispositivos online/offline baseado nos dados reais
-      const onlineDevices = devices.filter(device => 
-        device.status === 'Ativo' && device.statusDevice === true
-      ).length;
-      const offlineDevices = devices.filter(device => 
-        device.status === 'Ativo' && device.statusDevice === false
-      ).length;
-      const inactiveDevices = devices.filter(device => 
-        device.status !== 'Ativo'
-      ).length;
-      
-      setDeviceStatus([
-        { name: 'Online', value: onlineDevices, color: '#10b981' },
-        { name: 'Offline', value: offlineDevices, color: '#ef4444' },
-        { name: 'Inativos', value: inactiveDevices, color: '#6b7280' }
-      ]);
-
-      // Simular tipos de mídia baseado no total
-      const images = Math.floor(newStats.medias * 0.6); // 60% imagens
-      const videos = Math.floor(newStats.medias * 0.3); // 30% vídeos
-      const documents = newStats.medias - images - videos; // resto documentos
-
-      setMediaTypes([
-        { name: 'Imagens', value: images, color: '#3b82f6' },
-        { name: 'Vídeos', value: videos, color: '#f59e0b' },
-        { name: 'Documentos', value: documents, color: '#8b5cf6' }
-      ]);
-
-      // Buscar mídias recentes (simulado)
-      setRecentMedias([
-        { id: 1, name: 'Promoção Verão 2024', type: 'image', thumbnail: '/api/placeholder/80/60' },
-        { id: 2, name: 'Video Institucional', type: 'video', thumbnail: '/api/placeholder/80/60' },
-        { id: 3, name: 'Banner Black Friday', type: 'image', thumbnail: '/api/placeholder/80/60' },
-        { id: 4, name: 'Apresentação Q4', type: 'document', thumbnail: '/api/placeholder/80/60' }
-      ]);
-
-      setError('');
-    } catch (err) {
-      console.error('Erro ao carregar estatísticas do dashboard:', err);
-      setError('Erro ao carregar dados do dashboard');
-      // Define valores padrão em caso de erro geral
-      setStats({
-        devices: 0,
-        panels: 0,
-        medias: 0,
-        campaigns: 0,
-        clients: 0,
-        channels: 0,
-        notifications: 0
-      });
+    } catch (error) {
+      console.error('Erro ao carregar dashboard:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const themeColors = {
+    bg: isDark ? '#111827' : '#f3f4f6',
+    card: isDark ? '#1F2937' : 'white',
+    textPrimary: isDark ? '#F9FAFB' : '#111827',
+    textSecondary: isDark ? '#9CA3AF' : '#6B7280',
+    chartGrid: isDark ? '#374151' : '#e5e7eb',
+  };
+
+  const styles = {
+    container: {
+      padding: '24px',
+      backgroundColor: themeColors.bg,
+      minHeight: '100vh',
+      fontFamily: 'Inter, sans-serif',
+      transition: 'background-color 0.2s'
+    },
+    sectionTitle: {
+      fontSize: '18px',
+      fontWeight: '600',
+      color: themeColors.textPrimary,
+      marginBottom: '16px',
+      marginTop: '24px'
+    },
+    grid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '12px',
+      marginBottom: '16px'
+    },
+    card: {
+      backgroundColor: themeColors.card,
+      borderRadius: '12px',
+      padding: '20px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between'
+    },
+    cardHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: '12px'
+    },
+    cardLabel: {
+      fontSize: '14px',
+      color: themeColors.textSecondary,
+      fontWeight: '500'
+    },
+    cardValue: {
+      fontSize: '28px',
+      fontWeight: '700',
+      color: themeColors.textPrimary,
+      lineHeight: '1'
+    },
+    cardIcon: (color) => ({
+      padding: '10px',
+      borderRadius: '10px',
+      backgroundColor: `${color}20`, // 20% opacity
+      color: color
+    }),
+    chartContainer: {
+      backgroundColor: themeColors.card,
+      borderRadius: '12px',
+      padding: '24px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      minHeight: '350px'
+    }
+  };
+
+  // Helper for Stat Card
+  const StatCard = ({ label, value, icon, color }) => (
+    <div style={styles.card}>
+      <div style={styles.cardHeader}>
+        <div>
+          <p style={styles.cardLabel}>{label}</p>
+          <p style={styles.cardValue}>{value}</p>
+        </div>
+        <div style={styles.cardIcon(color)}>
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '50vh',
-        fontSize: '1.2rem',
-        color: '#6b7280'
-      }}>
-        Carregando dashboard...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{
-        backgroundColor: '#fef2f2',
-        border: '1px solid #fecaca',
-        borderRadius: '0.5rem',
-        padding: '1rem',
-        color: '#dc2626',
-        textAlign: 'center'
-      }}>
-        {error}
-        <button
-          onClick={fetchDashboardStats}
-          style={{
-            marginLeft: '1rem',
-            padding: '0.5rem 1rem',
-            backgroundColor: '#dc2626',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.25rem',
-            cursor: 'pointer'
-          }}
-        >
-          Tentar novamente
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f3f4f6' }}>
+        Loading...
       </div>
     );
   }
 
   return (
-    <div style={{
-      width: '100%',
-      maxWidth: '100%',
-      boxSizing: 'border-box'
-    }}>
-      {/* Welcome Section */}
+    <div style={styles.container}>
+      <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: themeColors.textPrimary, marginBottom: '8px' }}>Dashboard</h1>
+      <p style={{ color: themeColors.textSecondary, marginBottom: '24px' }}>Visão geral da organização</p>
+
+      {/* Organization Card */}
       <div style={{
-        backgroundColor: 'white',
-        borderRadius: '0.5rem',
-        padding: '2rem',
-        marginBottom: '2rem',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+        backgroundColor: themeColors.card,
+        borderRadius: '12px',
+        padding: '24px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '24px',
+        marginBottom: '24px',
+        transition: 'background-color 0.2s'
       }}>
-        <h1 style={{
-          fontSize: '2rem',
-          fontWeight: '700',
-          color: '#1f2937',
-          margin: '0 0 0.5rem 0'
-        }}>
-          Dashboard
-        </h1>
-        <p style={{
-          color: '#6b7280',
-          fontSize: '1.1rem',
-          margin: 0
-        }}>
-          Gerencie seus clientes, contatos, disparos em massa, campanhas e leads de forma rápida e eficiente
-        </p>
-      </div>
-
-
-      {/* Statistics Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1rem',
-        marginBottom: '2rem'
-      }}>
-        <a href="/canais" style={{ textDecoration: 'none' }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            borderLeft: '4px solid #3b82f6',
-            cursor: 'pointer',
-            position: 'relative',
-            transition: 'all 0.3s ease',
-            transform: 'translateX(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderLeftWidth = '8px';
-            e.currentTarget.style.transform = 'translateX(2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderLeftWidth = '4px';
-            e.currentTarget.style.transform = 'translateX(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Canais</h3>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#3b82f6', margin: 0 }}>{stats.channels}</p>
-              </div>
-              <Smartphone size={32} style={{ color: '#3b82f6', opacity: 0.7 }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
-              <TrendingUp size={16} style={{ marginRight: '0.25rem', color: '#10b981' }} />
-              +12% este mês
-            </div>
-          </div>
-        </a>
-
-        <a href="/notificacoes/historico" style={{ textDecoration: 'none' }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            borderLeft: '4px solid #10b981',
-            cursor: 'pointer',
-            position: 'relative',
-            transition: 'all 0.3s ease',
-            transform: 'translateX(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderLeftWidth = '8px';
-            e.currentTarget.style.transform = 'translateX(2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderLeftWidth = '4px';
-            e.currentTarget.style.transform = 'translateX(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Notificações</h3>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#10b981', margin: 0 }}>{stats.notifications}</p>
-              </div>
-              <Megaphone size={32} style={{ color: '#10b981', opacity: 0.7 }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
-              <TrendingUp size={16} style={{ marginRight: '0.25rem', color: '#10b981' }} />
-              +8% este mês
-            </div>
-          </div>
-        </a>
-
-        <a href="/medias" style={{ textDecoration: 'none' }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            borderLeft: '4px solid #f59e0b',
-            cursor: 'pointer',
-            position: 'relative',
-            transition: 'all 0.3s ease',
-            transform: 'translateX(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderLeftWidth = '8px';
-            e.currentTarget.style.transform = 'translateX(2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderLeftWidth = '4px';
-            e.currentTarget.style.transform = 'translateX(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Mídias</h3>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#f59e0b', margin: 0 }}>{stats.medias}</p>
-              </div>
-              <Image size={32} style={{ color: '#f59e0b', opacity: 0.7 }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
-              <TrendingUp size={16} style={{ marginRight: '0.25rem', color: '#10b981' }} />
-              +25% este mês
-            </div>
-          </div>
-        </a>
-
-        <a href="/campaigns" style={{ textDecoration: 'none' }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            borderLeft: '4px solid #ef4444',
-            cursor: 'pointer',
-            position: 'relative',
-            transition: 'all 0.3s ease',
-            transform: 'translateX(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderLeftWidth = '8px';
-            e.currentTarget.style.transform = 'translateX(2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderLeftWidth = '4px';
-            e.currentTarget.style.transform = 'translateX(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Campanhas</h3>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef4444', margin: 0 }}>{stats.campaigns}</p>
-              </div>
-              <TrendingUp size={32} style={{ color: '#ef4444', opacity: 0.7 }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
-              <TrendingDown size={16} style={{ marginRight: '0.25rem', color: '#ef4444' }} />
-              -3% este mês
-            </div>
-          </div>
-        </a>
-
-        <a href="/clients" style={{ textDecoration: 'none' }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            borderLeft: '4px solid #8b5cf6',
-            cursor: 'pointer',
-            position: 'relative',
-            transition: 'all 0.3s ease',
-            transform: 'translateX(0)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderLeftWidth = '8px';
-            e.currentTarget.style.transform = 'translateX(2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.15)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderLeftWidth = '4px';
-            e.currentTarget.style.transform = 'translateX(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#1f2937', fontSize: '0.9rem' }}>Clientes</h3>
-                <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#8b5cf6', margin: 0 }}>{stats.clients}</p>
-              </div>
-              <Users size={32} style={{ color: '#8b5cf6', opacity: 0.7 }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
-              <TrendingUp size={16} style={{ marginRight: '0.25rem', color: '#10b981' }} />
-              +15% este mês
-            </div>
-          </div>
-        </a>
-
-        
-      </div>
-
-      {/* Quick Actions */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '0.5rem',
-        padding: '2rem',
-        marginBottom: '2rem',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h2 style={{
-          fontSize: '1.5rem',
-          fontWeight: '600',
-          color: '#1f2937',
-          margin: '0 0 1.5rem 0'
-        }}>
-          Ações Rápidas
-        </h2>
+        {/* Logo */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem'
+          width: '100px',
+          height: '100px',
+          borderRadius: '12px',
+          backgroundColor: isDark ? '#374151' : '#f3f4f6',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          overflow: 'hidden',
+          flexShrink: 0
         }}>
-          <button 
-            onClick={() => setShowDeviceModal(true)}
-            style={{
-            padding: '1rem',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s'
-          }}>
-            Adicionar Dispositivo
-          </button>
-          <button 
-            onClick={() => setShowPanelModal(true)}
-            style={{
-            padding: '1rem',
-            backgroundColor: '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s'
-          }}>
-            Criar Painel
-          </button>
-          <button 
-            onClick={() => navigate('/medias')}
-            style={{
-            padding: '1rem',
-            backgroundColor: '#f59e0b',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s'
-          }}>
-            Upload de Mídia
-          </button>
-          <button 
-            onClick={() => navigate('/campaigns')}
-            style={{
-            padding: '1rem',
-            backgroundColor: '#ef4444',
-            color: 'white',
-            border: 'none',
-            borderRadius: '0.375rem',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s'
-          }}>
-            Nova Campanha
-          </button>
+          {orgData?.logo ? (
+            <img
+              src={`${getApiBaseUrl()}/${orgData.logo.replace(/\\/g, '/')}`}
+              alt={orgName}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = 'https://via.placeholder.com/100?text=Logo';
+                e.target.style.display = 'none'; // Hide if fail, show icon instead?
+                e.target.parentElement.innerHTML = '<span style="font-size: 24px;">🏢</span>';
+              }}
+            />
+          ) : (
+            <Layers size={40} color={themeColors.textSecondary} />
+          )}
+        </div>
+
+        {/* Details */}
+        <div>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', color: themeColors.textPrimary, marginBottom: '8px' }}>
+            {orgName}
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {orgData?.cnpj && (
+              <p style={{ fontSize: '14px', color: themeColors.textSecondary }}>
+                <span style={{ fontWeight: '500' }}>CNPJ:</span> {orgData.cnpj}
+              </p>
+            )}
+            {orgData?.email && (
+              <p style={{ fontSize: '14px', color: themeColors.textSecondary }}>
+                <span style={{ fontWeight: '500' }}>Email:</span> {orgData.email}
+              </p>
+            )}
+          </div>
         </div>
       </div>
-
-      {/* Recent Activity */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '0.5rem',
-        padding: '2rem',
-        marginBottom: '2rem',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-      }}>
-        <h2 style={{
-          fontSize: '1.5rem',
-          fontWeight: '600',
-          color: '#1f2937',
-          margin: '0 0 1.5rem 0'
-        }}>
-          Atividade Recente
-        </h2>
-        <div style={{ color: '#6b7280' }}>
-          <p>• Dispositivo "TV Recepção" conectado há 2 horas</p>
-          <p>• Nova mídia "Promoção Verão" adicionada</p>
-          <p>• Campanha "Black Friday" iniciada</p>
-          <p>• Painel "Lobby Principal" atualizado</p>
-        </div>
+      {/* General Stats */}
+      <div style={styles.grid}>
+        <StatCard
+          label="Instâncias Conectadas"
+          value={stats.counts.instances}
+          icon={<Share2 size={24} />}
+          color="#2563eb" // Blue
+        />
+        <StatCard
+          label="Departamentos"
+          value={stats.counts.departments}
+          icon={<Layers size={24} />}
+          color="#8b5cf6" // Purple
+        />
+        <StatCard
+          label="Colaboradores"
+          value={stats.counts.collaborators}
+          icon={<Users size={24} />}
+          color="#10b981" // Emerald
+        />
       </div>
 
-      {/* Gráficos e Analytics */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-        gap: '2rem',
-        marginBottom: '2rem'
-      }}>
-        {/* Gráfico de Dispositivos Online/Offline */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '0.5rem',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <Monitor size={24} style={{ color: '#3b82f6', marginRight: '0.5rem' }} />
-            <h3 style={{ margin: 0, color: '#1f2937', fontSize: '1.25rem', fontWeight: '600' }}>
-              Status dos Dispositivos
-            </h3>
-          </div>
-          <ResponsiveContainer width="100%" height={250}>
+      <h2 style={styles.sectionTitle}>Atendimento (Mensagens)</h2>
+      <div style={styles.grid}>
+        <StatCard
+          label="Bot"
+          value={stats.chats.bot}
+          icon={<BotMessageSquare size={24} />}
+          color="#f59e0b" // Amber
+        />
+        <StatCard
+          label="Em Atendimento"
+          value={stats.chats.attendant}
+          icon={<MessageSquare size={24} />}
+          color="#3b82f6" // Blue
+        />
+        <StatCard
+          label="Na Fila"
+          value={stats.chats.queue}
+          icon={<Activity size={24} />}
+          color="#ef4444" // Red
+        />
+        <StatCard
+          label="Encerrados"
+          value={stats.chats.finished}
+          icon={<CheckCircleIcon size={24} />}
+          color="#10b981" // Green
+        />
+      </div>
+
+      <h2 style={styles.sectionTitle}>Marketing & Vendas</h2>
+      <div style={styles.grid}>
+        <StatCard
+          label="Campanhas"
+          value={stats.marketing.campaigns}
+          icon={<Megaphone size={24} />}
+          color="#ec4899" // Pink
+        />
+        <StatCard
+          label="Mídias"
+          value={stats.marketing.media}
+          icon={<Image size={24} />}
+          color="#8b5cf6" // Violet
+        />
+        <StatCard
+          label="Clientes"
+          value={stats.marketing.clients}
+          icon={<User size={24} />}
+          color="#f97316" // Orange
+        />
+        <StatCard
+          label="Leads"
+          value={stats.marketing.leads}
+          icon={<TrendingUp size={24} />}
+          color="#14b8a6" // Teal
+        />
+        <StatCard
+          label="Disparos Realizados"
+          value={stats.marketing.disparos}
+          icon={<Bell size={24} />}
+          color="#6366f1" // Indigo
+        />
+      </div>
+
+      {/* Charts Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginTop: '32px' }}>
+
+        {/* Sales Funnel Chart */}
+        <div style={styles.chartContainer}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#374151', marginBottom: '20px' }}>Funil de Vendas</h3>
+          {stats.funnel.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsBarChart data={stats.funnel} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" width={100} />
+                <Tooltip cursor={{ fill: '#f3f4f6' }} />
+                <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+              </RechartsBarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#9ca3af' }}>
+              Sem dados no funil
+            </div>
+          )}
+        </div>
+
+        {/* Chat Distribution */}
+        <div style={styles.chartContainer}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#374151', marginBottom: '20px' }}>Distribuição de Atendimentos</h3>
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={deviceStatus}
+                data={[
+                  { name: 'Bot', value: stats.chats.bot },
+                  { name: 'Humano', value: stats.chats.attendant },
+                  { name: 'Fila', value: stats.chats.queue },
+                  { name: 'Encerrados', value: stats.chats.finished }
+                ]}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
@@ -778,554 +468,41 @@ function Dash() {
                 paddingAngle={5}
                 dataKey="value"
               >
-                {deviceStatus.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
+                <Cell fill="#f59e0b" />
+                <Cell fill="#3b82f6" />
+                <Cell fill="#ef4444" />
+                <Cell fill="#10b981" />
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend verticalAlign="bottom" height={36} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Gráfico de Valores Financeiros */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '0.5rem',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <DollarSign size={24} style={{ color: '#ef4444', marginRight: '0.5rem' }} />
-            <h3 style={{ margin: 0, color: '#1f2937', fontSize: '1.25rem', fontWeight: '600' }}>
-              Valores Financeiros
-            </h3>
-          </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={financialData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value) => [`R$ ${value}`, '']} />
-              <Legend />
-              <Bar dataKey="paid" fill="#10b981" name="Pagos" />
-              <Bar dataKey="overdue" fill="#ef4444" name="Atrasados" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Gráfico de Tipos de Mídia */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '0.5rem',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <Image size={24} style={{ color: '#f59e0b', marginRight: '0.5rem' }} />
-            <h3 style={{ margin: 0, color: '#1f2937', fontSize: '1.25rem', fontWeight: '600' }}>
-              Tipos de Mídia
-            </h3>
-          </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={mediaTypes}
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                dataKey="value"
-              >
-                {mediaTypes.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Mini Cards com Mídias Recentes */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '0.5rem',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <Video size={24} style={{ color: '#8b5cf6', marginRight: '0.5rem' }} />
-            <h3 style={{ margin: 0, color: '#1f2937', fontSize: '1.25rem', fontWeight: '600' }}>
-              Mídias Recentes
-            </h3>
-          </div>
-          <div style={{ display: 'grid', gap: '1rem' }}>
-            {recentMedias.map((media) => (
-              <div key={media.id} style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0.75rem',
-                backgroundColor: '#f9fafb',
-                borderRadius: '0.375rem',
-                border: '1px solid #e5e7eb'
-              }}>
-                <div style={{
-                  width: '60px',
-                  height: '45px',
-                  backgroundColor: '#e5e7eb',
-                  borderRadius: '0.25rem',
-                  marginRight: '0.75rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  {media.type === 'image' && <Image size={20} color="#6b7280" />}
-                  {media.type === 'video' && <Video size={20} color="#6b7280" />}
-                  {media.type === 'document' && <FileText size={20} color="#6b7280" />}
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontWeight: '500', color: '#1f2937', fontSize: '0.9rem' }}>
-                    {media.name}
-                  </p>
-                  <p style={{ margin: 0, color: '#6b7280', fontSize: '0.8rem', textTransform: 'capitalize' }}>
-                    {media.type === 'image' ? 'Imagem' : media.type === 'video' ? 'Vídeo' : 'Documento'}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
-
-      {/* Modal Adicionar Dispositivo */}
-      {showDeviceModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '2rem',
-            width: '90%',
-            maxWidth: '500px',
-            maxHeight: '90vh',
-            overflowY: 'auto'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1.5rem'
-            }}>
-              <h2 style={{ margin: 0, color: '#1f2937' }}>Novo Dispositivo</h2>
-              <button
-                onClick={() => {
-                  setShowDeviceModal(false);
-                  resetDeviceForm();
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  color: '#6b7280'
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            {modalError && (
-              <div style={{
-                backgroundColor: '#fee2e2',
-                color: '#dc2626',
-                padding: '0.75rem',
-                borderRadius: '4px',
-                marginBottom: '1rem',
-                fontSize: '0.875rem'
-              }}>
-                {modalError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateDevice}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Chave do Dispositivo
-                </label>
-                <div style={{
-                  display: 'flex',
-                  gap: '0.5rem',
-                  marginBottom: '1rem'
-                }}>
-                  {deviceFormData.deviceKey.map((digit, index) => (
-                    <input
-                      key={index}
-                      type="text"
-                      data-index={index}
-                      value={digit}
-                      onChange={(e) => handleDeviceKeyChange(index, e.target.value)}
-                      style={{
-                        width: '3rem',
-                        height: '3rem',
-                        textAlign: 'center',
-                        fontSize: '1.25rem',
-                        fontWeight: 'bold',
-                        border: '2px solid #d1d5db',
-                        borderRadius: '4px',
-                        outline: 'none'
-                      }}
-                      maxLength={1}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Nome do Dispositivo *
-                </label>
-                <input
-                  type="text"
-                  value={deviceFormData.name}
-                  onChange={(e) => setDeviceFormData({ ...deviceFormData, name: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '1rem'
-                  }}
-                  placeholder="Digite o nome do dispositivo"
-                  required
-                />
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Formato
-                </label>
-                <select
-                  value={deviceFormData.format}
-                  onChange={(e) => setDeviceFormData({ ...deviceFormData, format: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '1rem'
-                  }}
-                >
-                  <option value="HORIZONTAL">Horizontal</option>
-                  <option value="VERTICAL">Vertical</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Painel *
-                </label>
-                <select
-                  value={deviceFormData.panelId}
-                  onChange={(e) => setDeviceFormData({ ...deviceFormData, panelId: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '1rem'
-                  }}
-                  required
-                >
-                  <option value="">Selecione um painel</option>
-                  {panels.map(panel => (
-                    <option key={panel.id} value={panel.id}>
-                      {panel.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Localização Geográfica
-                </label>
-                <input
-                  type="text"
-                  value={deviceFormData.geoLocation}
-                  onChange={(e) => setDeviceFormData({ ...deviceFormData, geoLocation: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '1rem'
-                  }}
-                  placeholder="Ex: São Paulo, SP"
-                />
-              </div>
-
-              <div style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '1rem',
-                marginTop: '2rem'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDeviceModal(false);
-                    resetDeviceForm();
-                  }}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    backgroundColor: 'white',
-                    color: '#374151',
-                    cursor: 'pointer',
-                    fontSize: '1rem'
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    border: 'none',
-                    borderRadius: '4px',
-                    backgroundColor: isSubmitting ? '#9ca3af' : '#3b82f6',
-                    color: 'white',
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    fontSize: '1rem'
-                  }}
-                >
-                  {isSubmitting ? 'Criando...' : 'Criar Dispositivo'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Criar Painel */}
-      {showPanelModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '2rem',
-            width: '90%',
-            maxWidth: '500px',
-            maxHeight: '90vh',
-            overflowY: 'auto'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1.5rem'
-            }}>
-              <h2 style={{ margin: 0, color: '#1f2937' }}>Novo Painel</h2>
-              <button
-                onClick={() => {
-                  setShowPanelModal(false);
-                  resetPanelForm();
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  color: '#6b7280'
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            {modalError && (
-              <div style={{
-                backgroundColor: '#fee2e2',
-                color: '#dc2626',
-                padding: '0.75rem',
-                borderRadius: '4px',
-                marginBottom: '1rem',
-                fontSize: '0.875rem'
-              }}>
-                {modalError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreatePanel}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Nome do Painel *
-                </label>
-                <input
-                  type="text"
-                  value={panelFormData.name}
-                  onChange={(e) => setPanelFormData({ ...panelFormData, name: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '1rem'
-                  }}
-                  placeholder="Digite o nome do painel"
-                  required
-                />
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Descrição
-                </label>
-                <textarea
-                  value={panelFormData.description}
-                  onChange={(e) => setPanelFormData({ ...panelFormData, description: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '1rem',
-                    minHeight: '80px',
-                    resize: 'vertical'
-                  }}
-                  placeholder="Descrição do painel (opcional)"
-                />
-              </div>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Tipo de Painel
-                </label>
-                <select
-                  value={panelFormData.type}
-                  onChange={(e) => setPanelFormData({ ...panelFormData, type: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '1rem'
-                  }}
-                >
-                  <option value="FULL_SCREEN">Tela Cheia</option>
-                  <option value="DIVIDED">Dividido</option>
-                </select>
-              </div>
-
-              <div style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '1rem',
-                marginTop: '2rem'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPanelModal(false);
-                    resetPanelForm();
-                  }}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    backgroundColor: 'white',
-                    color: '#374151',
-                    cursor: 'pointer',
-                    fontSize: '1rem'
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    border: 'none',
-                    borderRadius: '4px',
-                    backgroundColor: isSubmitting ? '#9ca3af' : '#3b82f6',
-                    color: 'white',
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    fontSize: '1rem'
-                  }}
-                >
-                  {isSubmitting ? 'Criando...' : 'Criar Painel'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
-}
+};
+
+// Icons needed for internal usage if not imported
+const CheckCircleIcon = ({ size, style }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={style}
+  >
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+  </svg>
+);
+
+
 
 export default Dash;

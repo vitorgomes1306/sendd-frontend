@@ -42,9 +42,11 @@ import {
   CircleCheckBig,
   Info,
   ArrowLeft,
-  CheckCheck
+  CheckCheck,
+  Tag as TagIcon
 } from 'lucide-react';
 import './Chat.css';
+import { Play, X } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
@@ -68,6 +70,66 @@ const socket = io(getSocketUrl(), {
   autoConnect: false,
   transports: ['websocket', 'polling']
 });
+
+// Internal Component for Avatar
+const ChatAvatar = ({ chat, config, instances = [] }) => {
+  const [picUrl, setPicUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchPic = async () => {
+      if (!chat) return;
+      const number = chat.remoteJid ? chat.remoteJid.split('@')[0] : '';
+
+      // Fallback logic for instanceName
+      // 1. chat.instance object from backend
+      // 2. Lookup in global instances list by chat.instanceId
+      // 3. Config instanceName (last resort)
+      let instanceName = chat.instance?.instanceName || chat.instance?.name;
+
+      if (!instanceName && chat.instanceId) {
+        const found = instances.find(i => Number(i.id) === Number(chat.instanceId));
+        if (found) instanceName = found.instanceName || found.name;
+      }
+
+      if (!instanceName) instanceName = config.instanceName;
+
+      if (instanceName && number) {
+        try {
+          // Try to use cache if available (could add simple cache object later)
+          const res = await apiService.get(`/private/chats/profile-picture/${instanceName}?number=${number}`);
+          if (mounted && res.data && res.data.pictureUrl) {
+            setPicUrl(res.data.pictureUrl);
+          } else {
+            // Only log failure/empty to avoid noise
+            // console.log('[ChatAvatar] No pic for', number);
+          }
+        } catch (e) {
+          // Silent fail for avatar
+        }
+      } else {
+        console.log('[ChatAvatar] Missing data:', { instanceName, number, chatInstance: chat.instance });
+      }
+      if (mounted) setLoading(false);
+    };
+    fetchPic();
+    return () => { mounted = false; };
+  }, [chat?.id, chat?.remoteJid, config?.instanceName, chat?.instanceId, instances, chat?.instance?.instanceName]); // Re-fetch if chat identity changes
+
+  if (picUrl) {
+    return (
+      <img
+        src={picUrl}
+        alt="Avatar"
+        style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+        onError={(e) => { e.target.style.display = 'none'; setPicUrl(null); }}
+      />
+    );
+  }
+
+  return <User size={20} />;
+};
 
 const Chat = () => {
   const navigate = useNavigate();
@@ -142,6 +204,18 @@ const Chat = () => {
   const [transferObservation, setTransferObservation] = useState('');
   const [isTransferring, setIsTransferring] = useState(false);
   const [showClientInfo, setShowClientInfo] = useState(false);
+  const [viewingMedia, setViewingMedia] = useState(null); // { url, type }
+  const [mediaPreview, setMediaPreview] = useState(null); // { file, url, type, name, mimeType }
+  const [mediaCaption, setMediaCaption] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Tags & Profile Pic
+  const [profilePicUrl, setProfilePicUrl] = useState(null);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [selectedTagFilter, setSelectedTagFilter] = useState('');
+  const [showCheckTagsModal, setShowCheckTagsModal] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#000000');
 
   // Mobile Support
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -517,7 +591,57 @@ const Chat = () => {
     return number;
   };
 
-  const fetchChats = async () => {
+  // Fetch Profile Picture when Chat Selected
+  useEffect(() => {
+    const fetchPic = async () => {
+      if (selectedChat && selectedChat.externalId) {
+        const number = selectedChat.externalId.split('@')[0];
+        // Use instanceName from the related instance object. 
+        // Note: In getChats, we selected { name: true, instanceName: true }.
+        // Sometimes 'name' is the friendly name and 'instanceName' is the ID used in Evolution.
+        const instanceName = selectedChat.instance?.instanceName || selectedChat.instance?.name || config.instanceName;
+
+        console.log('[ProfilePic] Fetching for:', { number, instanceName, chatInstance: selectedChat.instance });
+
+        if (instanceName && number) {
+          try {
+            const res = await apiService.get(`/private/chats/profile-picture/${instanceName}?number=${number}`);
+            console.log('[ProfilePic] Result:', res.data);
+            if (res.data && res.data.pictureUrl) {
+              setProfilePicUrl(res.data.pictureUrl);
+            } else {
+              setProfilePicUrl(null);
+            }
+          } catch (e) {
+            console.error("Error fetching profile pic:", e);
+            setProfilePicUrl(null);
+          }
+        } else {
+          console.warn('[ProfilePic] Missing instanceName or number');
+        }
+      } else {
+        setProfilePicUrl(null);
+      }
+    };
+    fetchPic();
+  }, [selectedChat, config]);
+
+  // Fetch Tags on mount
+  useEffect(() => {
+    fetchTags();
+  }, []);
+
+  const fetchTags = async () => {
+    try {
+      const res = await apiService.get('/private/tags');
+      setAvailableTags(res.data || []);
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+    }
+  };
+
+  // Main fetchChats with filter (including tags)
+  const fetchChats = useCallback(async (options = {}) => {
     // Blocking if loading might cause missed updates if events are rapid
     // if (loading) return; 
     setLoading(true);
@@ -548,13 +672,59 @@ const Chat = () => {
         params.instanceId = cfg.instanceId;
       }
 
+      // Add tag filter
+      if (selectedTagFilter) {
+        params.tagId = selectedTagFilter;
+      }
+
       const response = await apiService.get('/private/chats', { params });
-      console.log('[Chat] Chats recebidos:', response.data);
-      setChats(response.data);
+      const data = response.data;
+      console.log('[Chat] Chats recebidos (Raw):', data);
+
+      const chatsArray = Array.isArray(data) ? data : (data.data || []);
+      if (chatsArray.length > 0) {
+        console.log('[Chat] Exemplo de Chat[0].instance:', chatsArray[0].instance);
+      } else {
+        console.log('[Chat] Nenhum chat retornado.');
+      }
+
+      setChats(chatsArray);
     } catch (error) {
       console.error('Erro ao buscar chats:', error);
     } finally {
       setLoading(false);
+    }
+  }, [config, showConfigModal, selectedTagFilter]);
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return;
+    try {
+      const response = await apiService.post('/private/tags', { name: newTagName, color: newTagColor });
+      // Refresh tags
+      const tagsRes = await apiService.get('/private/tags');
+      setAvailableTags(tagsRes.data);
+      setNewTagName('');
+      setNewTagColor('#000000');
+    } catch (error) {
+      console.error('Error creating tag:', error);
+      showToast({ title: 'Erro', message: 'Erro ao criar tag.', variant: 'error' });
+    }
+  };
+
+  const handleDeleteTag = async (tagId) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta tag permanentemente?')) return;
+    try {
+      await apiService.delete(`/private/tags/${tagId}`);
+      const tagsRes = await apiService.get('/private/tags');
+      setAvailableTags(tagsRes.data);
+      // Remove from current selection if present
+      if (selectedChat?.tags?.some(t => t.id === tagId)) {
+        setSelectedChat(prev => ({ ...prev, tags: prev.tags?.filter(t => t.id !== tagId) }));
+      }
+      showToast({ title: 'Sucesso', message: 'Tag excluída com sucesso.', variant: 'success' });
+    } catch (error) {
+      console.error('Error deleting tag:', error);
+      showToast({ title: 'Erro', message: 'Erro ao excluir tag.', variant: 'error' });
     }
   };
 
@@ -816,34 +986,79 @@ const Chat = () => {
     const file = event.target.files[0];
     if (!file) return;
 
+    // Determine Media Type
+    const mimeType = file.type;
+    let mediaType = 'document';
+
+    if (mimeType.startsWith('image/')) mediaType = 'image';
+    else if (mimeType.startsWith('video/')) mediaType = 'video';
+    else if (mimeType.startsWith('audio/')) mediaType = 'audio';
+
+    // Fallback based on extension
+    if (file.name.endsWith('.webp')) mediaType = 'image';
+    if (file.name.endsWith('.webm')) mediaType = 'video';
+
+    // Create Local Preview URL
+    const url = URL.createObjectURL(file);
+
+    setMediaPreview({
+      file,
+      url,
+      type: mediaType,
+      name: file.name,
+      mimeType: mimeType
+    });
+    setMediaCaption(messageInput); // Pre-fill caption if user typed something
+    setShowAttachMenu(false);
+
+    // Reset input to allow selecting same file again if needed
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCancelPreview = () => {
+    if (mediaPreview?.url) {
+      URL.revokeObjectURL(mediaPreview.url);
+    }
+    setMediaPreview(null);
+    setMediaCaption('');
+  };
+
+  const handleConfirmSendMedia = async () => {
+    if (!mediaPreview || !selectedChat) return;
+
+    setIsUploading(true);
+
     // Convert to Base64
     const reader = new FileReader();
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(mediaPreview.file);
     reader.onload = async () => {
       const base64Content = reader.result.split(',')[1];
-      const mimeType = file.type;
-      let mediaType = 'document';
 
-      if (mimeType.startsWith('image/')) mediaType = 'image';
-      else if (mimeType.startsWith('video/')) mediaType = 'video';
-      else if (mimeType.startsWith('audio/')) mediaType = 'audio';
-
-      // Send
       try {
         await apiService.post('/private/chats/send', {
           chatId: selectedChat.id,
           media: base64Content,
-          fileName: file.name,
-          mimeType: mimeType,
-          mediaType: mediaType,
-          caption: messageInput // Optional caption
+          fileName: mediaPreview.name,
+          mimeType: mediaPreview.mimeType,
+          mediaType: mediaPreview.type,
+          caption: mediaCaption
         });
-        setMessageInput(''); // Clear caption if any
-        setShowAttachMenu(false);
+
+        // Success
+        handleCancelPreview(); // Cleans up state
+        setMessageInput(''); // Clear main input if it was used for caption init
       } catch (error) {
         console.error('Erro ao enviar arquivo:', error);
         showToast('Erro', 'Falha ao enviar arquivo.', 'error');
+      } finally {
+        setIsUploading(false);
       }
+    };
+
+    reader.onerror = () => {
+      console.error('Erro ao ler arquivo');
+      showToast('Erro', 'Falha ao processar arquivo.', 'error');
+      setIsUploading(false);
     };
   };
 
@@ -1166,128 +1381,260 @@ const Chat = () => {
           </div>
         </div>
       </Modal>
-      {/* Configuration Modal */}
-      {showConfigModal && (
-        <div className="config-modal-overlay">
-          <div className="config-modal">
-            <div className="config-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Settings size={24} />
-                <h2>Configuração do Chat</h2>
-              </div>
-              <button
-                // fechar o modal
-                onClick={() => setShowConfigModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: currentTheme.textSecondary }}
-                title="Fechar e Voltar"
-              >
-                <CircleX size={24} />
-              </button>
-            </div>
-            <form onSubmit={handleConfigSubmit}>
-              <div className="config-body">
-                <div className="form-group">
-                  <Select
-                    label="Selecione o Canal (Instância)"
-                    value={config.instanceId}
-                    onChange={(e) => {
-                      const inst = instances.find(i => i.id === Number(e.target.value));
-                      const orgId = inst ? inst.organizationId : config.organizationId;
-                      setConfig({ ...config, instanceId: e.target.value, organizationId: orgId });
-                    }}
-                    options={instances.map(inst => ({
-                      value: inst.id,
-                      label: `${inst.name} (${inst.organizationName})`,
-                      icon: <Settings size={18} />
-                    }))}
-                    placeholder="Selecione uma instância..."
-                  />
-                </div>
-                <div className="form-group">
-                  <label style={{ color: currentTheme.textPrimary, display: 'block', marginBottom: '8px' }}>Selecione os Departamentos</label>
-                  <div style={{
-                    maxHeight: '150px',
-                    overflowY: 'auto',
-                    border: `1px solid ${currentTheme.border}`,
-                    borderRadius: '6px',
-                    padding: '8px',
-                    backgroundColor: currentTheme.inputBg || currentTheme.background
-                  }}>
-                    {availableDepartments.length > 0 ? (
-                      availableDepartments.map(dept => {
-                        const isChecked = Array.isArray(config.departments)
-                          ? config.departments.includes(dept.id)
-                          : (typeof config.departments === 'string' && config.departments.includes(String(dept.id)));
 
-                        return (
-                          <div key={dept.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                            <input
-                              type="checkbox"
-                              id={`dept-${dept.id}`}
-                              checked={isChecked}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setConfig(prev => {
-                                  let current = Array.isArray(prev.departments) ? [...prev.departments] : [];
-                                  if (checked) {
-                                    current.push(dept.id);
-                                  } else {
-                                    current = current.filter(id => id !== dept.id);
-                                  }
-                                  return { ...prev, departments: current };
-                                });
-                              }}
-                              style={{ cursor: 'pointer' }}
-                            />
-                            <label htmlFor={`dept-${dept.id}`} style={{ cursor: 'pointer', color: currentTheme.textPrimary, fontSize: '14px' }}>
-                              {dept.name}
-                            </label>
+      {/* Tag Management Modal */}
+      {showCheckTagsModal && (
+        <Modal isOpen={showCheckTagsModal} onClose={() => setShowCheckTagsModal(false)}>
+          <div style={{ padding: '20px', minWidth: '300px' }}>
+            <h3 style={{ marginBottom: '15px' }}>Gerenciar Tags (Canal)</h3>
+
+            {/* Create Tag Form */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', paddingBottom: '15px', borderBottom: `1px solid ${currentTheme.border}`, alignItems: 'center' }}>
+              <div style={{ position: 'relative', width: '32px', height: '32px', flexShrink: 0 }}>
+                <input
+                  type="color"
+                  value={newTagColor}
+                  onChange={(e) => setNewTagColor(e.target.value)}
+                  style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                  title="Escolher cor da tag"
+                />
+                <div style={{ width: '100%', height: '100%', borderRadius: '50%', backgroundColor: newTagColor, border: `1px solid ${currentTheme.border}` }}></div>
+              </div>
+              <input
+                type="text"
+                placeholder="Nova Tag..."
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: `1px solid ${currentTheme.border}`,
+                  backgroundColor: currentTheme.inputBg || currentTheme.background,
+                  color: currentTheme.textPrimary
+                }}
+              />
+              <Button onClick={handleCreateTag} disabled={!newTagName.trim()}>
+                Criar
+              </Button>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+              {availableTags.length === 0 ? (
+                <div style={{ color: 'gray', width: '100%', textAlign: 'center' }}>Nenhuma tag disponível.</div>
+              ) : (
+                availableTags.map(tag => {
+                  const isSelected = selectedChat?.tags?.some(t => t.id === tag.id);
+                  return (
+                    <div key={tag.id} style={{ display: 'flex', alignItems: 'center' }}>
+                      <div
+                        onClick={async (e) => {
+                          // Prevent toggling when clicking delete button
+                          if (e.target.closest('.delete-btn')) return;
+
+                          try {
+                            if (isSelected) {
+                              await apiService.delete(`/private/chats/${selectedChat.id}/tags/${tag.id}`);
+                              setSelectedChat(prev => ({ ...prev, tags: prev.tags.filter(t => t.id !== tag.id) }));
+                            } else {
+                              await apiService.post(`/private/chats/${selectedChat.id}/tags`, { tagId: tag.id });
+                              setSelectedChat(prev => ({ ...prev, tags: [...(prev.tags || []), tag] }));
+                            }
+                            fetchChats();
+                          } catch (err) {
+                            console.error('Error toggling tag:', err);
+                            showToast({ title: 'Erro', message: 'Erro ao atualizar tag.', variant: 'error' });
+                          }
+                        }}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '20px',
+                          backgroundColor: isSelected ? (tag.color || '#000') : 'transparent',
+                          color: isSelected ? '#fff' : currentTheme.textPrimary,
+                          border: `1px solid ${tag.color || currentTheme.border}`,
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          fontWeight: '500',
+                          fontSize: '13px',
+                          opacity: isSelected ? 1 : 0.7,
+                          transition: 'all 0.2s',
+                          userSelect: 'none',
+                          position: 'relative',
+                          paddingRight: tag.userId ? '32px' : '10px' // Extra padding for delete button if exists
+                        }}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {tag.name}
+                          {isSelected && <Check size={14} />}
+                        </span>
+
+                        {/* Only show delete if user owns the tag (userId matches) or if it's a private tag (has userId) */}
+                        {tag.userId && (
+                          <div
+                            className="delete-btn"
+                            onClick={(e) => {
+                              console.log('Click deleted');
+                              e.stopPropagation();
+                              handleDeleteTag(tag.id);
+                            }}
+                            style={{
+                              position: 'absolute',
+                              right: '4px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              width: '20px', // Hit area
+                              height: '20px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '50%',
+                              backgroundColor: 'rgba(255,255,255,0.2)',
+                              cursor: 'pointer'
+                            }}
+                            title="Excluir Tag"
+                          >
+                            <Trash2 size={12} color={isSelected ? '#fff' : '#ef4444'} />
                           </div>
-                        );
-                      })
-                    ) : (
-                      <div style={{ padding: '4px', color: currentTheme.textSecondary, fontSize: '13px' }}>
-                        {config.instanceId ? "Nenhum departamento encontrado." : "Selecione uma instância primeiro."}
+                        )}
                       </div>
-                    )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <Button onClick={() => setShowCheckTagsModal(false)}>Fechar</Button>
+            </div>
+          </div>
+        </Modal>
+      )
+      }
+
+      {/* Configuration Modal */}
+      {
+        showConfigModal && (
+          <div className="config-modal-overlay">
+            <div className="config-modal">
+              <div className="config-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Settings size={24} />
+                  <h2>Configuração do Chat</h2>
+                </div>
+                <button
+                  // fechar o modal
+                  onClick={() => setShowConfigModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: currentTheme.textSecondary }}
+                  title="Fechar e Voltar"
+                >
+                  <CircleX size={24} />
+                </button>
+              </div>
+              <form onSubmit={handleConfigSubmit}>
+                <div className="config-body">
+                  <div className="form-group">
+                    <Select
+                      label="Selecione o Canal (Instância)"
+                      value={config.instanceId}
+                      onChange={(e) => {
+                        const inst = instances.find(i => i.id === Number(e.target.value));
+                        const orgId = inst ? inst.organizationId : config.organizationId;
+                        setConfig({ ...config, instanceId: e.target.value, organizationId: orgId });
+                      }}
+                      options={instances.map(inst => ({
+                        value: inst.id,
+                        label: `${inst.name} (${inst.organizationName})`,
+                        icon: <Settings size={18} />
+                      }))}
+                      placeholder="Selecione uma instância..."
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ color: currentTheme.textPrimary, display: 'block', marginBottom: '8px' }}>Selecione os Departamentos</label>
+                    <div style={{
+                      maxHeight: '150px',
+                      overflowY: 'auto',
+                      border: `1px solid ${currentTheme.border}`,
+                      borderRadius: '6px',
+                      padding: '8px',
+                      backgroundColor: currentTheme.inputBg || currentTheme.background
+                    }}>
+                      {availableDepartments.length > 0 ? (
+                        availableDepartments.map(dept => {
+                          const isChecked = Array.isArray(config.departments)
+                            ? config.departments.includes(dept.id)
+                            : (typeof config.departments === 'string' && config.departments.includes(String(dept.id)));
+
+                          return (
+                            <div key={dept.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                              <input
+                                type="checkbox"
+                                id={`dept-${dept.id}`}
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setConfig(prev => {
+                                    let current = Array.isArray(prev.departments) ? [...prev.departments] : [];
+                                    if (checked) {
+                                      current.push(dept.id);
+                                    } else {
+                                      current = current.filter(id => id !== dept.id);
+                                    }
+                                    return { ...prev, departments: current };
+                                  });
+                                }}
+                                style={{ cursor: 'pointer' }}
+                              />
+                              <label htmlFor={`dept-${dept.id}`} style={{ cursor: 'pointer', color: currentTheme.textPrimary, fontSize: '14px' }}>
+                                {dept.name}
+                              </label>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div style={{ padding: '4px', color: currentTheme.textSecondary, fontSize: '13px' }}>
+                          {config.instanceId ? "Nenhum departamento encontrado." : "Selecione uma instância primeiro."}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label style={{ color: currentTheme.textPrimary }}>Som de Notificação</label>
+                    <Select
+                      value={config.sound || 'default'}
+                      onChange={(e) => setConfig({ ...config, sound: e.target.value })}
+                      options={AVAILABLE_SOUNDS.map(sound => ({
+                        value: sound.id,
+                        label: sound.label
+                      }))}
+                      placeholder="Selecione o som..."
+                    />
                   </div>
                 </div>
-                <div className="form-group">
-                  <label style={{ color: currentTheme.textPrimary }}>Som de Notificação</label>
-                  <Select
-                    value={config.sound || 'default'}
-                    onChange={(e) => setConfig({ ...config, sound: e.target.value })}
-                    options={AVAILABLE_SOUNDS.map(sound => ({
-                      value: sound.id,
-                      label: sound.label
-                    }))}
-                    placeholder="Selecione o som..."
-                  />
+                <div className="config-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', backgroundColor: currentTheme.cardBackground, borderTop: `1px solid ${currentTheme.border}` }}>
+                  <button
+                    type="button"
+                    onClick={() => playNotificationSound(config.sound)}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: `1px solid ${currentTheme.border}`,
+                      backgroundColor: isDark ? '#374151' : '#f8f9fa',
+                      color: currentTheme.textPrimary,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Testar Som
+                  </button>
+                  <button type="submit" className="config-btn" disabled={!config.instanceId}>
+                    Entrar no Chat
+                  </button>
                 </div>
-              </div>
-              <div className="config-footer" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', backgroundColor: currentTheme.cardBackground, borderTop: `1px solid ${currentTheme.border}` }}>
-                <button
-                  type="button"
-                  onClick={() => playNotificationSound(config.sound)}
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: '6px',
-                    border: `1px solid ${currentTheme.border}`,
-                    backgroundColor: isDark ? '#374151' : '#f8f9fa',
-                    color: currentTheme.textPrimary,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Testar Som
-                </button>
-                <button type="submit" className="config-btn" disabled={!config.instanceId}>
-                  Entrar no Chat
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Left Sidebar */}
       <div className="chat-sidebar" style={{
@@ -1304,23 +1651,49 @@ const Chat = () => {
           >
             <Settings size={30} />
           </button>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: currentTheme.textSecondary }} />
-            <input
-              type="text"
-              placeholder="Buscar contatos..."
-              value={sidebarSearchTerm}
-              onChange={(e) => setSidebarSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 8px 8px 32px',
-                borderRadius: '20px',
-                border: `1px solid ${currentTheme.border}`,
-                backgroundColor: isDark ? '#374151' : '#f0f2f5',
-                color: currentTheme.textPrimary,
-                outline: 'none'
-              }}
-            />
+          <div style={{ position: 'relative', flex: 1, display: 'flex', gap: '5px' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: currentTheme.textSecondary }} />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                value={sidebarSearchTerm}
+                onChange={(e) => setSidebarSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 8px 8px 32px',
+                  borderRadius: '20px',
+                  border: `1px solid ${currentTheme.border}`,
+                  backgroundColor: isDark ? '#374151' : '#f0f2f5',
+                  color: currentTheme.textPrimary,
+                  outline: 'none'
+                }}
+              />
+            </div>
+            {/* Tag Filter */}
+            {/* <div style={{ position: 'relative' }} title="Filtrar conversas por Tag">
+              <select
+                value={selectedTagFilter}
+                onChange={(e) => setSelectedTagFilter(e.target.value)}
+                style={{
+                  height: '100%',
+                  borderRadius: '20px',
+                  border: `1px solid ${currentTheme.border}`,
+                  backgroundColor: isDark ? '#374151' : '#f0f2f5',
+                  color: currentTheme.textPrimary,
+                  padding: '0 10px',
+                  outline: 'none',
+                  maxWidth: '100px',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                <option value="">Filtrar...</option>
+                {availableTags.map(tag => (
+                  <option key={tag.id} value={tag.id}>{tag.name}</option>
+                ))}
+              </select>
+            </div> */}
           </div>
           <button
             onClick={handleOpenStartChat}
@@ -1433,13 +1806,30 @@ const Chat = () => {
                 style={{ position: 'relative' }} // Ensure positioning context
               >
                 <div className="contact-avatar">
-                  <User size={20} />
+                  <ChatAvatar chat={chat} config={config} instances={instances} />
                 </div>
                 <div className="contact-info">
                   <div className="contact-name" style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>{formatPhoneNumber(chat.name || chat.externalId)}</span>
                   </div>
                   <div className="contact-preview">{chat.lastMessage}</div>
+                  {/* Tags Display */}
+                  {chat.tags && chat.tags.length > 0 && (
+                    <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                      {chat.tags.map(tag => (
+                        <span key={tag.id} style={{
+                          fontSize: '10px',
+                          padding: '2px 6px',
+                          borderRadius: '10px',
+                          backgroundColor: tag.color || '#e5e7eb',
+                          color: '#fff', // Assuming dark text on light bg, or adjust contrast
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="contact-meta">
                   {new Date(chat.dateUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1568,8 +1958,12 @@ const Chat = () => {
                 )}
                 <div className="chat-header-info-container">
                   <div className="chat-header-info">
-                    <div className="contact-avatar" style={{ width: '40px', height: '40px', flexShrink: 0 }}>
-                      <User size={18} />
+                    <div className="contact-avatar" style={{ width: '40px', height: '40px', flexShrink: 0, overflow: 'hidden', borderRadius: '50%' }}>
+                      {profilePicUrl ? (
+                        <img src={profilePicUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <User size={18} />
+                      )}
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div
@@ -1618,16 +2012,25 @@ const Chat = () => {
                       >
                         <CircleUserRound size={isMobile ? 18 : 20} color="#0084ff" />
                       </button>
-
-                      <button
-                        className="action-button chat-action-btn"
-                        onClick={handleCloseChatView}
-                        title="Fechar Conversa (Voltar ao Início)"
-                      >
-                        <CircleX size={isMobile ? 18 : 20} color="#f59e0b" />
-                      </button>
                     </>
                   )}
+                  {/* Tag Management Button */}
+                  <button
+                    className="action-button chat-action-btn"
+                    onClick={() => setShowCheckTagsModal(true)}
+                    title="Gerenciar Tags"
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  >
+                    <TagIcon size={16} />
+                  </button>
+                  <button
+                    className="action-button chat-action-btn"
+                    onClick={handleCloseChatView}
+                    title="Fechar Conversa (Voltar ao Início)"
+                  >
+                    <CircleX size={isMobile ? 18 : 20} color="#f59e0b" />
+                  </button>
+
                   {(selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) && (
                     <button
                       onClick={handleTakeover}
@@ -1724,10 +2127,23 @@ const Chat = () => {
                     ) : (
                       <>
                         {msg.type === 'image' && (
-                          <img src={msg.mediaUrl || msg.text} alt="Imagem" style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: '4px' }} />
+                          <div className="media-card" onClick={() => setViewingMedia({ url: msg.mediaUrl || msg.text, type: 'image' })}>
+                            <img
+                              src={msg.mediaUrl || msg.text}
+                              alt="Imagem"
+                              className="media-thumbnail"
+                            />
+                          </div>
                         )}
                         {msg.type === 'video' && (
-                          <video src={msg.mediaUrl || msg.text} controls style={{ maxWidth: '100%', borderRadius: '8px', marginBottom: '4px' }} />
+                          <div className="media-card" onClick={() => setViewingMedia({ url: msg.mediaUrl || msg.text, type: 'video' })}>
+                            <video
+                              src={msg.mediaUrl || msg.text}
+                              className="media-thumbnail"
+                              preload="metadata"
+                            />
+                            <div className="video-overlay"><Play size={24} fill="white" /></div>
+                          </div>
                         )}
                         {msg.type === 'audio' && (
                           <audio src={msg.mediaUrl || msg.text} controls style={{ width: '240px', marginBottom: '4px' }} />
@@ -1843,10 +2259,10 @@ const Chat = () => {
                             onChange={handleFileUpload}
                           />
 
-                          <button type="button" onClick={() => { fileInputRef.current.accept = 'image/*'; fileInputRef.current.click(); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', border: 'none', background: 'transparent', cursor: 'pointer', padding: '8px', width: '100%', textAlign: 'left', borderRadius: '4px', color: currentTheme.textPrimary, transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.backgroundColor = isDark ? '#374151' : '#f5f5f5'} onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}>
+                          <button type="button" onClick={() => { fileInputRef.current.accept = 'image/*,.webp'; fileInputRef.current.click(); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', border: 'none', background: 'transparent', cursor: 'pointer', padding: '8px', width: '100%', textAlign: 'left', borderRadius: '4px', color: currentTheme.textPrimary, transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.backgroundColor = isDark ? '#374151' : '#f5f5f5'} onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}>
                             <ImageIcon size={20} color="#007bff" /> Imagem
                           </button>
-                          <button type="button" onClick={() => { fileInputRef.current.accept = 'video/*'; fileInputRef.current.click(); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', border: 'none', background: 'transparent', cursor: 'pointer', padding: '8px', width: '100%', textAlign: 'left', borderRadius: '4px', color: currentTheme.textPrimary, transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.backgroundColor = isDark ? '#374151' : '#f5f5f5'} onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}>
+                          <button type="button" onClick={() => { fileInputRef.current.accept = 'video/*,.webm'; fileInputRef.current.click(); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', border: 'none', background: 'transparent', cursor: 'pointer', padding: '8px', width: '100%', textAlign: 'left', borderRadius: '4px', color: currentTheme.textPrimary, transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.backgroundColor = isDark ? '#374151' : '#f5f5f5'} onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}>
                             <FileVideo size={20} color="#dc3545" /> Vídeo
                           </button>
                           <button type="button" onClick={() => { fileInputRef.current.accept = 'audio/*'; fileInputRef.current.click(); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', border: 'none', background: 'transparent', cursor: 'pointer', padding: '8px', width: '100%', textAlign: 'left', borderRadius: '4px', color: currentTheme.textPrimary, transition: 'background 0.2s' }} onMouseEnter={e => e.target.style.backgroundColor = isDark ? '#374151' : '#f5f5f5'} onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}>
@@ -1964,7 +2380,7 @@ const Chat = () => {
             <p>Selecione um contato para iniciar o atendimento.</p>
           </div>
         )}
-      </div>
+      </div >
 
       <Modal
         isOpen={showFinishModal}
@@ -2167,11 +2583,125 @@ const Chat = () => {
       </Modal>
 
       {/* Third Div (Placeholder/Hidden for now as requested) */}
-      {/*
-      <div className="chat-info-sidebar" style={{display: 'none'}}>
-         Info
-      </div> 
-      */}
+      <div className="chat-info-sidebar" style={{ display: 'none' }}>
+        Info
+      </div>
+
+
+      {/* Media Preview Modal (Before Send) */}
+      <Modal
+        isOpen={!!mediaPreview}
+        onClose={() => !isUploading && handleCancelPreview()}
+        title="Enviar Mídia"
+        size="md"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Preview Container */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#111827' : '#f3f4f6',
+            borderRadius: '8px',
+            padding: '20px',
+            minHeight: '200px',
+            maxHeight: '400px',
+            overflow: 'hidden'
+          }}>
+            {mediaPreview?.type === 'image' && (
+              <img
+                src={mediaPreview.url}
+                alt="Preview"
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }}
+              />
+            )}
+            {mediaPreview?.type === 'video' && (
+              <video
+                src={mediaPreview.url}
+                controls
+                style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '4px' }}
+              />
+            )}
+            {mediaPreview?.type === 'audio' && (
+              <audio src={mediaPreview.url} controls style={{ width: '100%' }} />
+            )}
+            {mediaPreview?.type === 'document' && (
+              <div style={{ textAlign: 'center', color: currentTheme.textPrimary }}>
+                <FileText size={48} style={{ marginBottom: '8px', opacity: 0.7 }} />
+                <div style={{ fontWeight: '500', wordBreak: 'break-all' }}>{mediaPreview.name}</div>
+                <div style={{ fontSize: '12px', color: currentTheme.textSecondary }}>{mediaPreview.mimeType}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Caption Input */}
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: currentTheme.textPrimary }}>
+              Legenda
+            </label>
+            <textarea
+              value={mediaCaption}
+              onChange={(e) => setMediaCaption(e.target.value)}
+              placeholder="Adicione uma legenda..."
+              disabled={isUploading}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '8px',
+                border: `1px solid ${currentTheme.border}`,
+                backgroundColor: currentTheme.inputBg || currentTheme.background,
+                color: currentTheme.textPrimary,
+                minHeight: '60px',
+                resize: 'vertical'
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleConfirmSendMedia();
+                }
+              }}
+            />
+          </div>
+
+          {/* Footer Actions */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <Button
+              variant="outline"
+              onClick={handleCancelPreview}
+              disabled={isUploading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmSendMedia}
+              loading={isUploading}
+              disabled={isUploading}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <SendIcon size={16} />
+              {isUploading ? 'Enviando...' : 'Enviar'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Media View Modal (Viewing received media) */}
+      {
+        viewingMedia && (
+          <div className="media-modal-overlay" onClick={() => setViewingMedia(null)}>
+            <div className="media-modal-content" onClick={e => e.stopPropagation()}>
+              <button className="media-close-btn" onClick={() => setViewingMedia(null)}>
+                <X size={32} />
+              </button>
+              {viewingMedia.type === 'video' ? (
+                <video src={viewingMedia.url} controls autoPlay className="media-full" />
+              ) : (
+                <img src={viewingMedia.url} alt="Full View" className="media-full" />
+              )}
+            </div>
+          </div>
+        )
+      }
     </div >
   );
 };

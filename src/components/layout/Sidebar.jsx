@@ -97,7 +97,7 @@ const Sidebar = ({ isHidden, isMobile, onMobileClose }) => {
 
         {/* Logo */}
         <div className="sidebar-logo">
-          <img src={LogoSendd} alt="Sendd" />
+          <a href="/dash"><img src={LogoSendd} alt="Sendd" /></a>
         </div>
 
         {/* Menu */}

@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { apiService } from '../services/api';
 import Logo1 from '../assets/img/sendd1.png';
 import Logo2 from '../assets/img/sendd2.png';
+import '../styles/buttons.css'
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -25,7 +26,7 @@ function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   const { currentTheme, isDark } = useTheme();
   const navigate = useNavigate();
 
@@ -59,9 +60,9 @@ function Register() {
     try {
       // Preparar dados para envio (remover confirmPassword)
       const { confirmPassword, ...dataToSend } = formData;
-      
+
       const response = await apiService.register(dataToSend);
-      
+
       if (response.data.success || response.status === 201) {
         setSuccess('Cadastro realizado com sucesso! Redirecionando para login...');
         setTimeout(() => {
@@ -121,8 +122,8 @@ function Register() {
         backgroundColor: currentTheme.cardBackground,
         borderRadius: '0.75rem',
         padding: '2rem',
-        boxShadow: isDark 
-          ? '0 10px 25px rgba(0, 0, 0, 0.3)' 
+        boxShadow: isDark
+          ? '0 10px 25px rgba(0, 0, 0, 0.3)'
           : '0 10px 25px rgba(0, 0, 0, 0.1)',
         border: `1px solid ${currentTheme.border}`
       }}>
@@ -131,14 +132,14 @@ function Register() {
           textAlign: 'center',
           marginBottom: '2rem'
         }}>
-          <img 
-            src={isDark ? Logo1 : Logo2} 
-            alt="Sendd" 
-            style={{ 
-              width: '200px', 
+          <img
+            src={isDark ? Logo1 : Logo2}
+            alt="Sendd"
+            style={{
+              width: '200px',
               height: 'auto',
               marginBottom: '1rem'
-            }} 
+            }}
           />
           <h1 style={{
             fontSize: '1.5rem',
@@ -258,7 +259,7 @@ function Register() {
                 name="cpfCnpj"
                 value={formData.cpfCnpj}
                 onChange={handleChange}
-              
+
                 style={inputStyle}
                 placeholder="000.000.000-00"
               />
@@ -272,7 +273,7 @@ function Register() {
                 name="cellphone"
                 value={formData.cellphone}
                 onChange={handleChange}
-                
+
                 style={inputStyle}
                 placeholder="(00) 00000-0000"
               />
@@ -378,13 +379,20 @@ function Register() {
             />
           </div>
 
-          <button
+          <div style={{ textAlign: 'center' }}>
+            <button
+            // largura maxima ao maximo da div
+            style={{ maxWidth: '100%' }}
+            
             type="submit"
-            disabled={isLoading}
-            style={buttonStyle}
-          >
-            {isLoading ? 'Criando conta...' : 'Criar Conta'}
-          </button>
+              disabled={isLoading}
+              className='btn-base btn-new'
+            >
+              {isLoading ? 'Criando conta...' : 'Criar Conta'}
+            </button>
+          </div>
+
+          
         </form>
 
         {/* Link para login */}
@@ -398,8 +406,8 @@ function Register() {
             margin: 0
           }}>
             Já tem uma conta?{' '}
-            <Link 
-              to="/login" 
+            <Link
+              to="/login"
               style={{
                 color: currentTheme.primary,
                 textDecoration: 'none',
