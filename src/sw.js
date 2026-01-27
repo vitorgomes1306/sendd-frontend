@@ -10,6 +10,7 @@ clientsClaim();
 
 // Push Notification Handler
 self.addEventListener('push', (event) => {
+    console.log('[SW] Push Received:', event.data ? event.data.text() : 'NO DATA');
     let data = {};
     if (event.data) {
         try {
