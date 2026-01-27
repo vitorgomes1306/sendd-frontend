@@ -32,6 +32,15 @@ const Layout = ({ children }) => {
 
   const [orgBlocked, setOrgBlocked] = useState(false);
 
+  // Push Notifications Auto-Subscribe
+  useEffect(() => {
+    if (user) {
+      import('../../services/pushService')
+        .then(({ subscribeToPush }) => subscribeToPush())
+        .catch(err => console.error('Push load error:', err));
+    }
+  }, [user]);
+
   useEffect(() => {
     const checkOrgStatus = async () => {
       try {
