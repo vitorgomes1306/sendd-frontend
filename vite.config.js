@@ -17,7 +17,7 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         scope: '/',
-        start_url: '/dash',
+        start_url: '/',
         orientation: 'portrait',
         icons: [
           {
@@ -37,6 +37,10 @@ export default defineConfig({
             purpose: 'any maskable'
           }
         ]
+      },
+      workbox: {
+        navigateFallback: '/index.html',
+        globPatterns: ['**/*.{js,css,html,png,svg,ico}']
       }
     })
   ],
