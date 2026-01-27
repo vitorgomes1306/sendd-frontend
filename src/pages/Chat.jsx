@@ -137,7 +137,28 @@ const Chat = () => {
   const { currentTheme, isDark } = useTheme();
   const { user } = useAuth();
   const [availableDepartments, setAvailableDepartments] = useState([]);
+  const [departmentCache, setDepartmentCache] = useState({}); // Cache para departamentos por setor
 
+  // Slash Commands
+  const [templates, setTemplates] = useState([]);
+  const [slashMenu, setSlashMenu] = useState({
+    isOpen: false,
+    filter: '',
+    activeIndex: 0
+  });
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await apiService.getTemplates({ limit: 100 });
+      setTemplates(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
   const themeStyles = {
     '--chat-bg': currentTheme.background,
     '--chat-sidebar-bg': currentTheme.sidebarBackground,
@@ -426,9 +447,10 @@ const Chat = () => {
   useEffect(() => {
     if (location.state?.startChat) {
       const { number } = location.state.startChat;
+      const { autoTag } = location.state;
       if (number) {
         console.log('[Chat] Auto-starting chat with:', number);
-        handleStartChat(null, number);
+        handleStartChat(null, number, { autoTag });
       }
       // Clear state to prevent loop/re-run
       navigate(location.pathname, { replace: true, state: {} });
@@ -856,7 +878,7 @@ const Chat = () => {
     }
   };
 
-  const handleStartChat = async (clientId = null, manualNumber = null) => {
+  const handleStartChat = async (clientId = null, manualNumber = null, options = {}) => {
     setCreatingChat(true);
     try {
       const response = await apiService.post('/private/chats/start', {
@@ -871,6 +893,43 @@ const Chat = () => {
 
       await fetchChats(); // Atualiza a lista geral
       setSelectedChat(newChat); // Seleciona o chat novo
+
+      // Auto Tag Logic
+      if (options.autoTag && newChat && newChat.id) {
+        try {
+          const { name, color } = options.autoTag;
+          // Check if tag exists (fetch fresh or use availableTags if reliable)
+          // We'll fetch fresh to be safe
+          const tagsRes = await apiService.get('/private/tags');
+          const existingTags = tagsRes.data || [];
+          let targetTag = existingTags.find(t => t.name.toLowerCase() === name.toLowerCase());
+
+          let tagId;
+          if (targetTag) {
+            tagId = targetTag.id;
+          } else {
+            console.log('[Chat] Creating global tag:', name);
+            const newTagRes = await apiService.post('/private/tags', { name, color });
+            tagId = newTagRes.data.id;
+          }
+
+          if (tagId) {
+            console.log('[Chat] Auto-assigning tag:', tagId, 'to chat:', newChat.id);
+            await apiService.post(`/private/chats/${newChat.id}/tags`, { tagId });
+            // Optionally refresh chat to show tag immediately, 
+            // but fetchChats() above might need to run again or selectedChat updated.
+            // Since selectedChat is already set, we might manually update it or refetch.
+            // For now, let's trigger a light refresh or manual local update
+            setSelectedChat(prev => prev.id === newChat.id ? ({
+              ...prev,
+              tags: [...(prev.tags || []), { id: tagId, name, color }]
+            }) : prev);
+            fetchChats(); // Refresh list tags
+          }
+        } catch (tagError) {
+          console.error('[Chat] Auto-tag error:', tagError);
+        }
+      }
 
       showToast({
         title: 'Sucesso',
@@ -1232,6 +1291,88 @@ const Chat = () => {
     setTransferNotify(false);
     setTransferObservation('');
     setShowTransferModal(true);
+  };
+
+  // Slash Handlers
+  const handleSlashChange = (e) => {
+    const value = e.target.value;
+    setMessageInput(value); // Original behavior
+
+    const cursorPosition = e.target.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPosition);
+    const slashIndex = textBeforeCursor.lastIndexOf('/');
+
+    if (slashIndex !== -1 && slashIndex < cursorPosition) {
+      const query = textBeforeCursor.substring(slashIndex + 1);
+      if (!query.includes(' ') && !query.includes('\n')) {
+        setSlashMenu({
+          isOpen: true,
+          filter: query,
+          activeIndex: 0
+        });
+        return;
+      }
+    }
+
+    if (slashMenu.isOpen) {
+      setSlashMenu(prev => ({ ...prev, isOpen: false }));
+    }
+  };
+
+  const handleSlashKeyDown = (e) => {
+    // Original key press logic for sending message
+    if (e.key === 'Enter' && !e.shiftKey && !slashMenu.isOpen) {
+      e.preventDefault();
+      handleSendMessage(e);
+      return;
+    }
+
+    if (!slashMenu.isOpen) return;
+
+    const filteredTemplates = templates.filter(t =>
+      t.title.toLowerCase().includes(slashMenu.filter.toLowerCase())
+    );
+
+    if (filteredTemplates.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSlashMenu(prev => ({
+        ...prev,
+        activeIndex: (prev.activeIndex + 1) % filteredTemplates.length
+      }));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSlashMenu(prev => ({
+        ...prev,
+        activeIndex: (prev.activeIndex - 1 + filteredTemplates.length) % filteredTemplates.length
+      }));
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      selectSlashTemplate(filteredTemplates[slashMenu.activeIndex]);
+    } else if (e.key === 'Escape') {
+      setSlashMenu(prev => ({ ...prev, isOpen: false }));
+    }
+  };
+
+  const selectSlashTemplate = (template) => {
+    const cursorPosition = inputRef.current.selectionStart;
+    const text = messageInput;
+    const textBeforeCursor = text.substring(0, cursorPosition);
+    const slashIndex = textBeforeCursor.lastIndexOf('/');
+
+    const newText = text.substring(0, slashIndex) + template.content + text.substring(cursorPosition);
+
+    setMessageInput(newText);
+    setSlashMenu(prev => ({ ...prev, isOpen: false }));
+
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const newCursorPos = slashIndex + template.content.length;
+        inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
   };
 
   const handleTransferChat = async () => {
@@ -2028,15 +2169,7 @@ const Chat = () => {
                       </button>
                     </>
                   )}
-                  {/* Tag Management Button */}
-                  <button
-                    className="action-button chat-action-btn"
-                    onClick={() => setShowCheckTagsModal(true)}
-                    title="Gerenciar Tags"
-                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <TagIcon size={16} />
-                  </button>
+
                   <button
                     className="action-button chat-action-btn"
                     onClick={handleCloseChatView}
@@ -2062,13 +2195,35 @@ const Chat = () => {
                       {/* Text content can remain reactive or hide via CSS if we pushed it further. keeping reactive is fine for text content as long as container sizing is robust via CSS */}
                       {isTakingOver ? '...' : (selectedChat.status === 'attendant' ? (isMobile ? 'Iniciar' : 'Iniciar Atendimento') : (isMobile ? 'Assumir' : 'Assumir Atendimento'))}
                     </button>
+
                   )}
+
+                  {/* Botão de Tags */}
+                  |
+                  <button
+                    className="action-button chat-action-btn"
+                    onClick={() => setShowCheckTagsModal(true)}
+                    disabled={selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)}
+                    title="Gerenciar Tags"
+                    style={{
+                      cursor: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 'not-allowed' : 'pointer',
+                      opacity: (selectedChat.status === 'bot' || (selectedChat.status === 'attendant' && !selectedChat.attendantId)) ? 0.5 : 1
+                    }}
+                  >
+                    {/* Use responsive size logic or CSS transform if strictly needed. For now keeping isMobile check for icon size or defaulting to 20px and using CSS to scale if needed. 
+                            To be fully CSS based, we'd need SVGs to inherit size or use media query to scale SVG.
+                            Let's rely on standard size 20 but button padding change handles layout. 
+                        */}
+                    <TagIcon size={isMobile ? 18 : 20} color="#ff4d4f" />
+                  </button>
                   <button
                     className="action-button chat-action-btn"
                     onClick={() => setShowSearch(!showSearch)}
                   >
                     <Search size={isMobile ? 18 : 20} style={{ color: showSearch ? '#ff4d4f' : '#0084ff' }} />
                   </button>
+
+
                 </div>
               </div>
 
@@ -2351,14 +2506,57 @@ const Chat = () => {
                               <Paperclip size={24} />
                             </button>
 
+                            {/* Slash Menu */}
+                            {slashMenu.isOpen && (
+                              <div style={{
+                                position: 'absolute',
+                                bottom: '70px',
+                                left: '20px',
+                                width: '300px',
+                                maxHeight: '200px',
+                                overflowY: 'auto',
+                                backgroundColor: currentTheme.cardBackground,
+                                border: `1px solid ${currentTheme.border}`,
+                                borderRadius: '8px',
+                                boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                zIndex: 20
+                              }}>
+                                {templates
+                                  .filter(t => t.title.toLowerCase().includes(slashMenu.filter.toLowerCase()))
+                                  .map((template, index) => (
+                                    <div
+                                      key={template.id}
+                                      style={{
+                                        padding: '10px',
+                                        cursor: 'pointer',
+                                        backgroundColor: index === slashMenu.activeIndex ? (isDark ? '#374151' : '#f3f4f6') : 'transparent',
+                                        borderBottom: `1px solid ${currentTheme.border}`,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '4px'
+                                      }}
+                                      onClick={() => selectSlashTemplate(template)}
+                                    >
+                                      <span style={{ fontWeight: 'bold', fontSize: '14px', color: currentTheme.textPrimary }}>{template.title}</span>
+                                      <span style={{ fontSize: '12px', color: currentTheme.textSecondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{template.content}</span>
+                                    </div>
+                                  ))}
+                                {templates.filter(t => t.title.toLowerCase().includes(slashMenu.filter.toLowerCase())).length === 0 && (
+                                  <div style={{ padding: '10px', color: currentTheme.textSecondary, fontSize: '14px', textAlign: 'center' }}>
+                                    Nenhuma mensagem encontrada
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             <input
                               ref={inputRef}
                               type="text"
-                              placeholder="Digite uma mensagem"
+                              placeholder="Digite uma mensagem (Use / para mensagens prontas)"
                               className="chat-input"
                               value={messageInput}
-                              onChange={(e) => setMessageInput(e.target.value)}
-                              onKeyPress={handleKeyPress}
+                              onChange={handleSlashChange}
+                              onKeyDown={handleSlashKeyDown}
                               onFocus={handleInputFocus}
                             />
 

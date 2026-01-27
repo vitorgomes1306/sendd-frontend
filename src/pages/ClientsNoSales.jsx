@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
-import { FileText, Search, X, Phone, User, Clock, CheckCircle, MessageCircle, RefreshCcw } from 'lucide-react';
+import { FileText, Search, X, Phone, User, Clock, CheckCircle, MessageCircle, RefreshCcw, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const ClientsNoSales = () => {
@@ -32,6 +32,52 @@ const ClientsNoSales = () => {
             loadHistory();
         }
     }, [activeTab, targetOrgId]);
+
+    // State for History Filters
+    const [historyFilters, setHistoryFilters] = useState({
+        startDate: '',
+        endDate: '',
+        search: '', // Name, Phone, User
+        channel: ''
+    });
+
+    const filteredHistory = history.filter(record => {
+        const { startDate, endDate, search, channel } = historyFilters;
+        const recordDate = new Date(record.createdAt);
+
+        // Date Range
+        if (startDate) {
+            const [sy, sm, sd] = startDate.split('-').map(Number);
+            const start = new Date(sy, sm - 1, sd); // Local midnight
+            if (recordDate < start) return false;
+        }
+        if (endDate) {
+            const [ey, em, ed] = endDate.split('-').map(Number);
+            const end = new Date(ey, em - 1, ed); // Local midnight
+            end.setHours(23, 59, 59, 999);
+            if (recordDate > end) return false;
+        }
+
+        // Search (Name, Phone, User)
+        if (search) {
+            const term = search.toLowerCase();
+            const clientName = (record.clientName || '').toLowerCase();
+            const phone = (record.phoneNumber || '').toLowerCase();
+            const userName = (record.user?.name || '').toLowerCase();
+
+            if (!clientName.includes(term) && !phone.includes(term) && !userName.includes(term)) {
+                return false;
+            }
+        }
+
+        // Channel
+        if (channel) {
+            const recordChannel = (record.channel || '').toLowerCase();
+            if (!recordChannel.includes(channel.toLowerCase())) return false;
+        }
+
+        return true;
+    });
 
     const loadClients = async () => {
         try {
@@ -123,7 +169,12 @@ const ClientsNoSales = () => {
             setSelectedClient(null);
 
             // Redirect to chat with state to trigger new chat
-            navigate('/chat', { state: { startChat: { number: cleanPhone, name: client.CLIENTE || client.nome } } });
+            navigate('/chat', {
+                state: {
+                    startChat: { number: cleanPhone, name: client.CLIENTE || client.nome },
+                    autoTag: { name: 'Cliente sem venda - API', color: '#8b5cf6' }
+                }
+            });
 
         } catch (error) {
             console.error('Error logging call:', error);
@@ -185,16 +236,27 @@ const ClientsNoSales = () => {
         }),
         searchContainer: {
             position: 'relative',
-            width: '300px'
+            width: '100%'
+        },
+        input: {
+            padding: '8px 12px',
+            borderRadius: '6px',
+            border: `1px solid ${currentTheme.border}`,
+            backgroundColor: currentTheme.background,
+            color: currentTheme.textPrimary || currentTheme.text,
+            outline: 'none',
+            fontSize: '14px',
+            width: '100%'
         },
         searchInput: {
             width: '100%',
-            padding: '10px 16px 10px 40px',
-            borderRadius: '8px',
-            border: `1px solid ${currentTheme.borderColor} `,
-            backgroundColor: currentTheme.cardBackground,
-            color: currentTheme.text,
-            outline: 'none'
+            padding: '8px 12px 8px 32px', // Space for icon
+            borderRadius: '6px',
+            border: `1px solid ${currentTheme.border}`,
+            backgroundColor: currentTheme.background,
+            color: currentTheme.textPrimary || currentTheme.text,
+            outline: 'none',
+            fontSize: '14px'
         },
         searchIcon: {
             position: 'absolute',
@@ -378,9 +440,12 @@ const ClientsNoSales = () => {
                                             <td style={styles.td}>
                                                 {client.MUNICENT} {client.BAIRROENT ? ` - ${client.BAIRROENT} ` : ''}
                                             </td>
-                                            <td style={{ ...styles.td, color: currentTheme.primary }}>
-                                                Ver Completo
-                                            </td>
+                                            <div style={{ ...styles.td, color: currentTheme.primary, alignItems: 'center', display: 'flex', justifyContent: 'center' }}>
+                                                <Eye
+                                                    onClick={() => setSelectedClient(client)}
+                                                />
+                                                Abrir
+                                            </div>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -390,57 +455,113 @@ const ClientsNoSales = () => {
                 </>
             )}
 
+
+
+
             {/* TAB: STATUS DE CHAMADA */}
             {activeTab === 'Status' && (
-                <div style={styles.tableContainer}>
-                    {loadingHistory ? (
-                        <div style={{ padding: '40px', textAlign: 'center', color: currentTheme.secondaryText }}>
-                            Carregando histórico...
+                <>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'end' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>Data Início</label>
+                            <input
+                                type="date"
+                                style={styles.input}
+                                value={historyFilters.startDate}
+                                onChange={e => setHistoryFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                            />
                         </div>
-                    ) : history.length === 0 ? (
-                        <div style={{ padding: '40px', textAlign: 'center', color: currentTheme.secondaryText }}>
-                            Nenhum registro de chamada encontrado.
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>Data Fim</label>
+                            <input
+                                type="date"
+                                style={styles.input}
+                                value={historyFilters.endDate}
+                                onChange={e => setHistoryFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                            />
                         </div>
-                    ) : (
-                        <table style={styles.table}>
-                            <thead>
-                                <tr>
-                                    <th style={styles.th}>Data/Hora</th>
-                                    <th style={styles.th}>Usuário</th>
-                                    <th style={styles.th}>Cliente</th>
-                                    <th style={styles.th}>Telefone</th>
-                                    <th style={styles.th}>Canal (Instância)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {history.map((record) => (
-                                    <tr key={record.id} style={styles.tr}>
-                                        <td style={styles.td}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <Clock size={14} />
-                                                {new Date(record.createdAt).toLocaleString('pt-BR')}
-                                            </div>
-                                        </td>
-                                        <td style={styles.td}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <User size={14} />
-                                                {record.user?.name || 'Sistema'}
-                                            </div>
-                                        </td>
-                                        <td style={styles.td}>{record.clientName}</td>
-                                        <td style={styles.td}>{formatPhoneNumber(record.phoneNumber)}</td>
-                                        <td style={styles.td}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#25D366' }}>
-                                                <MessageCircle size={14} />
-                                                {record.channel || 'WhatsApp'}
-                                            </div>
-                                        </td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '200px' }}>
+                            <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>Buscar (Cliente, Tel, Usuário)</label>
+                            <div style={{ ...styles.searchContainer, width: '100%', position: 'relative' }}>
+                                <Search size={18} style={styles.searchIcon} />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar..."
+                                    style={styles.searchInput}
+                                    value={historyFilters.search}
+                                    onChange={(e) => setHistoryFilters(prev => ({ ...prev, search: e.target.value }))}
+                                />
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: '12px', color: currentTheme.textSecondary }}>Canal</label>
+                            <input
+                                type="text"
+                                placeholder="Filtrar canal"
+                                style={styles.input}
+                                value={historyFilters.channel}
+                                onChange={(e) => setHistoryFilters(prev => ({ ...prev, channel: e.target.value }))}
+                            />
+                        </div>
+                        <button
+                            style={styles.refreshBtn}
+                            onClick={() => setHistoryFilters({ startDate: '', endDate: '', search: '', channel: '' })}
+                            title="Limpar Filtros"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div style={styles.tableContainer}>
+                        {loadingHistory ? (
+                            <div style={{ padding: '40px', textAlign: 'center', color: currentTheme.secondaryText }}>
+                                Carregando histórico...
+                            </div>
+                        ) : filteredHistory.length === 0 ? (
+                            <div style={{ padding: '40px', textAlign: 'center', color: currentTheme.secondaryText }}>
+                                Nenhum registro de chamada encontrado.
+                            </div>
+                        ) : (
+                            <table style={styles.table}>
+                                <thead>
+                                    <tr>
+                                        <th style={styles.th}>Data/Hora</th>
+                                        <th style={styles.th}>Usuário</th>
+                                        <th style={styles.th}>Cliente</th>
+                                        <th style={styles.th}>Telefone</th>
+                                        <th style={styles.th}>Canal (Instância)</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
+                                </thead>
+                                <tbody>
+                                    {filteredHistory.map((record) => (
+                                        <tr key={record.id} style={styles.tr}>
+                                            <td style={styles.td}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Clock size={14} />
+                                                    {new Date(record.createdAt).toLocaleString('pt-BR')}
+                                                </div>
+                                            </td>
+                                            <td style={styles.td}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <User size={14} />
+                                                    {record.user?.name || 'Sistema'}
+                                                </div>
+                                            </td>
+                                            <td style={styles.td}>{record.clientName}</td>
+                                            <td style={styles.td}>{formatPhoneNumber(record.phoneNumber)}</td>
+                                            <td style={styles.td}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#25D366' }}>
+                                                    <MessageCircle size={14} />
+                                                    {record.channel || 'WhatsApp'}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </>
             )}
 
             {/* MODAL DETALHES */}

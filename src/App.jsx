@@ -11,6 +11,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import PublicInvoice from './pages/PublicInvoice';
 import Home from './pages/Home';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 import Canais from './pages/Canais';
 import InstanceDetails from './pages/InstanceDetails';
 
@@ -64,6 +65,7 @@ const ExternalRedirect = ({ url }) => {
 function App() {
   return (
     <ThemeProvider>
+      <PWAInstallPrompt />
       <AuthProvider>
         <Router>
           <div className="app">
