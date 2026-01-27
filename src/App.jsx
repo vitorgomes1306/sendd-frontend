@@ -58,7 +58,33 @@ const ExternalRedirect = ({ url }) => {
     window.location.href = url; // Redireciona para fora do app
   }, [url]);
 
-  return null; // Não renderiza nada
+  return null;
+};
+
+const PWALandingRedirect = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth(); // If needed for auth check
+
+  useEffect(() => {
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const isPwaSource = new URLSearchParams(window.location.search).get('source') === 'pwa';
+
+    if (isPWA || isPwaSource) {
+      // Se for PWA, vai para /dash (se logado) ou /login
+      // O ProtectedRoute do /dash já manda pro Login se não tiver user, então podemos mandar pro Dash
+      // Mas navigate direto para login se nao tiver token pode ser mais rápido
+      navigate('/dash');
+    } else {
+      // Se for Web normal, vai para Landing Page
+      window.location.href = "https://sendd-landing-page.vercel.app/";
+    }
+  }, [navigate]);
+
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      Carregando...
+    </div>
+  );
 };
 
 
@@ -70,8 +96,8 @@ function App() {
         <Router>
           <div className="app">
             <Routes>
-              {/* Rota principal agora é a Landing Page */}
-              <Route path="/" element={<ExternalRedirect url="https://sendd-landing-page.vercel.app/" />} />
+              {/* Rota principal: PWA vai pro APP, Web vai pra Landing Page */}
+              <Route path="/" element={<PWALandingRedirect />} />
 
               {/* <Route path="/" element={<Home />} /> */}
 
