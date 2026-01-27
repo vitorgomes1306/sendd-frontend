@@ -20,7 +20,9 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         scope: '/',
-        start_url: '/?source=pwa',
+        scope: '/',
+        start_url: '/dash',
+        orientation: 'portrait',
         orientation: 'portrait',
         icons: [
           {

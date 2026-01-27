@@ -97,7 +97,7 @@ function App() {
           <div className="app">
             <Routes>
               {/* Rota principal: PWA vai pro APP, Web vai pra Landing Page */}
-              <Route path="/dash" element={<PWALandingRedirect />} />
+              <Route path="/" element={<PWALandingRedirect />} />
 
               {/* <Route path="/" element={<Home />} /> */}
 
