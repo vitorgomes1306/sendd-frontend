@@ -70,8 +70,12 @@ function App() {
         <Router>
           <div className="app">
             <Routes>
-              {/* Rota principal agora é a Landing Page */}
-              <Route path="/" element={<ExternalRedirect url="https://sendd-landing-page.vercel.app/" />} />
+              {/* Rota principal agora é a Landing Page (Production) ou Login (Dev) */}
+              <Route path="/" element={
+                import.meta.env.DEV
+                  ? <Navigate to="/login" replace />
+                  : <ExternalRedirect url="https://sendd-landing-page.vercel.app/" />
+              } />
 
               {/* Rotas públicas (sem sidebar) */}
               <Route path="/login" element={<Login />} />

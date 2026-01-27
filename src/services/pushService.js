@@ -1,5 +1,5 @@
 
-import { api } from './api';
+import api from './api';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
@@ -19,41 +19,45 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export async function subscribeToPush() {
+    console.log('[PushService] Initializing subscription...');
+
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.log('Push notifications not supported');
+        console.error('[PushService] Push notifications not supported');
         return;
     }
 
     try {
         const registration = await navigator.serviceWorker.ready;
+        console.log('[PushService] Service Worker ready:', registration);
 
         // Check if already subscribed
-        const existingSubscription = await registration.pushManager.getSubscription();
-        if (existingSubscription) {
-            console.log('User is already subscribed to push');
-            // send to backend just in case to ensure it's synced (idempotent on backend)
-            await api.post('/private/notifications/subscribe', { subscription: existingSubscription });
-            return;
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+            console.log('[PushService] No existing subscription. Requesting new one...');
+
+            if (!VAPID_PUBLIC_KEY) {
+                console.error('[PushService] VAPID Public Key not found in env');
+                return;
+            }
+
+            const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: convertedVapidKey
+            });
+            console.log('[PushService] New Subscription created:', subscription);
+        } else {
+            console.log('[PushService] Found existing subscription:', subscription);
         }
-
-        if (!VAPID_PUBLIC_KEY) {
-            console.error('VAPID Public Key not found in env');
-            return;
-        }
-
-        const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: convertedVapidKey
-        });
-
-        console.log('Push Subscription successful:', subscription);
 
         // Send to backend
-        await api.post('/private/notifications/subscribe', { subscription });
+        console.log('[PushService] Sending subscription to backend...');
+        const response = await api.post('/private/notifications/subscribe', { subscription });
+        console.log('[PushService] Backend response:', response.data);
 
     } catch (error) {
-        console.error('Failed to subscribe to push:', error);
+        console.error('[PushService] Failed to subscribe to push:', error);
     }
 }
