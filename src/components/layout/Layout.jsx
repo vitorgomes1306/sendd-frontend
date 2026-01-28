@@ -384,32 +384,7 @@ const Layout = ({ children }) => {
                       <ClipboardList size={18} />
                       Auditoria
                     </div>
-                    <div
-                      style={{
-                        padding: '0.75rem 1rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem',
-                        fontSize: '0.9rem',
-                        color: currentTheme.textPrimary,
-                      }}
-                      onClick={async () => {
-                        try {
-                          await apiService.post('/private/notifications/test-push');
-                          alert('Push enviado! Verifique seu celular/desktop');
-                        } catch (e) {
-                          alert('Erro ao enviar push: ' + e.message);
-                          console.error(e);
-                        }
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = currentTheme.borderLight}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      <Bell size={18} />
-                      Testar Push
-                    </div>
-
+                    
                     <div
                       style={{
                         padding: '0.75rem 1rem',
