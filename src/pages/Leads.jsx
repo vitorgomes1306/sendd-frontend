@@ -470,8 +470,7 @@ const Leads = ({ embed }) => {
                         backgroundColor: '#16a34a',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
-                        marginRight: 'auto' // Push to left or keep right? User implementation asked for "header actions". Let's keep it consistent.
+                        gap: '8px'
                     }}
                 >
                     <FileSpreadsheet size={18} />

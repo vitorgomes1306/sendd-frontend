@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 import { useTheme } from '../contexts/ThemeContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Filter, Search, User, Calendar, UserPlus, Trash2, X, HelpCircle } from 'lucide-react';
+import { Filter, Search, User, Calendar, UserPlus, Trash2, X, HelpCircle, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import AlertToast from '../components/ui/AlertToast';
 import ClientCreationModal from '../components/ui/ClientCreationModal';
 
@@ -12,6 +13,8 @@ import ClientCreationModal from '../components/ui/ClientCreationModal';
 // pois é mais garantido de funcionar sem dependências extras.
 
 const SalesFunnel = () => {
+
+
     const { currentTheme, isDark } = useTheme();
     const [funnelItems, setFunnelItems] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,6 +24,7 @@ const SalesFunnel = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const navigate = useNavigate();
 
     // Migração
     const [showClientModal, setShowClientModal] = useState(false);
@@ -30,6 +34,10 @@ const SalesFunnel = () => {
     const [showArchiveModal, setShowArchiveModal] = useState(false);
     const [selectedItemForArchive, setSelectedItemForArchive] = useState(null);
     const [archiveReason, setArchiveReason] = useState('');
+
+    // Chat Modal State
+    const [showChatModal, setShowChatModal] = useState(false);
+    const [selectedLeadForChat, setSelectedLeadForChat] = useState(null);
 
     // Help Modal State
     const [showHelpModal, setShowHelpModal] = useState(false);
@@ -123,6 +131,39 @@ const SalesFunnel = () => {
             } catch (err) {
                 console.error("Erro ao mover para pós-venda automaticamente", err);
             }
+        }
+    };
+
+    const handleChatClick = (lead) => {
+        if (!lead.phone) {
+            showAlert('warning', 'Atenção', 'Este lead não possui telefone cadastrado.');
+            return;
+        }
+        setSelectedLeadForChat(lead);
+        setShowChatModal(true);
+    };
+
+    const handleConfirmChat = async () => {
+        if (!selectedLeadForChat) return;
+
+        try {
+            setLoading(true);
+            const response = await apiService.startChat({
+                number: selectedLeadForChat.phone,
+                clientId: null
+            });
+
+            if (response.data && response.data.id) {
+                navigate(`/chat?chatId=${response.data.id}`);
+            } else {
+                showAlert('error', 'Erro', 'Falha ao iniciar conversa.');
+            }
+        } catch (error) {
+            console.error('Erro ao iniciar chat:', error);
+            showAlert('error', 'Erro', 'Falha ao abrir o chat.');
+        } finally {
+            setLoading(false);
+            setShowChatModal(false);
         }
     };
 
@@ -317,6 +358,18 @@ const SalesFunnel = () => {
         }
     };
 
+    // formatar telefone (XX) XXXX-XXXX ou (XX) XXXXX-XXXX
+    const formatPhone = (phone) => {
+        if (!phone) return '';
+        const cleaned = phone.replace(/\D/g, '');
+        if (cleaned.length === 11) {
+            return cleaned.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+        } else if (cleaned.length === 10) {
+            return cleaned.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+        }
+        return phone;
+    };
+
     return (
         <div style={styles.container}>
             <div style={styles.header}>
@@ -417,8 +470,8 @@ const SalesFunnel = () => {
                                         </div>
 
                                         <div style={styles.actions}>
-                                            {/* Left side actions (Migrate) */}
-                                            <div>
+                                            {/* Left side actions (Migrate + Chat) */}
+                                            <div style={{ display: 'flex', gap: '4px' }}>
                                                 <button
                                                     style={styles.migrateBtn}
                                                     onClick={() => handleMigrateClick(item)}
@@ -426,6 +479,15 @@ const SalesFunnel = () => {
                                                 >
                                                     <UserPlus size={10} />
                                                     Cliente
+                                                </button>
+
+                                                <button
+                                                    style={{ ...styles.actionBtn, backgroundColor: '#3b82f6', color: '#fff' }}
+                                                    onClick={() => handleChatClick(item.lead)}
+                                                    title="Abrir Chat"
+                                                >
+                                                    <MessageCircle size={10} />
+                                                    Chat
                                                 </button>
                                             </div>
 
@@ -639,6 +701,68 @@ const SalesFunnel = () => {
                                 }}
                             >
                                 Entendi, fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal Confirmar Chat */}
+            {showChatModal && (
+                <div style={{
+                    position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }} onClick={() => setShowChatModal(false)}>
+                    <div style={{
+                        backgroundColor: currentTheme.cardBackground,
+                        borderRadius: '8px',
+                        width: '100%', maxWidth: '400px',
+                        border: `1px solid ${currentTheme.borderLight}`,
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                    }} onClick={e => e.stopPropagation()}>
+                        <div style={{
+                            padding: '16px 24px',
+                            borderBottom: `1px solid ${currentTheme.border}`,
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                        }}>
+                            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: currentTheme.textPrimary }}>Iniciar Atendimento</h3>
+                            <button onClick={() => setShowChatModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: currentTheme.textSecondary }}>
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div style={{ padding: '24px' }}>
+                            <p style={{ marginBottom: '16px', color: currentTheme.textSecondary }}>
+                                Deseja iniciar uma conversa com <b>{selectedLeadForChat?.name}</b> pelo número: {formatPhone(selectedLeadForChat?.phone)}?
+                            </p>
+                            <p style={{ fontSize: '13px', color: currentTheme.textMuted }}>
+                                Isso abrirá a tela de chat e você poderá enviar mensagens imediatamente pelo WhatsApp.
+                            </p>
+                        </div>
+                        <div style={{
+                            padding: '16px 24px',
+                            borderTop: `1px solid ${currentTheme.border}`,
+                            display: 'flex', justifyContent: 'flex-end', gap: '8px',
+                            backgroundColor: isDark ? currentTheme.background : '#f9fafb',
+                            borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px'
+                        }}>
+                            <button
+                                onClick={() => setShowChatModal(false)}
+                                style={{
+                                    padding: '8px 16px', borderRadius: '6px',
+                                    border: `1px solid ${currentTheme.border}`,
+                                    backgroundColor: isDark ? currentTheme.cardBackground : '#fff',
+                                    color: currentTheme.textPrimary, cursor: 'pointer'
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmChat}
+                                style={{
+                                    padding: '8px 16px', borderRadius: '6px', border: 'none',
+                                    backgroundColor: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: '500'
+                                }}
+                            >
+                                Iniciar Chat
                             </button>
                         </div>
                     </div>

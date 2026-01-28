@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import LogoutModal from '../ui/LogoutModal';
+import WelcomeModal from '../ui/WelcomeModal';
 import '../../../src/styles/buttons.css';
 import {
   Menu,
@@ -31,10 +32,18 @@ const Layout = ({ children }) => {
   const location = useLocation();
 
   const [orgBlocked, setOrgBlocked] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   // Push Notifications Auto-Subscribe
   useEffect(() => {
     if (user) {
+      console.log('Layout user:', user);
+      console.log('Layout showModalBoasVindas:', user.showModalBoasVindas);
+
+      if (user.showModalBoasVindas === true || user.showModalBoasVindas === 'true') {
+        console.log('Layout: Showing Welcome Modal');
+        setShowWelcomeModal(true);
+      }
       import('../../services/pushService')
         .then(({ subscribeToPush }) => subscribeToPush())
         .catch(err => console.error('Push load error:', err));
@@ -384,7 +393,7 @@ const Layout = ({ children }) => {
                       <ClipboardList size={18} />
                       Auditoria
                     </div>
-                    
+
                     <div
                       style={{
                         padding: '0.75rem 1rem',
@@ -604,6 +613,11 @@ const Layout = ({ children }) => {
         onClose={handleLogoutCancel}
         onConfirm={handleLogoutConfirm}
       />
+
+      {/* Welcome Modal */}
+      {showWelcomeModal && (
+        <WelcomeModal onClose={() => setShowWelcomeModal(false)} />
+      )}
     </div>
   );
 };

@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const savedToken = localStorage.getItem('vixplay_token');
     const savedUser = localStorage.getItem('vixplay_user');
-    
+
     if (savedToken && savedUser) {
       try {
         setToken(savedToken);
@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('vixplay_user');
       }
     }
-    
+
     setIsLoading(false);
   }, []);
 
@@ -59,6 +59,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('vixplay_user');
   };
 
+  const updateUser = (newUserData) => {
+    setUser(newUserData);
+    localStorage.setItem('vixplay_user', JSON.stringify(newUserData));
+  };
+
+
   // Verificar se o usuário está autenticado
   const isAuthenticated = () => {
     return !!(user && token);
@@ -70,7 +76,8 @@ export const AuthProvider = ({ children }) => {
     isLoading,
     login,
     logout,
-    isAuthenticated
+    isAuthenticated,
+    updateUser
   };
 
   return (

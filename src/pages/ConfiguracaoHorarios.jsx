@@ -43,7 +43,13 @@ const ConfiguracaoHorarios = () => {
 
         const hoursMap = {};
         DAYS.forEach(d => {
-          hoursMap[d.id] = { startTime: '08:00', endTime: '18:00', isOpen: d.id !== 0 && d.id !== 6 };
+          hoursMap[d.id] = {
+            startTime: '08:00',
+            endTime: '12:00',
+            startTime2: '13:00',
+            endTime2: '18:00',
+            isOpen: d.id !== 0 && d.id !== 6
+          };
         });
 
         if (res.data.hours && Array.isArray(res.data.hours)) {
@@ -51,6 +57,8 @@ const ConfiguracaoHorarios = () => {
             hoursMap[h.dayOfWeek] = {
               startTime: h.startTime,
               endTime: h.endTime,
+              startTime2: h.startTime2 || '',
+              endTime2: h.endTime2 || '',
               isOpen: h.isOpen
             };
           });
@@ -87,6 +95,8 @@ const ConfiguracaoHorarios = () => {
         dayOfWeek: Number(dayId),
         startTime: hours[dayId].startTime,
         endTime: hours[dayId].endTime,
+        startTime2: hours[dayId].startTime2,
+        endTime2: hours[dayId].endTime2,
         isOpen: hours[dayId].isOpen
       }));
 
@@ -139,20 +149,40 @@ const ConfiguracaoHorarios = () => {
                     {day.label}
                   </button>
                 </div>
-                <div className="time-inputs">
-                  <input
-                    type="time"
-                    value={dayConfig.startTime}
-                    disabled={!dayConfig.isOpen}
-                    onChange={(e) => handleHourChange(day.id, 'startTime', e.target.value)}
-                  />
-                  <span>até</span>
-                  <input
-                    type="time"
-                    value={dayConfig.endTime}
-                    disabled={!dayConfig.isOpen}
-                    onChange={(e) => handleHourChange(day.id, 'endTime', e.target.value)}
-                  />
+                <div className="time-inputs" style={{ flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: '#666' }}>Manhã:</span>
+                    <input
+                      type="time"
+                      value={dayConfig.startTime}
+                      disabled={!dayConfig.isOpen}
+                      onChange={(e) => handleHourChange(day.id, 'startTime', e.target.value)}
+                    />
+                    <span>até</span>
+                    <input
+                      type="time"
+                      value={dayConfig.endTime}
+                      disabled={!dayConfig.isOpen}
+                      onChange={(e) => handleHourChange(day.id, 'endTime', e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '10px' }}>
+                    <span style={{ fontSize: '12px', color: '#666' }}>Tarde:</span>
+                    <input
+                      type="time"
+                      value={dayConfig.startTime2 || ''}
+                      disabled={!dayConfig.isOpen}
+                      onChange={(e) => handleHourChange(day.id, 'startTime2', e.target.value)}
+                    />
+                    <span>até</span>
+                    <input
+                      type="time"
+                      value={dayConfig.endTime2 || ''}
+                      disabled={!dayConfig.isOpen}
+                      onChange={(e) => handleHourChange(day.id, 'endTime2', e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div className="status-label">
                   {dayConfig.isOpen ? 'Aberto' : 'Fechado'}

@@ -53,7 +53,13 @@ function Login() {
           name,
           email: userEmail,
           isAdmin: isUserAdmin,
-          role: response.data.role
+          role: response.data.role,
+          active: response.data.active,
+          organizationId: response.data.organizationId,
+          showModalBoasVindas: response.data.showModalBoasVindas,
+          permiteIA: response.data.permiteIA,
+          permiteRelatorioPeriodico: response.data.permiteRelatorioPeriodico,
+          plano: response.data.plano
         };
 
         // Debug: verificar dados do usuário

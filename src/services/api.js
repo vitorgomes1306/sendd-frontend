@@ -146,6 +146,7 @@ export const apiService = {
   sendMessageManual: (chatId, data) => api.post(`/private/chats/${chatId}/send-message`, data),
   performUnlock: (chatId, contractId) => api.post(`/private/chats/${chatId}/unlock`, { contractId }),
   getChatStats: (params) => api.get('/private/chats/stats', { params }),
+  startChat: (data) => api.post('/private/chats/start', data),
 
   // Ticket / Chamados
   getTicketSubjects: (chatId) => api.get(`/private/chats/${chatId}/ticket-subjects`),

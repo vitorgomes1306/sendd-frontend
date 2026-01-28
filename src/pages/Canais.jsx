@@ -11,6 +11,70 @@ import '../styles/forms.css';
 
 
 const Canais = () => {
+
+  // Formatar numero de telefone
+  const formatPhone = (number) => {
+    if (!number) return 'Não conectado';
+
+    const digits = number.replace(/\D/g, '');
+
+    // Lista de DDIs e Bandeiras
+    const ddiMap = [
+      { code: '55', flag: '🇧🇷' },
+      { code: '1', flag: '🇺🇸' },
+      { code: '351', flag: '🇵🇹' },
+      { code: '54', flag: '🇦🇷' },
+      { code: '44', flag: '🇬🇧' },
+      { code: '34', flag: '🇪🇸' },
+      { code: '33', flag: '🇫🇷' },
+      { code: '49', flag: '🇩🇪' },
+      { code: '39', flag: '🇮🇹' },
+      { code: '598', flag: '🇺🇾' },
+      { code: '595', flag: '🇵🇾' },
+    ];
+
+    let ddi = '';
+    let flag = '';
+    let localNumber = digits;
+
+    // Detectar DDI
+    for (const country of ddiMap) {
+      if (digits.startsWith(country.code)) {
+        ddi = country.code;
+        flag = country.flag;
+        localNumber = digits.slice(country.code.length);
+        break;
+      }
+    }
+
+    // Formatação Específica para Brasil (+55)
+    if (ddi === '55') {
+      // Celular: 11 dígitos (XX) XXXXX-XXXX
+      if (localNumber.length === 11) {
+        return `${flag} +${ddi} (${localNumber.slice(0, 2)}) ${localNumber.slice(2, 7)}-${localNumber.slice(7)}`;
+      }
+      // Fixo: 10 dígitos (XX) XXXX-XXXX
+      if (localNumber.length === 10) {
+        return `${flag} +${ddi} (${localNumber.slice(0, 2)}) ${localNumber.slice(2, 6)}-${localNumber.slice(6)}`;
+      }
+    }
+
+    // Se detectou outro DDI, retorna com flag e +DDI
+    if (ddi) {
+      return `${flag} +${ddi} ${localNumber}`;
+    }
+
+    // Fallback: Sem DDI detectado, tenta formatar como BR se tiver o tamanho certo
+    if (digits.length === 11) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    }
+    if (digits.length === 10) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    }
+
+    return number;
+  };
+
   const navigate = useNavigate();
   const { currentTheme } = useTheme();
   const { user } = useAuth();
@@ -628,7 +692,10 @@ const Canais = () => {
                       </td>
                       <td style={styles.td}>{instance.name}</td>
                       <td style={styles.td}>{instance.organizationName}</td>
-                      <td style={styles.td}>{instance.number || 'Não conectado'}</td>
+                      {/* Formatar o numero com DDD e numero */}
+                      <td style={styles.td}>
+                        {formatPhone(instance.number)}
+                      </td>
                       <td style={styles.td}>
                         <span style={{
                           ...styles.status,
