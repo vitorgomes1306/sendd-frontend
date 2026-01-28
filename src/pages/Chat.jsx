@@ -71,6 +71,56 @@ const socket = io(getSocketUrl(), {
   transports: ['websocket', 'polling']
 });
 
+
+// Internal Component: QueueTimer
+const QueueTimer = ({ startTime }) => {
+  const [elapsed, setElapsed] = useState('00:00');
+
+  useEffect(() => {
+    if (!startTime) return;
+
+    const update = () => {
+      const now = new Date();
+      const start = new Date(startTime);
+      const diff = now - start;
+
+      if (diff < 0) {
+        setElapsed('00:00');
+        return;
+      }
+
+      const seconds = Math.floor((diff / 1000) % 60);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const hours = Math.floor((diff / (1000 * 60 * 60)));
+
+      const pad = (n) => n.toString().padStart(2, '0');
+      if (hours > 0) {
+        setElapsed(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
+      } else {
+        setElapsed(`${pad(minutes)}:${pad(seconds)}`);
+      }
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  return (
+    <span style={{
+      color: '#ef4444',
+      fontWeight: 'bold',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+      fontSize: '12px'
+    }}>
+      <Clock size={12} /> {elapsed}
+    </span>
+  );
+};
+
+
 // Internal Component for Avatar
 const ChatAvatar = ({ chat, config, instances = [] }) => {
   const [picUrl, setPicUrl] = useState(null);
@@ -1987,7 +2037,11 @@ const Chat = () => {
                   )}
                 </div>
                 <div className="contact-meta">
-                  {new Date(chat.dateUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {(chat.status === 'attendant' && !chat.attendantId && chat.enteredQueueAt) ? (
+                    <QueueTimer startTime={chat.enteredQueueAt} />
+                  ) : (
+                    new Date(chat.dateUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  )}
                   {/* Context Menu Button */}
                   <div
                     className="contact-menu-btn"

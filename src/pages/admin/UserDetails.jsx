@@ -5,9 +5,25 @@ import { useTheme } from '../../contexts/ThemeContext';
 import {
     User, Mail, Phone, Shield, Calendar, Activity,
     Lock, CheckCircle, XCircle, Trash2, Save, ArrowLeft,
-    Users, MessageSquare, Briefcase
+    Users, MessageSquare, Briefcase, BanknoteArrowDown, BanknoteArrowUp, SquarePen
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext'; // Para checar permissões extras se precisar
+
+// Simple Toggle Component
+const ToggleSwitch = ({ checked, onChange }) => (
+    <div
+        onClick={onChange}
+        style={{
+            width: '40px', height: '22px', backgroundColor: checked ? '#10b981' : '#e5e7eb',
+            borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: 'background-color 0.2s'
+        }}
+    >
+        <div style={{
+            width: '18px', height: '18px', backgroundColor: 'white', borderRadius: '50%',
+            position: 'absolute', top: '2px', left: checked ? '20px' : '2px', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+        }} />
+    </div>
+);
 
 const UserDetails = () => {
     const { id } = useParams();
@@ -112,6 +128,146 @@ const UserDetails = () => {
         }
     };
 
+    // Financial States
+    const [invoices, setInvoices] = useState([]);
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [isReceiveMode, setIsReceiveMode] = useState(false); // Mode to differentiate "Receive" from "Edit"
+    const [financialSubTab, setFinancialSubTab] = useState('open'); // 'open' | 'paid'
+
+    const [invoiceForm, setInvoiceForm] = useState({
+        id: null,
+        value: '',
+        dueDate: '',
+        carrier: '',
+        discount: 0,
+        paymentMethod: 'PIX',
+        status: 'pending',
+        paymentDate: ''
+    });
+
+    const loadInvoices = async () => {
+        try {
+            const response = await api.get(`/private/users/${id}/invoices`);
+            setInvoices(response.data);
+        } catch (error) {
+            console.error('Erro ao carregar faturas:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'financial') {
+            loadInvoices();
+        }
+    }, [activeTab]);
+
+    const handleSaveInvoice = async (e) => {
+        e.preventDefault();
+        try {
+            setSaving(true);
+            const data = { ...invoiceForm };
+            if (!data.paymentDate) delete data.paymentDate; // Don't send empty string
+
+            if (data.id) {
+                await api.put(`/private/users/${id}/invoices/${data.id}`, data);
+            } else {
+                await api.post(`/private/users/${id}/invoices`, data);
+            }
+            alert(isReceiveMode ? 'Pagamento recebido!' : 'Fatura salva com sucesso!');
+            setShowInvoiceModal(false);
+            loadInvoices();
+        } catch (error) {
+            console.error('Erro ao salvar fatura:', error);
+            alert('Erro ao salvar fatura');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteInvoice = async (invoiceId) => {
+        if (!confirm('Excluir fatura?')) return;
+        try {
+            await api.delete(`/private/users/${id}/invoices/${invoiceId}`);
+            loadInvoices();
+        } catch (error) {
+            console.error('Erro ao excluir fatura:', error);
+            alert('Erro: ' + error.response?.data?.error);
+        }
+    };
+
+    const handleReverseInvoice = async (invoiceId) => {
+        if (!confirm('Deseja realmente estornar este pagamento? O status voltará para Pendente.')) return;
+        try {
+            await api.put(`/private/users/${id}/invoices/${invoiceId}`, {
+                status: 'pending',
+                paymentDate: null // Backend handles this logic via strict typing usually, ensure backend clears it
+            });
+            alert('Estorno realizado.');
+            loadInvoices();
+        } catch (error) {
+            console.error('Erro ao estornar:', error);
+            alert('Erro ao estornar fatura');
+        }
+    };
+
+    const openInvoiceModal = (invoice = null) => {
+        setIsReceiveMode(false);
+        if (invoice) {
+            setInvoiceForm({
+                id: invoice.id,
+                value: invoice.value,
+                dueDate: invoice.dueDate ? invoice.dueDate.split('T')[0] : '',
+                carrier: invoice.carrier,
+                discount: invoice.discount || 0,
+                paymentMethod: invoice.paymentMethod,
+                status: invoice.status,
+                paymentDate: invoice.paymentDate ? invoice.paymentDate.split('T')[0] : ''
+            });
+        } else {
+            setInvoiceForm({
+                id: null,
+                value: '',
+                dueDate: '',
+                carrier: '',
+                discount: 0,
+                paymentMethod: 'PIX',
+                status: 'pending',
+                paymentDate: ''
+            });
+        }
+        setShowInvoiceModal(true);
+    };
+
+    const openReceiveModal = (invoice) => {
+        setIsReceiveMode(true);
+        setInvoiceForm({
+            id: invoice.id,
+            value: invoice.value,
+            dueDate: invoice.dueDate ? invoice.dueDate.split('T')[0] : '',
+            carrier: invoice.carrier,
+            discount: invoice.discount || 0,
+            paymentMethod: invoice.paymentMethod || 'PIX',
+            status: 'paid', // Force status paid
+            paymentDate: new Date().toISOString().split('T')[0] // Default today
+        });
+        setShowInvoiceModal(true);
+    }
+
+    const handleToggleOrgActive = async (orgId, currentStatus) => {
+        try {
+            // Optimistic update
+            setUser(prev => ({
+                ...prev,
+                organizations: prev.organizations.map(o => o.id === orgId ? { ...o, active: !currentStatus } : o)
+            }));
+
+            await api.put(`/private/organizations/${orgId}`, { active: !currentStatus });
+        } catch (error) {
+            console.error('Erro ao alterar status da organização:', error);
+            alert('Erro ao alterar status da organização');
+            loadUser(); // Revert
+        }
+    };
+
     if (loading) return <div style={{ padding: '40px', color: currentTheme.text }}>Carregando...</div>;
     if (!user) return <div style={{ padding: '40px', color: currentTheme.text }}>Usuário não encontrado</div>;
 
@@ -186,6 +342,12 @@ const UserDetails = () => {
                         <li style={styles.menuItem(activeTab === 'profile')} onClick={() => setActiveTab('profile')}>
                             <User size={18} /> Perfil
                         </li>
+                        <li style={styles.menuItem(activeTab === 'organizations')} onClick={() => setActiveTab('organizations')}>
+                            <Briefcase size={18} /> Organizações
+                        </li>
+                        <li style={styles.menuItem(activeTab === 'financial')} onClick={() => setActiveTab('financial')}>
+                            <Activity size={18} /> Financeiro
+                        </li>
                         <li style={styles.menuItem(activeTab === 'security')} onClick={() => setActiveTab('security')}>
                             <Lock size={18} /> Segurança
                         </li>
@@ -196,6 +358,303 @@ const UserDetails = () => {
                 </div>
 
                 <div style={styles.card}>
+                    {activeTab === 'organizations' && (
+                        <div>
+                            <h2 style={{ marginBottom: '24px', fontSize: '20px' }}>Organizações</h2>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                                {user.organizations?.map(org => (
+                                    <div key={org.id} style={{
+                                        backgroundColor: currentTheme.background,
+                                        border: `1px solid ${currentTheme.borderColor}`,
+                                        borderRadius: '8px',
+                                        padding: '16px',
+                                        position: 'relative'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                                            <div style={{
+                                                width: '48px', height: '48px', borderRadius: '8px',
+                                                backgroundColor: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+                                            }}>
+                                                {org.logo ? (
+                                                    <img src={`${api.defaults.baseURL.replace('/api', '')}/${org.logo}`} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                ) : (
+                                                    <Briefcase size={24} color="#9ca3af" />
+                                                )}
+                                            </div>
+                                            <div>
+                                                <h4 style={{ margin: 0, fontSize: '16px' }}>{org.nomeFantasia || org.razaoSocial}</h4>
+                                                <span style={{ fontSize: '12px', color: currentTheme.secondaryText }}>{org.razaoSocial}</span>
+                                            </div>
+                                            <div style={{ marginLeft: 'auto' }}>
+                                                <ToggleSwitch
+                                                    checked={org.active}
+                                                    onChange={() => handleToggleOrgActive(org.id, org.active)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px', backgroundColor: currentTheme.cardBackground, borderRadius: '4px' }}>
+                                                <span style={{ fontWeight: 'bold' }}>{org._count?.whatsappInstances || 0}</span>
+                                                <span style={{ color: currentTheme.secondaryText }}>Instâncias</span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px', backgroundColor: currentTheme.cardBackground, borderRadius: '4px' }}>
+                                                <span style={{ fontWeight: 'bold' }}>{org._count?.chats || 0}</span>
+                                                <span style={{ color: currentTheme.secondaryText }}>Chats</span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px', backgroundColor: currentTheme.cardBackground, borderRadius: '4px' }}>
+                                                {/* Summing team members as proxy for collaborators */}
+                                                <span style={{ fontWeight: 'bold' }}>
+                                                    {org.teams?.reduce((acc, team) => acc + (team._count?.members || 0), 0) || 0}
+                                                </span>
+                                                <span style={{ color: currentTheme.secondaryText }}>Colaboradores</span>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px', backgroundColor: currentTheme.cardBackground, borderRadius: '4px' }}>
+                                                <span style={{ fontWeight: 'bold' }}>{org._count?.departments || 0}</span>
+                                                <span style={{ color: currentTheme.secondaryText }}>Deptos</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {(!user.organizations || user.organizations.length === 0) && (
+                                    <p style={{ color: currentTheme.secondaryText, gridColumn: '1/-1', textAlign: 'center', padding: '20px' }}>
+                                        Nenhuma organização vinculada.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'financial' && (
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                <h2 style={{ fontSize: '20px' }}>Financeiro</h2>
+                                <button type="button" onClick={() => openInvoiceModal()} style={styles.btnPromise()}>
+                                    + Nova Fatura
+                                </button>
+                            </div>
+
+                            {/* Sub-tabs for Financial */}
+                            <div style={{ display: 'flex', borderBottom: `1px solid ${currentTheme.borderColor}`, marginBottom: '16px' }}>
+                                <div
+                                    onClick={() => setFinancialSubTab('open')}
+                                    style={{
+                                        padding: '10px 20px', cursor: 'pointer',
+                                        borderBottom: financialSubTab === 'open' ? `2px solid ${currentTheme.primary}` : 'none',
+                                        color: financialSubTab === 'open' ? currentTheme.primary : currentTheme.secondaryText,
+                                        fontWeight: financialSubTab === 'open' ? 'bold' : 'normal'
+                                    }}
+                                >
+                                    Faturas em Aberto / Atrasadas
+                                </div>
+                                <div
+                                    onClick={() => setFinancialSubTab('paid')}
+                                    style={{
+                                        padding: '10px 20px', cursor: 'pointer',
+                                        borderBottom: financialSubTab === 'paid' ? `2px solid ${currentTheme.primary}` : 'none',
+                                        color: financialSubTab === 'paid' ? currentTheme.primary : currentTheme.secondaryText,
+                                        fontWeight: financialSubTab === 'paid' ? 'bold' : 'normal'
+                                    }}
+                                >
+                                    Faturas Pagas
+                                </div>
+                            </div>
+
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                                    <thead>
+                                        <tr style={{ textAlign: 'left', borderBottom: `1px solid ${currentTheme.borderColor}` }}>
+                                            <th style={{ padding: '12px' }}>Vencimento</th>
+                                            <th style={{ padding: '12px' }}>Valor Original</th>
+                                            <th style={{ padding: '12px' }}>Desconto</th>
+                                            <th style={{ padding: '12px' }}>Total Final</th>
+                                            <th style={{ padding: '12px' }}>Portador</th>
+                                            <th style={{ padding: '12px' }}>Status</th>
+                                            {financialSubTab === 'paid' && <th style={{ padding: '12px' }}>Data Pagto</th>}
+                                            <th style={{ padding: '12px' }}>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {invoices.filter(inv => financialSubTab === 'paid' ? inv.status === 'paid' : inv.status !== 'paid').map(inv => {
+                                            const total = parseFloat(inv.value) - parseFloat(inv.discount || 0);
+                                            const isPaid = inv.status === 'paid';
+                                            const isOverdue = !isPaid && new Date(inv.dueDate) < new Date();
+                                            const dueDateStr = new Date(inv.dueDate).toLocaleDateString('pt-BR');
+                                            const paymentDateStr = inv.paymentDate ? new Date(inv.paymentDate).toLocaleDateString('pt-BR') : '-';
+
+                                            return (
+                                                <tr key={inv.id} style={{ borderBottom: `1px solid ${currentTheme.borderColor}` }}>
+                                                    <td style={{ padding: '12px' }}>{dueDateStr}</td>
+                                                    <td style={{ padding: '12px' }}>R$ {parseFloat(inv.value).toFixed(2)}</td>
+                                                    <td style={{ padding: '12px' }}>R$ {parseFloat(inv.discount || 0).toFixed(2)}</td>
+                                                    <td style={{ padding: '12px', fontWeight: 'bold' }}>R$ {total.toFixed(2)}</td>
+                                                    <td style={{ padding: '12px' }}>{inv.carrier}</td>
+                                                    <td style={{ padding: '12px' }}>
+                                                        <span style={{
+                                                            padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold',
+                                                            backgroundColor: isPaid ? '#dcfce7' : isOverdue ? '#fee2e2' : '#fef9c3',
+                                                            color: isPaid ? '#166534' : isOverdue ? '#991b1b' : '#854d0e'
+                                                        }}>
+                                                            {isPaid ? 'PAGO' : isOverdue ? 'ATRASADO' : 'PENDENTE'}
+                                                        </span>
+                                                    </td>
+                                                    {financialSubTab === 'paid' && <td style={{ padding: '12px' }}>{paymentDateStr}</td>}
+                                                    <td style={{ padding: '12px' }}>
+                                                        {!isPaid && (
+                                                            <button
+                                                                onClick={() => openReceiveModal(inv)}
+                                                                title="Receber Manualmente"
+                                                                style={{ marginRight: '8px', cursor: 'pointer', background: 'none', border: 'none', color: '#16a34a', fontWeight: 'bold' }}
+                                                            >
+                                                                <BanknoteArrowDown />
+                                                            </button>
+                                                        )}
+                                                        {isPaid && (
+                                                            <button
+                                                                onClick={() => handleReverseInvoice(inv.id)}
+                                                                title="Estornar Pagamento"
+                                                                style={{ marginRight: '8px', cursor: 'pointer', background: 'none', border: 'none', color: '#d97706', fontWeight: 'bold' }}
+                                                            >
+                                                                <BanknoteArrowUp />
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => openInvoiceModal(inv)} style={{ marginRight: '8px', cursor: 'pointer', background: 'none', border: 'none', color: currentTheme.primary }}>
+                                                            <SquarePen />
+                                                        </button>
+                                                        <button onClick={() => handleDeleteInvoice(inv.id)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: '#ef4444' }}>
+                                                            <Trash2 />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {invoices.filter(inv => financialSubTab === 'paid' ? inv.status === 'paid' : inv.status !== 'paid').length === 0 && (
+                                            <tr>
+                                                <td colSpan={financialSubTab === 'paid' ? 8 : 7} style={{ padding: '20px', textAlign: 'center', color: currentTheme.secondaryText }}>
+                                                    Nenhuma fatura encontrada nesta aba.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Simple Modal for Invoice (Add/Edit) */}
+                    {showInvoiceModal && !isReceiveMode && (
+                        <div style={{
+                            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                        }}>
+                            <div style={{
+                                backgroundColor: currentTheme.cardBackground, padding: '24px', borderRadius: '8px',
+                                width: '90%', maxWidth: '500px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                            }}>
+                                <h3 style={{ marginBottom: '16px' }}>{invoiceForm.id ? 'Editar Fatura' : 'Nova Fatura'}</h3>
+                                <form onSubmit={handleSaveInvoice}>
+                                    <div style={styles.grid}>
+                                        <div style={styles.inputGroup}>
+                                            <label style={styles.label}>Valor (R$)</label>
+                                            <input type="number" step="0.01" style={styles.input} value={invoiceForm.value} onChange={e => setInvoiceForm({ ...invoiceForm, value: e.target.value })} required />
+                                        </div>
+                                        <div style={styles.inputGroup}>
+                                            <label style={styles.label}>Vencimento</label>
+                                            <input type="date" style={styles.input} value={invoiceForm.dueDate} onChange={e => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })} required />
+                                        </div>
+                                    </div>
+
+                                    <div style={styles.inputGroup}>
+                                        <label style={styles.label}>Portador (Banco/Gateway)</label>
+                                        <input style={styles.input} value={invoiceForm.carrier} onChange={e => setInvoiceForm({ ...invoiceForm, carrier: e.target.value })} required placeholder="Ex: Banco Itaú" />
+                                    </div>
+
+                                    {/* Simple Status edit only */}
+                                    <div style={styles.inputGroup}>
+                                        <label style={styles.label}>Status</label>
+                                        <select style={styles.input} value={invoiceForm.status} onChange={e => setInvoiceForm({ ...invoiceForm, status: e.target.value })}>
+                                            <option value="pending">Pendente</option>
+                                            <option value="paid">Pago</option>
+                                            <option value="cancelled">Cancelado</option>
+                                        </select>
+                                    </div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                                        <button type="button" onClick={() => setShowInvoiceModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: '#e5e7eb', color: '#374151' }}>
+                                            Cancelar
+                                        </button>
+                                        <button type="submit" style={styles.btnPromise()} disabled={saving}>
+                                            Salvar
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Receive Modal (Manual Payment) */}
+                    {showInvoiceModal && isReceiveMode && (
+                        <div style={{
+                            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                        }}>
+                            <div style={{
+                                backgroundColor: currentTheme.cardBackground, padding: '24px', borderRadius: '8px',
+                                width: '90%', maxWidth: '500px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                            }}>
+                                <h3 style={{ marginBottom: '16px', color: '#16a34a' }}>Receber Fatura Manualmente</h3>
+                                <form onSubmit={handleSaveInvoice}>
+                                    <div style={{ padding: '12px', backgroundColor: '#f0fdf4', borderRadius: '8px', marginBottom: '16px' }}>
+                                        <div style={{ fontSize: '14px', color: '#166534', marginBottom: '4px' }}>Valor Original</div>
+                                        <strong style={{ fontSize: '18px', color: '#166534' }}>R$ {parseFloat(invoiceForm.value).toFixed(2)}</strong>
+                                    </div>
+
+                                    <div style={styles.inputGroup}>
+                                        <label style={styles.label}>Desconto no Pagamento (R$)</label>
+                                        <input
+                                            type="number" step="0.01" style={styles.input}
+                                            value={invoiceForm.discount}
+                                            onChange={e => setInvoiceForm({ ...invoiceForm, discount: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+                                        <span style={{ fontSize: '14px', marginRight: '8px' }}>Total a Receber:</span>
+                                        <strong style={{ fontSize: '20px' }}>
+                                            R$ {Math.max(0, parseFloat(invoiceForm.value || 0) - parseFloat(invoiceForm.discount || 0)).toFixed(2)}
+                                        </strong>
+                                    </div>
+
+                                    <div style={styles.grid}>
+                                        <div style={styles.inputGroup}>
+                                            <label style={styles.label}>Data Pagamento</label>
+                                            <input type="date" style={styles.input} value={invoiceForm.paymentDate} onChange={e => setInvoiceForm({ ...invoiceForm, paymentDate: e.target.value })} required />
+                                        </div>
+                                        <div style={styles.inputGroup}>
+                                            <label style={styles.label}>Forma de Pagto</label>
+                                            <select style={styles.input} value={invoiceForm.paymentMethod} onChange={e => setInvoiceForm({ ...invoiceForm, paymentMethod: e.target.value })}>
+                                                <option value="PIX">PIX</option>
+                                                <option value="BOLETO">Boleto</option>
+                                                <option value="CREDIT_CARD">Cartão de Crédito</option>
+                                                <option value="TRANSFER">Transferência</option>
+                                                <option value="CASH">Dinheiro</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                                        <button type="button" onClick={() => setShowInvoiceModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: '#e5e7eb', color: '#374151' }}>
+                                            Cancelar
+                                        </button>
+                                        <button type="submit" style={styles.btnPromise('#16a34a')} disabled={saving}>
+                                            Confirmar Recebimento
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'profile' && (
                         <form onSubmit={handleUpdateProfile}>
                             <h2 style={{ marginBottom: '24px', fontSize: '20px' }}>Editar Perfil</h2>

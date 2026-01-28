@@ -26,6 +26,16 @@ const ChatReport = () => {
 
     // Data
     const [instances, setInstances] = useState([]);
+    const [organizations, setOrganizations] = useState([]);
+
+    const fetchOrganizations = async () => {
+        try {
+            const res = await apiService.get('/private/organizations');
+            setOrganizations(res.data);
+        } catch (error) {
+            console.error('Erro ao buscar organizações:', error);
+        }
+    };
 
     // Data
     const [chats, setChats] = useState([]);
@@ -45,18 +55,161 @@ const ChatReport = () => {
     const [messages, setMessages] = useState([]);
     const [loadingMessages, setLoadingMessages] = useState(false);
 
+    // Report Config State
+    const [showReportConfigModal, setShowReportConfigModal] = useState(false);
+    const [reports, setReports] = useState([]);
+    const [editingReport, setEditingReport] = useState(null); // If editing
+    const [viewMode, setViewMode] = useState('list'); // 'list' | 'form'
+    const [groups, setGroups] = useState([]);
+    const [reportConfig, setReportConfig] = useState({
+        id: null,
+        targetType: 'individual', // 'individual' | 'group'
+        targetNumber: '',
+        targetGroupJid: '',
+        intervalMinutes: 60,
+        instanceId: '',
+        organizationId: '',
+        isActive: true
+    });
+
+    const fetchReports = async () => {
+        try {
+            const orgId = user.organizationId || (reports.length > 0 && reports[0].organizationId); // fallback
+            // Actually we should fetch based on known org context.
+            // If super admin, maybe fetch all? Or allow filtering?
+            // For now, assume user select organization or is linked.
+            const res = await apiService.get('/private/periodic-reports', { params: { organizationId: user.organizationId } });
+            setReports(res.data);
+        } catch (error) {
+            console.error('Erro ao buscar relatórios:', error);
+        }
+    };
+
+    const fetchGroups = async (instanceId) => {
+        if (!instanceId) return;
+        try {
+            const res = await apiService.get(`/private/chats/groups/${instanceId}`);
+            setGroups(res.data);
+        } catch (error) {
+            console.error('Erro ao buscar grupos:', error);
+            showToast({ title: 'Aviso', message: 'Erro ao carregar grupos da instância', variant: 'warning' });
+        }
+    };
+
+    const handleCreateNew = () => {
+        setReportConfig({
+            id: null,
+            targetType: 'individual', // 'individual' | 'group'
+            targetNumber: '',
+            targetGroupJid: '',
+            intervalMinutes: 60,
+            instanceId: '',
+            organizationId: user.organizationId || '',
+            isActive: true
+        });
+        setViewMode('form');
+    };
+
+    const handleOpenReportConfig = () => {
+        fetchReports();
+        setShowReportConfigModal(true);
+        setEditingReport(null); // Reset to list mode
+        // Reset form
+        setReportConfig({
+            id: null,
+            targetType: 'individual',
+            targetNumber: '',
+            targetGroupJid: '',
+            intervalMinutes: 60,
+            instanceId: '',
+            organizationId: user.organizationId || '',
+            isActive: true
+        });
+    };
+
+    const handleEditReport = async (report) => {
+        setEditingReport(report);
+        const isGroup = report.targetNumber.includes('@g.us');
+
+        // If it's a group, we need to fetch groups for that instance to display correctly
+        if (isGroup) {
+            await fetchGroups(report.instanceId);
+        }
+
+        setReportConfig({
+            id: report.id,
+            targetType: isGroup ? 'group' : 'individual',
+            targetNumber: isGroup ? '' : report.targetNumber,
+            targetGroupJid: isGroup ? report.targetNumber : '',
+            intervalMinutes: report.intervalMinutes,
+            instanceId: report.instanceId,
+            organizationId: report.organizationId,
+            isActive: report.isActive
+        });
+        setViewMode('form');
+    };
+
+    const handleDeleteReport = async (id) => {
+        if (!confirm('Tem certeza que deseja excluir este relatório?')) return;
+        try {
+            await apiService.delete(`/private/periodic-reports/${id}`);
+            showToast({ title: 'Sucesso', message: 'Relatório excluído', variant: 'success' });
+            fetchReports();
+        } catch (error) {
+            showToast({ title: 'Erro', message: 'Falha ao excluir', variant: 'error' });
+        }
+    };
+
+    const handleSaveReportConfig = async () => {
+        try {
+            const target = reportConfig.targetType === 'group' ? reportConfig.targetGroupJid : reportConfig.targetNumber;
+
+            if (!target) {
+                showToast({ title: 'Erro', message: reportConfig.targetType === 'group' ? 'Selecione um grupo' : 'Digite o número', variant: 'error' });
+                return;
+            }
+
+            const payload = {
+                organizationId: user.organizationId || reportConfig.organizationId,
+                targetNumber: target,
+                intervalMinutes: Number(reportConfig.intervalMinutes),
+                instanceId: reportConfig.instanceId,
+                isActive: reportConfig.isActive
+            };
+
+            if (reportConfig.id) {
+                await apiService.put(`/private/periodic-reports/${reportConfig.id}`, payload);
+            } else {
+                await apiService.post('/private/periodic-reports', payload);
+            }
+
+            showToast({ title: 'Sucesso', message: 'Configuração salva!', variant: 'success' });
+            // Return to list
+            fetchReports();
+            setEditingReport(null);
+            setShowReportConfigModal(false); // Close as per user request
+        } catch (error) {
+            console.error(error);
+            showToast({ title: 'Erro', message: 'Falha ao salvar', variant: 'error' });
+        }
+    };
+
+    // ... existing renders ...
+
     // Initial load
     useEffect(() => {
         fetchInstances();
         fetchAttendants();
         fetchChats(1);
         fetchStats();
+        if (!user.organizationId) fetchOrganizations();
     }, []); // eslint-disable-line
+
 
     const fetchInstances = async () => {
         try {
             const response = await apiService.getInstances(user.organizationId ? { organizationId: user.organizationId } : {});
-            // Backend returns { instances: [...] }
+            // Backend returns {instances: [...] }
             if (response.data && Array.isArray(response.data.instances)) {
                 setInstances(response.data.instances);
             } else if (Array.isArray(response.data)) {
@@ -123,7 +276,7 @@ const ChatReport = () => {
             if (!params.startDate) delete params.startDate;
             if (!params.endDate) delete params.endDate;
             if (!params.status) delete params.status;
-            if (!params.status) delete params.status; // keeping duplicate check from original code to minimize diff noise if intentional, though likely typo. 
+            if (!params.status) delete params.status; // keeping duplicate check from original code to minimize diff noise if intentional, though likely typo.
             if (!params.search) delete params.search;
             if (!params.attendantId) delete params.attendantId;
             if (!params.instanceId) delete params.instanceId;
@@ -323,7 +476,16 @@ const ChatReport = () => {
             {/* Sidebar List */}
             <div style={styles.sidebar}>
                 <div style={styles.header}>
-                    <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Relatório de Conversas</h2>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h2 style={{ fontSize: '18px', fontWeight: 'bold' }}>Relatório de Conversas</h2>
+                        <button
+                            onClick={handleOpenReportConfig}
+                            title="Configurar Relatório Automático"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6' }}
+                        >
+                            <Clock size={20} />
+                        </button>
+                    </div>
 
                     {/* Filters */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -565,6 +727,7 @@ const ChatReport = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <User size={20} color="#059669" />
+
                                 </div>
                                 <div>
                                     <h3 style={{ fontSize: '16px', fontWeight: 'bold' }}>{selectedChat.name || selectedChat.externalId}</h3>
@@ -646,6 +809,213 @@ const ChatReport = () => {
                 )}
             </div>
 
+
+
+            {/* Report Config Modal */}
+            {showReportConfigModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                    <div style={{ backgroundColor: isDark ? '#1f2937' : '#fff', padding: '20px', borderRadius: '8px', width: '800px', border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
+                        {/* Header with Back Button if Form */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                {viewMode === 'form' && (
+                                    <button onClick={() => setViewMode('list')} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                                        <ArrowLeft size={20} color={isDark ? '#fff' : '#000'} />
+                                    </button>
+                                )}
+                                <h3 style={{ fontWeight: 'bold', margin: 0 }}>
+                                    {viewMode === 'list' ? 'Relatórios Automáticos' : (reportConfig.id ? 'Editar Relatório' : 'Novo Relatório')}
+                                </h3>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                {viewMode === 'list' && (
+                                    <button
+                                        onClick={handleCreateNew}
+                                        style={{
+                                            backgroundColor: '#3b82f6', color: 'white', border: 'none',
+                                            padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer'
+                                        }}
+                                    >
+                                        + Novo
+                                    </button>
+                                )}
+                                <button onClick={() => setShowReportConfigModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                                    <X size={20} color={isDark ? '#fff' : '#000'} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {viewMode === 'list' ? (
+                            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                {reports.length === 0 ? (
+                                    <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+                                        Nenhum relatório configurado.
+                                    </div>
+                                ) : (
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                        <thead>
+                                            <tr style={{ textAlign: 'left', borderBottom: `1px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
+                                                <th style={{ padding: '8px' }}>Destino</th>
+                                                <th style={{ padding: '8px' }}>Intervalo</th>
+                                                <th style={{ padding: '8px' }}>Status</th>
+                                                <th style={{ padding: '8px', textAlign: 'right' }}>Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {reports.map(rep => (
+                                                <tr key={rep.id} style={{ borderBottom: `1px solid ${isDark ? '#374151' : '#e5e7eb'}` }}>
+                                                    <td style={{ padding: '8px' }}>
+                                                        {rep.targetNumber.includes('@g.us') ? '📱 Grupo' : '👤 ' + formatPhoneNumber(rep.targetNumber)}
+                                                    </td>
+                                                    <td style={{ padding: '8px' }}>{rep.intervalMinutes} min</td>
+                                                    <td style={{ padding: '8px' }}>
+                                                        <span style={{
+                                                            padding: '2px 6px', borderRadius: '4px',
+                                                            backgroundColor: rep.isActive ? '#dcfce7' : '#f3f4f6',
+                                                            color: rep.isActive ? '#166534' : '#374151',
+                                                            fontSize: '11px'
+                                                        }}>
+                                                            {rep.isActive ? 'Ativo' : 'Pausado'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '8px', textAlign: 'right' }}>
+                                                        <button
+                                                            onClick={() => handleEditReport(rep)}
+                                                            style={{ marginRight: '8px', background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6' }}
+                                                        >
+                                                            Editar
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteReport(rep.id)}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}
+                                                        >
+                                                            Excluir
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        ) : (
+                            <div>
+                                {/* Form Content */}
+                                <div style={{ marginBottom: '16px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Tipo de Destino</label>
+                                    <div style={{ display: 'flex', gap: '16px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                                            <input
+                                                type="radio"
+                                                name="targetType"
+                                                checked={reportConfig.targetType === 'individual'}
+                                                onChange={() => setReportConfig({ ...reportConfig, targetType: 'individual' })}
+                                            />
+                                            Contato (Número)
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                                            <input
+                                                type="radio"
+                                                name="targetType"
+                                                checked={reportConfig.targetType === 'group'}
+                                                onChange={() => setReportConfig({ ...reportConfig, targetType: 'group' })}
+                                            />
+                                            Grupo WhatsApp
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div style={{ marginBottom: '16px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Instância de Envio</label>
+                                    <select
+                                        style={{ ...styles.select, width: '100%' }}
+                                        value={reportConfig.instanceId}
+                                        onChange={(e) => {
+                                            setReportConfig({ ...reportConfig, instanceId: e.target.value });
+                                            if (reportConfig.targetType === 'group') fetchGroups(e.target.value);
+                                        }}
+                                    >
+                                        <option value="">Selecione...</option>
+                                        {instances.map(inst => (
+                                            <option key={inst.id} value={inst.id}>{inst.name} - {formatPhoneNumber(inst.number)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {reportConfig.targetType === 'individual' ? (
+                                    <div style={{ marginBottom: '16px' }}>
+                                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Número do WhatsApp (Ex: 558599999999)</label>
+                                        <input
+                                            type="text"
+                                            style={{ ...styles.input, width: '100%' }}
+                                            value={reportConfig.targetNumber}
+                                            onChange={(e) => setReportConfig({ ...reportConfig, targetNumber: e.target.value })}
+                                            placeholder="55..."
+                                        />
+                                    </div>
+                                ) : (
+                                    <div style={{ marginBottom: '16px' }}>
+                                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Selecionar Grupo</label>
+                                        <select
+                                            style={{ ...styles.select, width: '100%' }}
+                                            value={reportConfig.targetGroupJid}
+                                            onChange={(e) => setReportConfig({ ...reportConfig, targetGroupJid: e.target.value })}
+                                            disabled={!reportConfig.instanceId}
+                                        >
+                                            <option value="">{reportConfig.instanceId ? 'Selecione o Grupo...' : 'Selecione a instância primeiro'}</option>
+                                            {groups.map(g => (
+                                                <option key={g.id} value={g.id}>{g.subject} ({g.size} membros)</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div style={{ marginBottom: '16px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Intervalo (Minutos)</label>
+                                    <input
+                                        type="number"
+                                        style={{ ...styles.input, width: '100%' }}
+                                        value={reportConfig.intervalMinutes}
+                                        onChange={(e) => setReportConfig({ ...reportConfig, intervalMinutes: e.target.value })}
+                                        min="1"
+                                    />
+                                </div>
+
+                                {!user.organizationId && (
+                                    <div style={{ marginBottom: '16px' }}>
+                                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>Organização (Admin)</label>
+                                        <select
+                                            style={{ ...styles.select, width: '100%' }}
+                                            value={reportConfig.organizationId || ''}
+                                            onChange={(e) => setReportConfig({ ...reportConfig, organizationId: e.target.value })}
+                                        >
+                                            <option value="">Selecione a Organização...</option>
+                                            {organizations.map(org => (
+                                                <option key={org.id} value={org.id}>{org.razaoSocial} ({org.cnpj})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={reportConfig.isActive}
+                                        onChange={(e) => setReportConfig({ ...reportConfig, isActive: e.target.checked })}
+                                        id="reportActive"
+                                    />
+                                    <label htmlFor="reportActive" style={{ fontSize: '14px', cursor: 'pointer' }}>Ativar Relatório Automático</label>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                    <button onClick={() => setViewMode('list')} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #d1d5db', background: 'none', cursor: 'pointer', color: isDark ? '#fff' : '#000' }}>Voltar</button>
+                                    <button onClick={handleSaveReportConfig} style={{ padding: '8px 12px', borderRadius: '6px', border: 'none', backgroundColor: '#3b82f6', color: 'white', cursor: 'pointer' }}>Salvar Configuração</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Transfer Modal */}
             {
