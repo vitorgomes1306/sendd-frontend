@@ -27,6 +27,9 @@ const ConfiguracaoHorarios = () => {
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [notificationTarget, setNotificationTarget] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationInstanceId, setNotificationInstanceId] = useState('');
+
+  const [instances, setInstances] = useState([]);
 
   const [hours, setHours] = useState({});
   const [organizationId, setOrganizationId] = useState(null);
@@ -38,6 +41,11 @@ const ConfiguracaoHorarios = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+
+      // Fetch Instances
+      const instancesRes = await apiService.get('/private/instance');
+      setInstances(instancesRes.data?.instances || []);
+
       const orgRes = await apiService.get('/private/organizations');
       const orgs = orgRes.data;
       if (orgs.length > 0) {
@@ -49,6 +57,7 @@ const ConfiguracaoHorarios = () => {
         setNotificationEnabled(!!res.data.outOfHoursNotificationEnabled);
         setNotificationTarget(res.data.outOfHoursNotificationTarget || '');
         setNotificationMessage(res.data.outOfHoursNotificationMessage || '');
+        setNotificationInstanceId(res.data.outOfHoursNotificationInstanceId || '');
 
         const hoursMap = {};
         DAYS.forEach(d => {
@@ -115,6 +124,7 @@ const ConfiguracaoHorarios = () => {
         outOfHoursNotificationEnabled: notificationEnabled,
         outOfHoursNotificationTarget: notificationTarget,
         outOfHoursNotificationMessage: notificationMessage,
+        outOfHoursNotificationInstanceId: notificationInstanceId,
         hours: hoursArray
       });
 
@@ -177,6 +187,24 @@ const ConfiguracaoHorarios = () => {
                 placeholder="Ex: 5585994454472 ou 1203630...@g.us"
               />
               <p className="hint" style={{ fontSize: '12px', marginTop: '4px' }}>Para grupos, use o JID que pode ser encontrado nos logs ou via API.</p>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500' }}>Instância de Envio</label>
+              <select
+                className="form-input"
+                style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                value={notificationInstanceId}
+                onChange={(e) => setNotificationInstanceId(e.target.value)}
+              >
+                <option value="">(Padrão) Instância atual do Chat</option>
+                {instances.map(inst => (
+                  <option key={inst.id} value={inst.id}>
+                    {inst.name} ({inst.instanceName}) - {inst.status === 'connected' ? '🟢 Conectado' : '🔴 Desconectado'}
+                  </option>
+                ))}
+              </select>
+              <p className="hint" style={{ fontSize: '12px', marginTop: '4px' }}>Escolha qual WhatsApp enviará o aviso interno.</p>
             </div>
 
             <div>
