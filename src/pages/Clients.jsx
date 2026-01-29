@@ -457,11 +457,8 @@ const Clients = () => {
 
   const styles = getStyles(currentTheme);
 
-  const filteredClients = clients.filter(client =>
-    client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.cpfCnpj?.includes(searchTerm)
-  );
+  // API já retorna filtrado
+  const filteredClients = clients;
 
   return (
     <div style={styles.container}>
@@ -489,8 +486,8 @@ const Clients = () => {
             </div>
           </div>
 
-          
-          
+
+
           <button
             className="btn-base btn-new"
             onClick={() => openModal('create')}
@@ -538,7 +535,7 @@ const Clients = () => {
                 <Building size={24} />
               </div>
               <div>
-                <p style={styles.statLabel}>Clientes Ativos</p>
+                <p style={styles.statLabel}>Ativos</p>
                 <p style={styles.statNumber}>{activeClients}</p>
               </div>
             </div>
@@ -548,7 +545,7 @@ const Clients = () => {
                 <User size={24} />
               </div>
               <div>
-                <p style={styles.statLabel}>Clientes Inativos</p>
+                <p style={styles.statLabel}>Inativos/Suspensos/Bloqueados</p>
                 <p style={styles.statNumber}>{inactiveClients}</p>
               </div>
             </div>
