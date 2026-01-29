@@ -4,6 +4,8 @@ import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import AlertToast from '../components/ui/AlertToast';
+import Modal from '../components/ui/Modal';
+import '../styles/buttons.css';
 
 const Integracoes = () => {
     const { user } = useAuth();
@@ -24,6 +26,14 @@ const Integracoes = () => {
     });
     const [toast, setToast] = useState({ open: false, title: '', message: '', variant: 'success' });
     const [syncing, setSyncing] = useState({});
+
+    // Modal de Confirmação de Sync
+    const [showSyncModal, setShowSyncModal] = useState(false);
+    const [syncTarget, setSyncTarget] = useState(null);
+
+    // Modal de Confirmação de Delete
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const showToast = (title, message, variant = 'success') => {
         setToast({ open: true, title, message, variant });
@@ -72,8 +82,15 @@ const Integracoes = () => {
         }
     };
 
-    const handleSync = async (integration) => {
-        if (!window.confirm(`Deseja sincronizar todos os contratos ativos da integração "${integration.name}"? Isso pode levar alguns minutos.`)) return;
+    const handleSync = (integration) => {
+        setSyncTarget(integration);
+        setShowSyncModal(true);
+    };
+
+    const confirmSync = async () => {
+        if (!syncTarget) return;
+        const integration = syncTarget;
+        setShowSyncModal(false);
 
         try {
             setSyncing(prev => ({ ...prev, [integration.id]: true }));
@@ -86,6 +103,7 @@ const Integracoes = () => {
             showToast('Erro', 'Falha na sincronização: ' + (error.response?.data?.error || error.message), 'danger');
         } finally {
             setSyncing(prev => ({ ...prev, [integration.id]: false }));
+            setSyncTarget(null);
         }
     };
 
@@ -113,14 +131,23 @@ const Integracoes = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Tem certeza que deseja excluir esta integração?')) return;
+    const handleDelete = (integration) => {
+        setDeleteTarget(integration);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        const id = deleteTarget.id;
+        setShowDeleteModal(false);
         try {
             await apiService.delete(`/private/integrations/${id}`);
             showToast('Sucesso', 'Integração excluída');
             loadIntegrations();
         } catch (error) {
             showToast('Erro', 'Falha ao excluir', 'danger');
+        } finally {
+            setDeleteTarget(null);
         }
     };
 
@@ -179,7 +206,7 @@ const Integracoes = () => {
         <div style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div>
-                    
+
                     <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold' }}><Workflow /> Integrações Externas</h1>
                     <p style={{ color: '#666', margin: '4px 0 0 0' }}>Gerencie conexões com sistemas de terceiros</p>
                 </div>
@@ -400,6 +427,89 @@ const Integracoes = () => {
                 variant={toast.variant}
                 onClose={() => setToast({ ...toast, open: false })}
             />
+            {/* Modal de Confirmação de Sync */}
+            <Modal
+                isOpen={showSyncModal}
+                onClose={() => setShowSyncModal(false)}
+                title="Confirmar Sincronização"
+                size="md"
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', color: currentTheme.textPrimary }}>
+                        <div style={{ backgroundColor: '#eff6ff', padding: '12px', borderRadius: '50%' }}>
+                            <RefreshCcw size={28} color="#0070E0" />
+                        </div>
+                        <div>
+                            <h3 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 8px 0' }}>Iniciar Sincronização?</h3>
+                            <p style={{ margin: 0, lineHeight: '1.5' }}>
+                                Deseja sincronizar todos os contratos ativos da integração <strong>{syncTarget?.name}</strong>?
+                            </p>
+                            <p style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>
+                                Isso pode levar alguns minutos dependendo da quantidade de dados. O processo continuará em segundo plano.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px', paddingTop: '16px', borderTop: `1px solid ${currentTheme.borderLight || '#eee'}` }}>
+                        <button
+                            className="btn-base"
+                            style={{ backgroundColor: 'transparent', color: currentTheme.textSecondary || '#666', border: `1px solid ${currentTheme.borderLight || '#ddd'}` }}
+                            onClick={() => setShowSyncModal(false)}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            className="btn-base btn-new"
+                            onClick={confirmSync}
+                        >
+                            <RefreshCcw size={18} />
+                            Confirmar Sincronização
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Modal de Confirmação de Exclusão */}
+            <Modal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                title="Confirmar Exclusão"
+                size="md"
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', color: currentTheme.textPrimary }}>
+                        <div style={{ backgroundColor: '#fee2e2', padding: '12px', borderRadius: '50%' }}>
+                            <Trash2 size={28} color="#dc2626" />
+                        </div>
+                        <div>
+                            <h3 style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 8px 0' }}>Excluir Integração?</h3>
+                            <p style={{ margin: 0, lineHeight: '1.5' }}>
+                                Tem certeza que deseja excluir a integração <strong>{deleteTarget?.name}</strong>?
+                            </p>
+                            <p style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>
+                                Esta ação não pode ser desfeita e pode afetar bots vinculados.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px', paddingTop: '16px', borderTop: `1px solid ${currentTheme.borderLight || '#eee'}` }}>
+                        <button
+                            className="btn-base"
+                            style={{ backgroundColor: 'transparent', color: currentTheme.textSecondary || '#666', border: `1px solid ${currentTheme.borderLight || '#ddd'}` }}
+                            onClick={() => setShowDeleteModal(false)}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            className="btn-base btn-new-red"
+                            onClick={confirmDelete}
+                        >
+                            <Trash2 size={18} />
+                            Excluir Integração
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

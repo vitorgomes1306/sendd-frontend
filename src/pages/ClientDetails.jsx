@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, MessageSquare, DollarSign, BarChart, MapPin, Mail, Phone, Edit, Trash2, Send, X, Paperclip, Image as ImageIcon, Video, FileText, Music, Upload, CircleDollarSign, Wifi, RefreshCw, CreditCard } from 'lucide-react';
+import { ArrowLeft, User, MessageSquare, DollarSign, BarChart, MapPin, Mail, Phone, Edit, Trash2, Send, X, Paperclip, Image as ImageIcon, Video, FileText, Music, Upload, CircleDollarSign, Wifi, RefreshCw, CreditCard, AlertCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { apiService, getApiBaseUrl } from '../services/api';
 import AlertToast from '../components/ui/AlertToast';
@@ -632,7 +632,7 @@ const ClientDetails = () => {
         {activeTab === 'funnel' && (
           <div style={styles.placeholderState}>
             <BarChart size={48} style={{ opacity: 0.3 }} />
-            <p>Funil de vendas será implementado em breve.</p>
+            <p><AlertCircle size={24} style={{ opacity: 0.3, color: 'red', alignItems: 'center' }} />Esse funil de vendas será implementado em breve pois vai trazer todo o histórico do funil de vendas desse cliente.</p>
           </div>
         )}
       </div>

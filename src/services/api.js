@@ -190,7 +190,7 @@ export const apiService = {
   // Admin - Users
   getUsers: (params) => api.get(getConfig().API_ENDPOINTS.USERS, { params }),
   getUser: (id) => api.get(`${getConfig().API_ENDPOINTS.USERS}/${id}`),
-  syncIntegration: (id) => api.post(`/private/integrations/${id}/sync`),
+  syncIntegration: (id) => api.post(`/private/integrations/${id}/sync`, {}, { timeout: 600000 }),
   updateUser: (id, data) => api.put(`${getConfig().API_ENDPOINTS.USERS}/${id}`, data),
   deleteUser: (id) => api.delete(`${getConfig().API_ENDPOINTS.USERS}/${id}`),
 
