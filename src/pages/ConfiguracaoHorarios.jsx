@@ -22,6 +22,12 @@ const ConfiguracaoHorarios = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [outOfHoursMessage, setOutOfHoursMessage] = useState('');
+
+  // New States for Notification
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [notificationTarget, setNotificationTarget] = useState('');
+  const [notificationMessage, setNotificationMessage] = useState('');
+
   const [hours, setHours] = useState({});
   const [organizationId, setOrganizationId] = useState(null);
 
@@ -40,6 +46,9 @@ const ConfiguracaoHorarios = () => {
 
         const res = await apiService.get(`/private/organizations/${orgId}/business-hours`);
         setOutOfHoursMessage(res.data.outOfHoursMessage || '');
+        setNotificationEnabled(!!res.data.outOfHoursNotificationEnabled);
+        setNotificationTarget(res.data.outOfHoursNotificationTarget || '');
+        setNotificationMessage(res.data.outOfHoursNotificationMessage || '');
 
         const hoursMap = {};
         DAYS.forEach(d => {
@@ -103,6 +112,9 @@ const ConfiguracaoHorarios = () => {
       await apiService.post(`/private/organizations/${organizationId}/business-hours`, {
         organizationId,
         outOfHoursMessage,
+        outOfHoursNotificationEnabled: notificationEnabled,
+        outOfHoursNotificationTarget: notificationTarget,
+        outOfHoursNotificationMessage: notificationMessage,
         hours: hoursArray
       });
 
@@ -134,6 +146,51 @@ const ConfiguracaoHorarios = () => {
           rows={3}
           placeholder="Ex: No momento estamos fechados. Responderemos assim que possível."
         />
+      </div>
+
+      <div className="card">
+        <h3>Notificação Interna (Fora de Horário)</h3>
+        <p className="hint">Avise seu time quando um cliente tentar contato fora do horário.</p>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={notificationEnabled}
+              onChange={(e) => setNotificationEnabled(e.target.checked)}
+            />
+            <span className="slider round"></span>
+          </label>
+          <span>{notificationEnabled ? 'Ativado' : 'Desativado'}</span>
+        </div>
+
+        {notificationEnabled && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500' }}>Destino (Número ou Group JID)</label>
+              <input
+                type="text"
+                className="form-input"
+                style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd' }}
+                value={notificationTarget}
+                onChange={(e) => setNotificationTarget(e.target.value)}
+                placeholder="Ex: 5585994454472 ou 1203630...@g.us"
+              />
+              <p className="hint" style={{ fontSize: '12px', marginTop: '4px' }}>Para grupos, use o JID que pode ser encontrado nos logs ou via API.</p>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500' }}>Mensagem Personalizada (Opcional)</label>
+              <textarea
+                className="form-textarea"
+                value={notificationMessage}
+                onChange={(e) => setNotificationMessage(e.target.value)}
+                rows={2}
+                placeholder="Deixe em branco para usar a mensagem padrão: 'Novo Cliente na Fila (Fora de Horário)...'"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card">
