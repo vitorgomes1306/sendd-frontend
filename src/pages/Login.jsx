@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -6,8 +6,19 @@ import { apiService } from '../services/api';
 import Logo1 from '../assets/img/sendd1.png';
 import Logo2 from '../assets/img/sendd2.png';
 import rightImageUrl from '../assets/img/whatsapp-automacao.svg';
+import '../styles/buttons.css';
+import { LogIn } from 'lucide-react';
 
 function Login() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -219,6 +230,7 @@ function Login() {
             </div>
 
             <button
+              className="btn-base btn-new"
               type="submit"
               disabled={isLoading}
               style={{
@@ -231,7 +243,6 @@ function Login() {
                 fontSize: '1rem',
                 fontWeight: '600',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
-                transition: 'background-color 0.2s',
                 marginBottom: '1rem'
               }}
               onMouseEnter={(e) => {
@@ -246,6 +257,7 @@ function Login() {
               }}
             >
               {isLoading ? 'Entrando...' : 'Entrar'}
+              <LogIn size={20} />
             </button>
 
             <div style={{
@@ -271,24 +283,26 @@ function Login() {
         </div>
       </div>
 
-      {/* Painel direito: imagem estática */}
-      <div style={{
-        flex: '1 1 500px',
-        minHeight: '100vh',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <img
-          src={rightImageUrl}
-          alt="Imagem inspiradora"
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            display: 'block'
-          }}
-        />
-      </div>
+      {!isMobile && (
+  <div style={{
+    flex: '1 1 500px',
+    minHeight: '100vh',
+    position: 'relative',
+    overflow: 'hidden'
+  }}>
+    <img
+      src={rightImageUrl}
+      alt="Imagem inspiradora"
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        display: 'block'
+      }}
+    />
+  </div>
+)}
+
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useTheme } from '../../contexts/ThemeContext';
-import ExitImg from '../../assets/img/exit.png';
+import { LogOut } from 'lucide-react';
 
 const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
   const { currentTheme } = useTheme();
@@ -84,7 +84,7 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
               color: '#f59e0b',
               marginBottom: '1rem'
             }}>
-              <img src={ExitImg} alt="Exit" style={{ width: '8rem', height: '8rem' }} />
+              <LogOut size={64} />
             </div>
             <p style={{
               margin: 0,

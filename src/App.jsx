@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import Layout from './components/layout/Layout';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import ProtectedRoute from './components/ui/ProtectedRoute';
 import AdminRoute from './components/ui/AdminRoute';
 import ManagerRoute from './components/ui/ManagerRoute';
@@ -67,273 +68,275 @@ function App() {
     <ThemeProvider>
       <PWAInstallPrompt />
       <AuthProvider>
-        <Router>
-          <div className="app">
-            <Routes>
-              {/* Rota principal agora é a Landing Page (Production) ou Login (Dev) */}
-              <Route path="/" element={
-                import.meta.env.DEV
-                  ? <Navigate to="/login" replace />
-                  : <ExternalRedirect url="https://sendd-landing-page.vercel.app/" />
-              } />
+        <ToastProvider>
+          <Router>
+            <div className="app">
+              <Routes>
+                {/* Rota principal agora é a Landing Page (Production) ou Login (Dev) */}
+                <Route path="/" element={
+                  import.meta.env.DEV
+                    ? <Navigate to="/login" replace />
+                    : <ExternalRedirect url="https://sendd-landing-page.vercel.app/" />
+                } />
 
-              {/* Rotas públicas (sem sidebar) */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/fatura/:token" element={<PublicInvoice />} />
+                {/* Rotas públicas (sem sidebar) */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/fatura/:token" element={<PublicInvoice />} />
 
-              {/* Rotas internas (com sidebar) - Protegidas */}
-              <Route path="/dash" element={
-                <ProtectedRoute>
-                  <Layout><Dash /></Layout>
-                </ProtectedRoute>
-              } />
+                {/* Rotas internas (com sidebar) - Protegidas */}
+                <Route path="/dash" element={
+                  <ProtectedRoute>
+                    <Layout><Dash /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/canais" element={
-                <ProtectedRoute>
-                  <Layout><Canais /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/canais" element={
+                  <ProtectedRoute>
+                    <Layout><Canais /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/canais/:id" element={
-                <ProtectedRoute>
-                  <Layout><InstanceDetails /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/canais/:id" element={
+                  <ProtectedRoute>
+                    <Layout><InstanceDetails /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/clientes" element={
-                <ProtectedRoute>
-                  <Layout><Clients /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/clientes" element={
+                  <ProtectedRoute>
+                    <Layout><Clients /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/clientes/:id" element={
-                <ProtectedRoute>
-                  <Layout><ClientDetails /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/clientes/:id" element={
+                  <ProtectedRoute>
+                    <Layout><ClientDetails /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/campanhas" element={
-                <ProtectedRoute>
-                  <Layout><Campanhas /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/campanhas" element={
+                  <ProtectedRoute>
+                    <Layout><Campanhas /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/midias" element={
-                <ProtectedRoute>
-                  <Layout><Midias /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/midias" element={
+                  <ProtectedRoute>
+                    <Layout><Midias /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/configuracao/horarios" element={
-                <ProtectedRoute>
-                  <Layout><ConfiguracaoHorarios /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/configuracao/horarios" element={
+                  <ProtectedRoute>
+                    <Layout><ConfiguracaoHorarios /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/configuracao/tokens" element={
-                <ProtectedRoute>
-                  <Layout><Tokens /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/configuracao/tokens" element={
+                  <ProtectedRoute>
+                    <Layout><Tokens /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/configuracao/atendimento" element={
-                <ProtectedRoute>
-                  <Layout><ConfiguracaoAtendimento /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/configuracao/atendimento" element={
+                  <ProtectedRoute>
+                    <Layout><ConfiguracaoAtendimento /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/configuracao/fluxos" element={
-                <ProtectedRoute>
-                  <Layout><Flows /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/configuracao/fluxos" element={
+                  <ProtectedRoute>
+                    <Layout><Flows /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/configuracao/integracoes" element={
-                <ProtectedRoute>
-                  <Layout><Integracoes /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/configuracao/integracoes" element={
+                  <ProtectedRoute>
+                    <Layout><Integracoes /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/configuracao/departamentos" element={
-                <ProtectedRoute>
-                  <Layout><Departments /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/configuracao/departamentos" element={
+                  <ProtectedRoute>
+                    <Layout><Departments /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/configuracao/colaboradores" element={
-                <ProtectedRoute>
-                  <Layout><Attendants /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/configuracao/colaboradores" element={
+                  <ProtectedRoute>
+                    <Layout><Attendants /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/notificacoes/manual" element={
-                <ProtectedRoute>
-                  <Layout><NotificacoesManual /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/notificacoes/manual" element={
+                  <ProtectedRoute>
+                    <Layout><NotificacoesManual /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/checar-numeros" element={
-                <ProtectedRoute>
-                  <Layout><ChecarNumeros /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/checar-numeros" element={
+                  <ProtectedRoute>
+                    <Layout><ChecarNumeros /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/notificacoes/agendadas" element={
-                <ProtectedRoute>
-                  <Layout><NotificacoesAgendadas /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/notificacoes/agendadas" element={
+                  <ProtectedRoute>
+                    <Layout><NotificacoesAgendadas /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/notificacoes/historico" element={
-                <ProtectedRoute>
-                  <Layout><NotificacoesHistorico /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/notificacoes/historico" element={
+                  <ProtectedRoute>
+                    <Layout><NotificacoesHistorico /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/chat" element={
-                <ProtectedRoute>
-                  <Layout><Chat /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/chat" element={
+                  <ProtectedRoute>
+                    <Layout><Chat /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/relatorios" element={
-                <ProtectedRoute>
-                  <Layout><Relatorios /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/relatorios" element={
+                  <ProtectedRoute>
+                    <Layout><Relatorios /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/utilidades" element={
-                <ProtectedRoute>
-                  <Layout><Utilidades /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/utilidades" element={
+                  <ProtectedRoute>
+                    <Layout><Utilidades /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/organizations" element={
-                <ProtectedRoute>
-                  <Layout><Organizations /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/organizations" element={
+                  <ProtectedRoute>
+                    <Layout><Organizations /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/teams" element={
-                <ProtectedRoute>
-                  <Layout><Teams /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/teams" element={
+                  <ProtectedRoute>
+                    <Layout><Teams /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/auditoria" element={
-                <ProtectedRoute>
-                  <Layout><AuditLogs /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/auditoria" element={
+                  <ProtectedRoute>
+                    <Layout><AuditLogs /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/leads" element={
-                <ProtectedRoute>
-                  <Layout><Leads /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/leads" element={
+                  <ProtectedRoute>
+                    <Layout><Leads /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/funnel" element={
-                <ProtectedRoute>
-                  <Layout><SalesFunnel /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/funnel" element={
+                  <ProtectedRoute>
+                    <Layout><SalesFunnel /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/admin" element={
-                <ProtectedRoute>
-                  <AdminRoute>
-                    <Layout><Admin /></Layout>
-                  </AdminRoute>
-                </ProtectedRoute>
-              } />
-              <Route path="/formas" element={
-                <ProtectedRoute>
-                  <AdminRoute>
-                    <Layout><Admin /></Layout>
-                  </AdminRoute>
-                </ProtectedRoute>
-              } />
+                <Route path="/admin" element={
+                  <ProtectedRoute>
+                    <AdminRoute>
+                      <Layout><Admin /></Layout>
+                    </AdminRoute>
+                  </ProtectedRoute>
+                } />
+                <Route path="/formas" element={
+                  <ProtectedRoute>
+                    <AdminRoute>
+                      <Layout><Admin /></Layout>
+                    </AdminRoute>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/admin/gestao" element={
-                <ProtectedRoute>
-                  <AdminRoute>
-                    <Layout><Gestao /></Layout>
-                  </AdminRoute>
-                </ProtectedRoute>
-              } />
+                <Route path="/admin/gestao" element={
+                  <ProtectedRoute>
+                    <AdminRoute>
+                      <Layout><Gestao /></Layout>
+                    </AdminRoute>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/admin/gestao/:id" element={
-                <ProtectedRoute>
-                  <AdminRoute>
-                    <Layout><UserDetails /></Layout>
-                  </AdminRoute>
-                </ProtectedRoute>
-              } />
+                <Route path="/admin/gestao/:id" element={
+                  <ProtectedRoute>
+                    <AdminRoute>
+                      <Layout><UserDetails /></Layout>
+                    </AdminRoute>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/admin/chat-reports" element={
-                <ProtectedRoute>
-                  <ManagerRoute>
-                    <Layout><ChatReport /></Layout>
-                  </ManagerRoute>
-                </ProtectedRoute>
-              } />
+                <Route path="/admin/chat-reports" element={
+                  <ProtectedRoute>
+                    <ManagerRoute>
+                      <Layout><ChatReport /></Layout>
+                    </ManagerRoute>
+                  </ProtectedRoute>
+                } />
 
-              <Route path="/relatorios/clientes-sem-venda" element={
-                <ProtectedRoute>
-                  <Layout><ClientsNoSales /></Layout>
-                </ProtectedRoute>
-              } />
+                <Route path="/relatorios/clientes-sem-venda" element={
+                  <ProtectedRoute>
+                    <Layout><ClientsNoSales /></Layout>
+                  </ProtectedRoute>
+                } />
 
-              {/* Rota 404 */}
-              <Route path="*" element={
+                {/* Rota 404 */}
+                <Route path="*" element={
 
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',     // centraliza horizontalmente
-                    justifyContent: 'center', // centraliza verticalmente
-                    minHeight: '100vh',       // ocupa toda a altura da tela
-                    textAlign: 'center',
-                    padding: '20px',          // espaço interno para mobile
-                  }}
-                >
-                  <img
-                    src={Erro404}
-                    alt="Erro 404"
+                  <div
                     style={{
-                      maxWidth: '80%',  // impede que a imagem ultrapasse a tela no mobile
-                      height: 'auto',
-                      marginBottom: '20px',
-                    }}
-                  />
-
-                  <p
-                    style={{
-                      fontSize: 'clamp(24px, 6vw, 50px)', // tamanho responsivo da fonte
-                      fontWeight: 'bold',
-                      margin: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',     // centraliza horizontalmente
+                      justifyContent: 'center', // centraliza verticalmente
+                      minHeight: '100vh',       // ocupa toda a altura da tela
+                      textAlign: 'center',
+                      padding: '20px',          // espaço interno para mobile
                     }}
                   >
-                    Ei, tem essa página aqui não, óh!
-                  </p>
+                    <img
+                      src={Erro404}
+                      alt="Erro 404"
+                      style={{
+                        maxWidth: '80%',  // impede que a imagem ultrapasse a tela no mobile
+                        height: 'auto',
+                        marginBottom: '20px',
+                      }}
+                    />
 
-                  <a
-                    href="/dash"
-                    style={{
-                      color: '#3b82f6',
-                      textDecoration: 'none',
-                      fontSize: '20px',
-                      marginTop: '15px',
-                    }}
-                  >
-                    Voltar ao Dashboard
-                  </a>
-                </div>
-              } />
-            </Routes>
-          </div>
-        </Router>
+                    <p
+                      style={{
+                        fontSize: 'clamp(24px, 6vw, 50px)', // tamanho responsivo da fonte
+                        fontWeight: 'bold',
+                        margin: 0,
+                      }}
+                    >
+                      Ei, tem essa página aqui não, óh!
+                    </p>
+
+                    <a
+                      href="/dash"
+                      style={{
+                        color: '#3b82f6',
+                        textDecoration: 'none',
+                        fontSize: '20px',
+                        marginTop: '15px',
+                      }}
+                    >
+                      Voltar ao Dashboard
+                    </a>
+                  </div>
+                } />
+              </Routes>
+            </div>
+          </Router>
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   );

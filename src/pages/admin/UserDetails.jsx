@@ -5,9 +5,12 @@ import { useTheme } from '../../contexts/ThemeContext';
 import {
     User, Mail, Phone, Shield, Calendar, Activity,
     Lock, CheckCircle, XCircle, Trash2, Save, ArrowLeft,
-    Users, MessageSquare, Briefcase, BanknoteArrowDown, BanknoteArrowUp, SquarePen
+    Users, MessageSquare, Briefcase, BanknoteArrowDown, BanknoteArrowUp, SquarePen, AlertTriangle
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext'; // Para checar permissões extras se precisar
+import Modal from '../../components/ui/Modal';
+import Select from '../../components/ui/Select';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 // Simple Toggle Component
 const ToggleSwitch = ({ checked, onChange }) => (
@@ -35,13 +38,80 @@ const UserDetails = () => {
 
     // Form states
     const [formData, setFormData] = useState({
-        name: '', email: '', role: '', cellphone: '', cpfCnpj: ''
+        name: '', email: '', role: '', cellphone: '', cpfCnpj: '',
+        permiteIA: false, permiteRelatorioPeriodico: false, plano: 'BASIC'
     });
     const [passwordData, setPasswordData] = useState({ password: '', confirmPassword: '' });
 
     // UI states
     const [saving, setSaving] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+
+
+    // Toast Context
+    const { showToast: showGlobalToast } = useToast();
+
+    // Adapter to match existing calls
+    const showToast = (variant, title, message) => {
+        showGlobalToast({ variant, title, message });
+    };
+
+    // Confirmation Modal State
+    const [confirmationModal, setConfirmationModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmText: 'Confirmar',
+        confirmColor: 'btn-new-red' // Class name from buttons.css
+    });
+
+    const closeConfirmation = () => {
+        setConfirmationModal(prev => ({ ...prev, isOpen: false }));
+    };
+
+    const confirmAction = (title, message, onConfirmAction, confirmText = 'Confirmar', confirmColor = 'btn-new-red') => {
+        setConfirmationModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: async () => {
+                await onConfirmAction();
+                closeConfirmation();
+            },
+            confirmText,
+            confirmColor
+        });
+    };
+
+    // Options
+    const roleOptions = [
+        { value: 'MEMBER', label: 'MEMBER' },
+        { value: 'MANAGER', label: 'MANAGER' },
+        { value: 'ADMIN', label: 'ADMIN' },
+        { value: 'MASTER', label: 'MASTER' }
+    ];
+
+    const planOptions = [
+        { value: 'BASIC', label: 'BASIC' },
+        { value: 'STANDARD', label: 'STANDARD' },
+        { value: 'PREMIUM', label: 'PREMIUM' }
+    ];
+
+    const paymentMethodOptions = [
+        { value: 'PIX', label: 'PIX' },
+        { value: 'BOLETO', label: 'Boleto' },
+        { value: 'CREDIT_CARD', label: 'Cartão de Crédito' },
+        { value: 'TRANSFER', label: 'Transferência' },
+        { value: 'CASH', label: 'Dinheiro' }
+    ];
+
+    const statusOptions = [
+        { value: 'pending', label: 'Pendente' },
+        { value: 'paid', label: 'Pago' },
+        { value: 'cancelled', label: 'Cancelado' }
+    ];
 
     useEffect(() => {
         loadUser();
@@ -57,12 +127,15 @@ const UserDetails = () => {
                 email: response.data.email || '',
                 role: response.data.role || 'MEMBER',
                 cellphone: response.data.cellphone || '',
-                cpfCnpj: response.data.cpfCnpj || ''
+                cpfCnpj: response.data.cpfCnpj || '',
+                permiteIA: response.data.permiteIA || false,
+                permiteRelatorioPeriodico: response.data.permiteRelatorioPeriodico || false,
+                plano: response.data.plano || 'BASIC'
             });
         } catch (error) {
             console.error('Erro ao carregar usuário:', error);
-            alert('Erro ao carregar usuário');
-            navigate('/admin/gestao');
+            showToast('danger', 'Erro', 'Erro ao carregar usuário');
+            setTimeout(() => navigate('/admin/gestao'), 2000); // Give time to read toast
         } finally {
             setLoading(false);
         }
@@ -73,11 +146,11 @@ const UserDetails = () => {
         try {
             setSaving(true);
             await api.put(`/private/users/${id}`, formData);
-            alert('Perfil atualizado com sucesso!');
+            showToast('success', 'Sucesso', 'Perfil atualizado com sucesso!');
             loadUser(); // Recarrega para garantir
         } catch (error) {
             console.error('Erro ao atualizar:', error);
-            alert('Erro ao atualizar perfil');
+            showToast('danger', 'Erro', 'Erro ao atualizar perfil');
         } finally {
             setSaving(false);
         }
@@ -86,20 +159,20 @@ const UserDetails = () => {
     const handleChangePassword = async (e) => {
         e.preventDefault();
         if (passwordData.password !== passwordData.confirmPassword) {
-            return alert('As senhas não coincidem');
+            return showToast('warning', 'Atenção', 'As senhas não coincidem');
         }
         if (passwordData.password.length < 6) {
-            return alert('Senha muito curta (min 6 caracteres)');
+            return showToast('warning', 'Atenção', 'Senha muito curta (min 6 caracteres)');
         }
 
         try {
             setSaving(true);
             await api.put(`/private/users/${id}/password`, { password: passwordData.password });
-            alert('Senha alterada com sucesso!');
+            showToast('success', 'Sucesso', 'Senha alterada com sucesso!');
             setPasswordData({ password: '', confirmPassword: '' });
         } catch (error) {
             console.error('Erro ao mudar senha:', error);
-            alert('Erro ao mudar senha. Verifique se você tem permissão.');
+            showToast('danger', 'Erro', 'Erro ao mudar senha. Verifique se você tem permissão.');
         } finally {
             setSaving(false);
         }
@@ -111,21 +184,27 @@ const UserDetails = () => {
             loadUser();
         } catch (error) {
             console.error('Erro ao alterar status:', error);
-            alert('Erro ao alterar status');
+            showToast('danger', 'Erro', 'Erro ao alterar status');
         }
     };
 
-    const handleDeleteUser = async () => {
-        if (!confirm('Tem certeza que deseja EXCLUIR este usuário? Esta ação é irreversível.')) return;
-
-        try {
-            await api.delete(`/private/users/${id}`);
-            alert('Usuário excluído.');
-            navigate('/admin/gestao');
-        } catch (error) {
-            console.error('Erro ao excluir:', error);
-            alert('Erro ao excluir usuário');
-        }
+    const handleDeleteUser = () => {
+        confirmAction(
+            'Excluir Usuário',
+            'Tem certeza que deseja EXCLUIR este usuário? Esta ação é irreversível e removerá todos os dados associados.',
+            async () => {
+                try {
+                    await api.delete(`/private/users/${id}`);
+                    showToast('success', 'Sucesso', 'Usuário excluído.');
+                    setTimeout(() => navigate('/admin/gestao'), 2000);
+                } catch (error) {
+                    console.error('Erro ao excluir:', error);
+                    showToast('danger', 'Erro', 'Erro ao excluir usuário');
+                }
+            },
+            'Excluir',
+            'btn-new-red'
+        );
     };
 
     // Financial States
@@ -172,41 +251,54 @@ const UserDetails = () => {
             } else {
                 await api.post(`/private/users/${id}/invoices`, data);
             }
-            alert(isReceiveMode ? 'Pagamento recebido!' : 'Fatura salva com sucesso!');
+            showToast('success', 'Sucesso', isReceiveMode ? 'Pagamento recebido!' : 'Fatura salva com sucesso!');
             setShowInvoiceModal(false);
             loadInvoices();
         } catch (error) {
             console.error('Erro ao salvar fatura:', error);
-            alert('Erro ao salvar fatura');
+            showToast('danger', 'Erro', 'Erro ao salvar fatura');
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDeleteInvoice = async (invoiceId) => {
-        if (!confirm('Excluir fatura?')) return;
-        try {
-            await api.delete(`/private/users/${id}/invoices/${invoiceId}`);
-            loadInvoices();
-        } catch (error) {
-            console.error('Erro ao excluir fatura:', error);
-            alert('Erro: ' + error.response?.data?.error);
-        }
+    const handleDeleteInvoice = (invoiceId) => {
+        confirmAction(
+            'Excluir Fatura',
+            'Deseja realmente excluir esta fatura?',
+            async () => {
+                try {
+                    await api.delete(`/private/users/${id}/invoices/${invoiceId}`);
+                    loadInvoices();
+                    showToast('success', 'Sucesso', 'Fatura excluída.');
+                } catch (error) {
+                    console.error('Erro ao excluir fatura:', error);
+                    showToast('danger', 'Erro', 'Erro: ' + (error.response?.data?.error || 'Erro desconhecido'));
+                }
+            }
+        );
     };
 
-    const handleReverseInvoice = async (invoiceId) => {
-        if (!confirm('Deseja realmente estornar este pagamento? O status voltará para Pendente.')) return;
-        try {
-            await api.put(`/private/users/${id}/invoices/${invoiceId}`, {
-                status: 'pending',
-                paymentDate: null // Backend handles this logic via strict typing usually, ensure backend clears it
-            });
-            alert('Estorno realizado.');
-            loadInvoices();
-        } catch (error) {
-            console.error('Erro ao estornar:', error);
-            alert('Erro ao estornar fatura');
-        }
+    const handleReverseInvoice = (invoiceId) => {
+        confirmAction(
+            'Estornar Pagamento',
+            'Deseja realmente estornar este pagamento? O status voltará para Pendente.',
+            async () => {
+                try {
+                    await api.put(`/private/users/${id}/invoices/${invoiceId}`, {
+                        status: 'pending',
+                        paymentDate: null
+                    });
+                    showToast('success', 'Sucesso', 'Estorno realizado.');
+                    loadInvoices();
+                } catch (error) {
+                    console.error('Erro ao estornar:', error);
+                    showToast('danger', 'Erro', 'Erro ao estornar fatura');
+                }
+            },
+            'Estornar',
+            'btn-new-orange'
+        );
     };
 
     const openInvoiceModal = (invoice = null) => {
@@ -254,17 +346,27 @@ const UserDetails = () => {
 
     const handleToggleOrgActive = async (orgId, currentStatus) => {
         try {
+            await api.put(`/private/organizations/${orgId}`, { active: !currentStatus });
+            loadUser();
+        } catch (error) {
+            console.error('Erro ao alterar status da organização:', error);
+            showToast('danger', 'Erro', 'Erro ao alterar status da organização');
+        }
+    };
+
+    const handleToggleOrgExternalReports = async (orgId, currentStatus) => {
+        try {
             // Optimistic update
             setUser(prev => ({
                 ...prev,
-                organizations: prev.organizations.map(o => o.id === orgId ? { ...o, active: !currentStatus } : o)
+                organizations: prev.organizations.map(o => o.id === orgId ? { ...o, useExternalReports: !currentStatus } : o)
             }));
 
-            await api.put(`/private/organizations/${orgId}`, { active: !currentStatus });
+            await api.put(`/private/organizations/${orgId}`, { useExternalReports: !currentStatus });
         } catch (error) {
-            console.error('Erro ao alterar status da organização:', error);
-            alert('Erro ao alterar status da organização');
-            loadUser(); // Revert
+            console.error('Erro ao alterar status de relatórios:', error);
+            showToast('danger', 'Erro', 'Erro ao alterar configuração de relatórios');
+            loadUser();
         }
     };
 
@@ -317,23 +419,7 @@ const UserDetails = () => {
                 </div>
             </div>
 
-            <div style={styles.statsGrid}>
-                <div style={styles.statCard}>
-                    <Briefcase size={20} color={currentTheme.primary} style={{ marginBottom: 8 }} />
-                    <div style={styles.statValue}>{user._count?.organizations || 0}</div>
-                    <div style={styles.statLabel}>Organizações</div>
-                </div>
-                <div style={styles.statCard}>
-                    <Users size={20} color={currentTheme.primary} style={{ marginBottom: 8 }} />
-                    <div style={styles.statValue}>{user._count?.teamMembers || 0}</div>
-                    <div style={styles.statLabel}>Times</div>
-                </div>
-                <div style={styles.statCard}>
-                    <MessageSquare size={20} color={currentTheme.primary} style={{ marginBottom: 8 }} />
-                    <div style={styles.statValue}>{user._count?.chats || 0}</div>
-                    <div style={styles.statLabel}>Chats</div>
-                </div>
-            </div>
+
 
             <div style={styles.grid}>
                 <div style={styles.card}>
@@ -385,11 +471,21 @@ const UserDetails = () => {
                                                 <h4 style={{ margin: 0, fontSize: '16px' }}>{org.nomeFantasia || org.razaoSocial}</h4>
                                                 <span style={{ fontSize: '12px', color: currentTheme.secondaryText }}>{org.razaoSocial}</span>
                                             </div>
-                                            <div style={{ marginLeft: 'auto' }}>
-                                                <ToggleSwitch
-                                                    checked={org.active}
-                                                    onChange={() => handleToggleOrgActive(org.id, org.active)}
-                                                />
+                                            <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{ fontSize: '11px', color: currentTheme.secondaryText }}>Ativo</span>
+                                                    <ToggleSwitch
+                                                        checked={org.active}
+                                                        onChange={() => handleToggleOrgActive(org.id, org.active)}
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{ fontSize: '11px', color: currentTheme.secondaryText }}>Rel. Externos</span>
+                                                    <ToggleSwitch
+                                                        checked={!!org.useExternalReports}
+                                                        onChange={() => handleToggleOrgExternalReports(org.id, org.useExternalReports)}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
 
@@ -572,11 +668,12 @@ const UserDetails = () => {
                                     {/* Simple Status edit only */}
                                     <div style={styles.inputGroup}>
                                         <label style={styles.label}>Status</label>
-                                        <select style={styles.input} value={invoiceForm.status} onChange={e => setInvoiceForm({ ...invoiceForm, status: e.target.value })}>
-                                            <option value="pending">Pendente</option>
-                                            <option value="paid">Pago</option>
-                                            <option value="cancelled">Cancelado</option>
-                                        </select>
+                                        <Select
+                                            value={invoiceForm.status}
+                                            onChange={e => setInvoiceForm({ ...invoiceForm, status: e.target.value })}
+                                            options={statusOptions}
+                                            placeholder="Selecione o status"
+                                        />
                                     </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
@@ -632,13 +729,12 @@ const UserDetails = () => {
                                         </div>
                                         <div style={styles.inputGroup}>
                                             <label style={styles.label}>Forma de Pagto</label>
-                                            <select style={styles.input} value={invoiceForm.paymentMethod} onChange={e => setInvoiceForm({ ...invoiceForm, paymentMethod: e.target.value })}>
-                                                <option value="PIX">PIX</option>
-                                                <option value="BOLETO">Boleto</option>
-                                                <option value="CREDIT_CARD">Cartão de Crédito</option>
-                                                <option value="TRANSFER">Transferência</option>
-                                                <option value="CASH">Dinheiro</option>
-                                            </select>
+                                            <Select
+                                                value={invoiceForm.paymentMethod}
+                                                onChange={e => setInvoiceForm({ ...invoiceForm, paymentMethod: e.target.value })}
+                                                options={paymentMethodOptions}
+                                                placeholder="Selecione a forma de pagamento"
+                                            />
                                         </div>
                                     </div>
 
@@ -668,12 +764,12 @@ const UserDetails = () => {
                             </div>
                             <div style={styles.inputGroup}>
                                 <label style={styles.label}>Cargo (Role)</label>
-                                <select style={styles.input} value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
-                                    <option value="MEMBER">MEMBER</option>
-                                    <option value="MANAGER">MANAGER</option>
-                                    <option value="ADMIN">ADMIN</option>
-                                    <option value="MASTER">MASTER</option>
-                                </select>
+                                <Select
+                                    value={formData.role}
+                                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                    options={roleOptions}
+                                    placeholder="Selecione o cargo"
+                                />
                             </div>
                             <div style={styles.inputGroup}>
                                 <label style={styles.label}>Telefone</label>
@@ -682,6 +778,40 @@ const UserDetails = () => {
                             <div style={styles.inputGroup}>
                                 <label style={styles.label}>CPF/CNPJ</label>
                                 <input style={styles.input} value={formData.cpfCnpj} onChange={e => setFormData({ ...formData, cpfCnpj: e.target.value })} />
+                            </div>
+
+                            <div style={styles.inputGroup}>
+                                <label style={styles.label}>Plano do Usuário</label>
+                                <Select
+                                    value={formData.plano}
+                                    onChange={(e) => setFormData({ ...formData, plano: e.target.value })}
+                                    options={planOptions}
+                                    placeholder="Selecione o plano"
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '24px', marginBottom: '24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <ToggleSwitch
+                                        checked={formData.permiteIA}
+                                        onChange={() => setFormData({ ...formData, permiteIA: !formData.permiteIA })}
+                                    />
+                                    <div>
+                                        <div style={{ fontWeight: '500', fontSize: '14px' }}>Permitir IA</div>
+                                        <div style={{ fontSize: '12px', color: currentTheme.secondaryText }}>Acesso a recursos de Inteligência Artificial</div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <ToggleSwitch
+                                        checked={formData.permiteRelatorioPeriodico}
+                                        onChange={() => setFormData({ ...formData, permiteRelatorioPeriodico: !formData.permiteRelatorioPeriodico })}
+                                    />
+                                    <div>
+                                        <div style={{ fontWeight: '500', fontSize: '14px' }}>Relatórios Periódicos</div>
+                                        <div style={{ fontSize: '12px', color: currentTheme.secondaryText }}>Permite gerar relatórios externos</div>
+                                    </div>
+                                </div>
                             </div>
                             <button type="submit" style={styles.btnPromise()} disabled={saving}>
                                 {saving ? 'Salvando...' : 'Salvar Alterações'}
@@ -746,6 +876,42 @@ const UserDetails = () => {
                     )}
                 </div>
             </div>
+            {/* Confirmation Modal */}
+            <Modal
+                isOpen={confirmationModal.isOpen}
+                onClose={closeConfirmation}
+                title={confirmationModal.title}
+                size="sm"
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', paddingTop: '10px' }}>
+                    <div style={{
+                        width: '60px', height: '60px', borderRadius: '50%',
+                        backgroundColor: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        marginBottom: '16px', color: '#dc2626'
+                    }}>
+                        <AlertTriangle size={32} />
+                    </div>
+                    <p style={{ marginBottom: '24px', fontSize: '15px', lineHeight: '1.5', color: currentTheme.textSecondary }}>
+                        {confirmationModal.message}
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+                        <button
+                            onClick={closeConfirmation}
+                            className="btn-base"
+                            style={{ flex: 1, backgroundColor: '#e5e7eb', color: '#374151' }}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={confirmationModal.onConfirm}
+                            className={`btn-base ${confirmationModal.confirmColor}`}
+                            style={{ flex: 1 }}
+                        >
+                            {confirmationModal.confirmText}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

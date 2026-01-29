@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { CheckCircle, AlertTriangle, XCircle, Info } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, Info, X } from 'lucide-react';
 
 type ToastVariant = 'success' | 'warning' | 'danger' | 'info';
 
@@ -10,6 +10,7 @@ interface AlertToastProps {
   message?: string;
   durationMs?: number; // default 5000
   onClose: () => void;
+  style?: React.CSSProperties;
 }
 
 // Usando componentes Lucide React em vez de strings de ícones
@@ -20,7 +21,7 @@ const variantStyles: Record<ToastVariant, { barColor: string; borderColor: strin
   info: { barColor: '#0f172a', borderColor: '#e2e8f0', Icon: Info }, // slate-900, slate-200
 };
 
-export default function AlertToast({ open, variant = 'info', title, message, durationMs = 5000, onClose }: AlertToastProps) {
+export default function AlertToast({ open, variant = 'info', title, message, durationMs = 5000, onClose, style }: AlertToastProps) {
   useEffect(() => {
     if (!open) return;
     const t = setTimeout(onClose, durationMs);
@@ -48,15 +49,18 @@ export default function AlertToast({ open, variant = 'info', title, message, dur
   const safeVariant = variantStyles[variant] ? variant : 'info';
   const { barColor, borderColor, Icon } = variantStyles[safeVariant];
 
+  const defaultStyle: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 1000,
+    top: '16px',
+    right: '16px',
+    width: '92vw',
+    maxWidth: '380px',
+    ...style
+  };
+
   return (
-    <div style={{
-      position: 'fixed',
-      zIndex: 1000,
-      top: '16px',
-      right: '16px',
-      width: '92vw',
-      maxWidth: '380px',
-    }}>
+    <div style={defaultStyle}>
       <div style={{
         position: 'relative',
         borderRadius: '12px',
@@ -79,24 +83,25 @@ export default function AlertToast({ open, variant = 'info', title, message, dur
           animationFillMode: 'forwards',
           width: '100%'
         }} />
-        
+
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
           {/* Icon (Lucide React) */}
-          <Icon size={24} color={barColor} />
-          
-          <div>
-            <h4 style={{ 
-              fontSize: '14px', 
-              fontWeight: 900, 
+          <Icon size={24} color={barColor} className="flex-shrink-0" />
+
+          <div style={{ flex: 1 }}>
+            <h4 style={{
+              fontSize: '14px',
+              fontWeight: 900,
               color: '#0f172a', // slate-900
               margin: 0,
-              lineHeight: '1.2'
+              lineHeight: '1.2',
+              paddingRight: '16px' // Space for close button
             }}>
               {title}
             </h4>
             {message && (
-              <p style={{ 
-                marginTop: '4px', 
+              <p style={{
+                marginTop: '4px',
                 color: '#475569', // slate-600
                 fontSize: '14px',
                 margin: '4px 0 0 0'
@@ -105,6 +110,22 @@ export default function AlertToast({ open, variant = 'info', title, message, dur
               </p>
             )}
           </div>
+
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              color: '#94a3b8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <X size={18} />
+          </button>
         </div>
       </div>
     </div>

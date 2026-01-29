@@ -487,7 +487,7 @@ const SalesFunnel = () => {
                                                     title="Abrir Chat"
                                                 >
                                                     <MessageCircle size={10} />
-                                                    Chat
+                                                     Chat
                                                 </button>
                                             </div>
 

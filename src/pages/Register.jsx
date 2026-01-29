@@ -5,6 +5,7 @@ import { apiService } from '../services/api';
 import Logo1 from '../assets/img/sendd1.png';
 import Logo2 from '../assets/img/sendd2.png';
 import '../styles/buttons.css'
+import { CirclePlus } from 'lucide-react';
 
 function Register() {
   const [formData, setFormData] = useState({
@@ -148,6 +149,7 @@ function Register() {
             margin: '0 0 0.5rem 0'
           }}>
             Criar Conta
+           
           </h1>
           <p style={{
             color: currentTheme.textSecondary,
@@ -382,13 +384,17 @@ function Register() {
           <div style={{ textAlign: 'center' }}>
             <button
             // largura maxima ao maximo da div
+            
+            className='btn-base btn-new'
             style={{ maxWidth: '100%' }}
             
             type="submit"
               disabled={isLoading}
-              className='btn-base btn-new'
+              
             >
               {isLoading ? 'Criando conta...' : 'Criar Conta'}
+            
+            <CirclePlus size={20} />
             </button>
           </div>
 

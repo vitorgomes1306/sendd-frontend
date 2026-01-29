@@ -2768,10 +2768,10 @@ const Chat = () => {
 
           {startChatTab === 'manual' ? (
             <div style={{ padding: '20px 0' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: currentTheme.textPrimary }}>WhatsApp com DDD (somente números)</label>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: currentTheme.textPrimary }}>WhatsApp com DDD (Sem o nono dígito)</label>
               <input
                 type="text"
-                placeholder="Ex: 85999999999"
+                placeholder="Ex: 8599009900"
                 value={newChatNumber}
                 onChange={(e) => setNewChatNumber(e.target.value.replace(/\D/g, ''))}
                 style={{

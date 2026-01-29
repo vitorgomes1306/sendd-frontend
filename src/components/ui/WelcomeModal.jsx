@@ -135,9 +135,9 @@ const WelcomeModal = ({ onClose }) => {
                             className="btn-base btn-new-orange"
                             style={{
                                 display: 'flex',
-                                alignItems: 'center',      // 🔹 centraliza verticalmente
-                                justifyContent: 'center',  // 🔹 centraliza horizontalmente
-                                gap: '8px'                 // 🔹 espaço entre ícone e texto
+                                alignItems: 'center',      
+                                justifyContent: 'center',  
+                                gap: '8px'                 
                             }}
                         >
                             <MessageCircleQuestionMark size={16} />
@@ -150,9 +150,9 @@ const WelcomeModal = ({ onClose }) => {
                             style={{
 
                                 display: 'flex',
-                                alignItems: 'center',      // 🔹 centraliza verticalmente
-                                justifyContent: 'center',  // 🔹 centraliza horizontalmente
-                                gap: '8px'                 // 🔹 espaço entre ícone e texto
+                                alignItems: 'center',      
+                                justifyContent: 'center',  
+                                gap: '8px'                 
                             }}
                         >
                             <CirclePlay size={16} />
