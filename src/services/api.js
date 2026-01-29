@@ -191,7 +191,7 @@ export const apiService = {
   getUsers: (params) => api.get(getConfig().API_ENDPOINTS.USERS, { params }),
   getUser: (id) => api.get(`${getConfig().API_ENDPOINTS.USERS}/${id}`),
   syncIntegration: (id) => api.post(`/private/integrations/${id}/sync`),
-  updateUser: (id, data) => api.put(`${getConfig().API_ENDPOINTS.UPDATE_USER}/${id}`, data),
+  updateUser: (id, data) => api.put(`${getConfig().API_ENDPOINTS.USERS}/${id}`, data),
   deleteUser: (id) => api.delete(`${getConfig().API_ENDPOINTS.USERS}/${id}`),
 
   // Admin - Stats
