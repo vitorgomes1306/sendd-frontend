@@ -48,17 +48,22 @@ const PublicInvoice = () => {
             if (dataParam) {
                 try {
                     const decoded = JSON.parse(atob(dataParam));
-                    // Handle both old full structure (fallback) and new minimal structure
                     const pixCode = decoded.p || decoded.pix?.data?.response?.qrCopyPaste;
+                    const digitableLine = decoded.digitableLine || decoded.barCode || decoded.b;
+                    const pdfLink = decoded.pdfLink || decoded.link || decoded.l;
 
                     setInvoice({
-                        value: decoded.v || decoded.reais,
-                        clientName: decoded.n || decoded.customer?.nome || 'Cliente',
-                        clientDoc: decoded.d || decoded.customer?.cpf_cnpj || '---',
+                        value: decoded.value || decoded.v || decoded.reais,
+                        clientName: decoded.clientName || decoded.n || decoded.customer?.nome || 'Cliente',
+                        clientDoc: decoded.clientDoc || decoded.d || decoded.customer?.cpf_cnpj || '---',
                         pixCode: pixCode,
-                        description: 'Fatura ISP Flash',
-                        dueDate: new Date().toISOString(),
-                        status: 'PENDING'
+                        digitableLine: digitableLine,
+                        barCode: digitableLine, // Often same
+                        pdfLink: pdfLink,
+                        description: decoded.description || 'Fatura ISP Flash',
+                        dueDate: decoded.dueDate || new Date().toISOString(),
+                        status: 'PENDING',
+                        organization: decoded.organization || null
                     });
 
                     // Generate QR Code locally if not provided in URL
