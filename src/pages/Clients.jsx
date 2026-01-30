@@ -10,6 +10,13 @@ import '../styles/buttons.css';
 
 import { lookupCep } from '../utils/cep';
 import InternationalPhoneInput from '../components/ui/InternationalPhoneInput';
+import Select from '../components/ui/Select';
+
+const statusOptions = [
+  { value: 'all', label: 'Todos os Status' },
+  { value: 'active', label: 'Apenas Ativos' },
+  { value: 'inactive', label: 'Apenas Inativos' }
+];
 
 const Clients = () => {
 
@@ -26,19 +33,22 @@ const Clients = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // all, active, inactive
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalClients, setTotalClients] = useState(0);
-  const [activeClients, setActiveClients] = useState(0);
-  const [inactiveClients, setInactiveClients] = useState(0);
+  // Stats now come from backend
+  const [stats, setStats] = useState({ total: 0, active: 0, inactive: 0 });
+
+  const [selectedIds, setSelectedIds] = useState([]);
+
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedClient, setSelectedClient] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [clientToDelete, setClientToDelete] = useState(null);
   const [formData, setFormData] = useState({
-
-
     name: '',
     type: 'PF',
     cpfCnpj: '',
@@ -58,11 +68,9 @@ const Clients = () => {
 
   useEffect(() => {
     loadClients();
-  }, [currentPage, searchTerm]);
-
-  useEffect(() => {
-    updateStats();
-  }, [clients]);
+    // Clear selection on page change or search or filter
+    setSelectedIds([]);
+  }, [currentPage, searchTerm, statusFilter]);
 
   const loadClients = async () => {
     try {
@@ -70,20 +78,29 @@ const Clients = () => {
       const params = {
         page: currentPage,
         limit: itemsPerPage,
-        search: searchTerm
+        search: searchTerm,
+        status: statusFilter !== 'all' ? statusFilter : undefined
       };
 
       const response = await apiService.getClients(params);
 
-      // Ajustando para a estrutura de resposta do backend
       if (response.data && response.data.data) {
         setClients(response.data.data);
         setTotalPages(response.data.pagination?.pages || 1);
         setTotalClients(response.data.pagination?.total || 0);
+
+        // Update Stats from Backend (or fallback defaults if missing)
+        if (response.data.stats) {
+          setStats(response.data.stats);
+        } else {
+          // Fallback: This shouldn't happen with new backend
+          setStats({ total: response.data.pagination.total, active: 0, inactive: 0 });
+        }
       } else {
         setClients([]);
         setTotalPages(1);
         setTotalClients(0);
+        setStats({ total: 0, active: 0, inactive: 0 });
       }
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
@@ -94,13 +111,39 @@ const Clients = () => {
     }
   };
 
-  const updateStats = () => {
-    const active = clients.filter(client => client.active !== false).length;
-    const inactive = clients.filter(client => client.active === false).length;
-    setActiveClients(active);
-    setInactiveClients(inactive);
+  // --- SELECTION LOGIC ---
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = clients.map(c => c.id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
   };
 
+  const handleSelectRow = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(sid => sid !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Tem certeza que deseja excluir ${selectedIds.length} clientes selecionados?`)) return;
+
+    try {
+      await apiService.batchDeleteClients(selectedIds);
+      setSuccess(`${selectedIds.length} clientes excluídos com sucesso!`);
+      setSelectedIds([]);
+      loadClients();
+    } catch (error) {
+      console.error("Bulk Delete Error", error);
+      setError("Erro ao excluir clientes.");
+    }
+  };
+
+  // ... (Address, Validations helpers unchanged) ...
   const fetchAddressByCep = async (cep) => {
     // Remove formatação
     const cleanCep = cep.replace(/\D/g, '');
@@ -473,6 +516,17 @@ const Clients = () => {
         </div>
 
         <div style={styles.headerActions}>
+          {activeTab === 'clientes' && selectedIds.length > 0 && (
+            <button
+              className="btn-base"
+              onClick={handleBulkDelete}
+              style={{ backgroundColor: '#ef4444', color: 'white', marginRight: '10px' }}
+            >
+              <Trash2 size={20} />
+              Excluir ({selectedIds.length})
+            </button>
+          )}
+
           <div style={styles.searchContainer}>
             <div style={styles.searchInputContainer}>
               <Search size={20} style={styles.searchIcon} />
@@ -482,6 +536,16 @@ const Clients = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 style={styles.searchInput}
+              />
+            </div>
+            {/* Filter Dropdown */}
+            {/* Filter Dropdown */}
+            <div style={{ minWidth: '200px' }}>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={statusOptions}
+                placeholder="Filtrar por Status"
               />
             </div>
           </div>
@@ -520,33 +584,60 @@ const Clients = () => {
         <>
           {/* Estatísticas */}
           <div style={styles.statsContainer}>
-            <div style={{ ...styles.statCard, borderLeft: `4px solid ${currentTheme.primary || '#3b82f6'}` }}>
+            <div
+              onClick={() => setStatusFilter('all')}
+              style={{
+                ...styles.statCard,
+                borderLeft: `4px solid ${currentTheme.primary || '#3b82f6'}`,
+                cursor: 'pointer',
+                opacity: statusFilter === 'all' ? 1 : 0.6,
+                transform: statusFilter === 'all' ? 'scale(1.02)' : 'scale(1)',
+                transition: 'all 0.2s'
+              }}>
               <div style={styles.statsIcon}>
                 <Users size={24} />
               </div>
               <div>
                 <p style={styles.statLabel}>Total de Clientes</p>
-                <p style={styles.statNumber}>{totalClients}</p>
+                <p style={styles.statNumber}>{stats.total}</p>
               </div>
             </div>
 
-            <div style={{ ...styles.statCard, borderLeft: `4px solid #10b981` }}>
+            <div
+              onClick={() => setStatusFilter('active')}
+              style={{
+                ...styles.statCard,
+                borderLeft: `4px solid #10b981`,
+                cursor: 'pointer',
+                opacity: statusFilter === 'active' ? 1 : 0.6,
+                transform: statusFilter === 'active' ? 'scale(1.02)' : 'scale(1)',
+                transition: 'all 0.2s'
+              }}>
               <div style={{ ...styles.statsIcon, backgroundColor: '#10b98120', color: '#10b981' }}>
                 <Building size={24} />
               </div>
               <div>
                 <p style={styles.statLabel}>Ativos</p>
-                <p style={styles.statNumber}>{activeClients}</p>
+                <p style={styles.statNumber}>{stats.active}</p>
               </div>
             </div>
 
-            <div style={{ ...styles.statCard, borderLeft: `4px solid #f59e0b` }}>
+            <div
+              onClick={() => setStatusFilter('inactive')}
+              style={{
+                ...styles.statCard,
+                borderLeft: `4px solid #f59e0b`,
+                cursor: 'pointer',
+                opacity: statusFilter === 'inactive' ? 1 : 0.6,
+                transform: statusFilter === 'inactive' ? 'scale(1.02)' : 'scale(1)',
+                transition: 'all 0.2s'
+              }}>
               <div style={{ ...styles.statsIcon, backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
                 <User size={24} />
               </div>
               <div>
                 <p style={styles.statLabel}>Inativos/Suspensos/Bloqueados</p>
-                <p style={styles.statNumber}>{inactiveClients}</p>
+                <p style={styles.statNumber}>{stats.inactive}</p>
               </div>
             </div>
           </div>
@@ -572,6 +663,13 @@ const Clients = () => {
                 <table style={styles.table}>
                   <thead>
                     <tr>
+                      <th style={{ width: '40px', padding: '12px' }}>
+                        <input
+                          type="checkbox"
+                          onChange={handleSelectAll}
+                          checked={clients.length > 0 && selectedIds.length === clients.length}
+                        />
+                      </th>
                       <th style={styles.th}>Nome</th>
                       <th style={styles.th}>Tipo</th>
                       <th style={styles.th}>CPF/CNPJ</th>
@@ -584,6 +682,13 @@ const Clients = () => {
                   <tbody>
                     {filteredClients.map((client) => (
                       <tr key={client.id} style={styles.tableRow}>
+                        <td style={{ textAlign: 'center', padding: '12px' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(client.id)}
+                            onChange={() => handleSelectRow(client.id)}
+                          />
+                        </td>
                         <td style={styles.td}>{client.name}</td>
                         <td style={styles.td}>
                           <span style={{
@@ -1122,13 +1227,17 @@ const getStyles = (theme) => ({
 
   searchContainer: {
     flex: 1,
-    minWidth: '300px'
+    minWidth: '300px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
   },
 
   searchInputContainer: {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
+    flex: 1,
     maxWidth: '400px'
   },
 
@@ -1153,6 +1262,8 @@ const getStyles = (theme) => ({
       color: theme.textSecondary
     }
   },
+
+
 
   tableContainer: {
     backgroundColor: theme.cardBackground,

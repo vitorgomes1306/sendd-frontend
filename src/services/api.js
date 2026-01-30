@@ -116,6 +116,7 @@ export const apiService = {
   createClient: (data) => api.post('/private/clients', data),
   updateClient: (id, data) => api.put(`/private/clients/${id}`, data),
   deleteClient: (id) => api.delete(`/private/clients/${id}`),
+  batchDeleteClients: (ids) => api.post('/private/clients/batch-delete', { ids }),
   toggleClientActive: (id) => api.patch(`/private/clients/${id}/toggle-active`),
   addClientContract: (id, data) => api.post(`/private/clients/${id}/contracts`, data),
   deleteClientContract: (id, contractId) => api.delete(`/private/clients/${id}/contracts/${contractId}`),
