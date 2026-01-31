@@ -463,6 +463,15 @@ const Chat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Auto-resize input
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      const newHeight = Math.min(inputRef.current.scrollHeight, 160); // Max a 4x a altura
+      inputRef.current.style.height = `${newHeight}px`;
+    }
+  }, [messageInput]);
+
   // Scroll Logic
   useLayoutEffect(() => {
     if (prevScrollHeightRef.current && chatContainerRef.current) {
@@ -1346,14 +1355,11 @@ const Chat = () => {
   // Slash Handlers
   const handleSlashChange = (e) => {
     const value = e.target.value;
-    setMessageInput(value); // Original behavior
+    setMessageInput(value);
 
-    const cursorPosition = e.target.selectionStart;
-    const textBeforeCursor = value.substring(0, cursorPosition);
-    const slashIndex = textBeforeCursor.lastIndexOf('/');
-
-    if (slashIndex !== -1 && slashIndex < cursorPosition) {
-      const query = textBeforeCursor.substring(slashIndex + 1);
+    // Only trigger if message starts with '/'
+    if (value.startsWith('/')) {
+      const query = value.slice(1);
       if (!query.includes(' ') && !query.includes('\n')) {
         setSlashMenu({
           isOpen: true,
@@ -1370,10 +1376,16 @@ const Chat = () => {
   };
 
   const handleSlashKeyDown = (e) => {
-    // Original key press logic for sending message
-    if (e.key === 'Enter' && !e.shiftKey && !slashMenu.isOpen) {
+    // 1. Enter send message (if not Shift, not Ctrl, not Menu Open)
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !slashMenu.isOpen) {
       e.preventDefault();
       handleSendMessage(e);
+      return;
+    }
+
+    // 2. Ctrl+Enter or Shift+Enter -> Insert Newline (Already default for textarea, but ensuring logic)
+    if ((e.key === 'Enter' && (e.ctrlKey || e.shiftKey)) && !slashMenu.isOpen) {
+      // Allow default behavior (which inserts newline in textarea)
       return;
     }
 
@@ -2504,7 +2516,7 @@ const Chat = () => {
                         </div>
                       )}
 
-                      <div style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ display: 'flex', width: '100%', alignItems: 'flex-end', gap: '10px' }}>
                         {isRecording ? (
                           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ff4d4f' }}>
@@ -2603,15 +2615,23 @@ const Chat = () => {
                               </div>
                             )}
 
-                            <input
+                            <textarea
                               ref={inputRef}
-                              type="text"
                               placeholder="Digite uma mensagem (Use / para mensagens prontas)"
                               className="chat-input"
                               value={messageInput}
                               onChange={handleSlashChange}
                               onKeyDown={handleSlashKeyDown}
                               onFocus={handleInputFocus}
+                              rows={1}
+                              style={{
+                                resize: 'none',
+                                minHeight: '40px',
+                                maxHeight: '160px',
+                                paddingTop: '10px',
+                                paddingBottom: '10px', // Balanced padding
+                                overflowY: 'auto'
+                              }}
                             />
 
                             <button className="action-button" onClick={startRecording} title="Gravar Áudio">
